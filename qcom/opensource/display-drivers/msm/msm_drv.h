@@ -1209,6 +1209,15 @@ struct msm_fence_error_client_entry {
 	struct list_head list;
 };
 
+struct msm_idle {
+	u32 timeout_ms;
+	u32 encoder_mask;
+	u32 active_mask;
+
+	spinlock_t lock;
+	struct delayed_work work;
+};
+
 struct msm_drm_private {
 
 	struct drm_device *dev;
@@ -1344,6 +1353,8 @@ struct msm_drm_private {
 
 	/* list of component registered for notification */
 	struct blocking_notifier_head component_notifier_list;
+
+	struct msm_idle idle;
 };
 
 /* get struct msm_kms * from drm_device * */
@@ -1634,6 +1645,7 @@ static inline void __exit msm_mdp_unregister(void)
 }
 #endif /* CONFIG_DRM_MSM_MDP5 */
 
+void msm_idle_set_state(struct drm_encoder *encoder, bool active);
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 int msm_debugfs_late_init(struct drm_device *dev);
 int msm_rd_debugfs_init(struct drm_minor *minor);
