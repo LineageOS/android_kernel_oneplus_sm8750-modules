@@ -14,12 +14,12 @@
 
 #include "ufs-oplus-dbg.h"
 #ifdef CONFIG_OPLUS_QCOM_UFS_DRIVER
-#include "../../../../../ufs/host/ufs-qcom.h"
+#include "../../../../../../../sm8750/drivers/ufs/host/ufs-qcom.h"
 #endif /* CONFIG_OPLUS_QCOM_UFS_DRIVER */
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0))
 #ifdef CONFIG_OPLUS_QCOM_UFS_DRIVER
-#include "../../../../../ufs/core/ufshcd-priv.h"
+#include "../../../../../../../sm8750/drivers/ufs/core/ufshcd-priv.h"
 #endif /* CONFIG_OPLUS_QCOM_UFS_DRIVER */
 #include "ufshcd-priv.h"
 #else
@@ -1211,5 +1211,3 @@ module_exit(ufs_oplus_dbg_exit)
 MODULE_DESCRIPTION("Oplus UFS Debugging Facility");
 MODULE_AUTHOR("oplus");
 MODULE_LICENSE("GPL v2");
-
-
