@@ -462,9 +462,9 @@ static int get_ram_num(struct aw_haptic *aw_haptic)
 		return -EPERM;
 	}
 	mutex_lock(&aw_haptic->lock);
+	aw_haptic->func->play_stop(aw_haptic);
 	/* RAMINIT Enable */
 	aw_haptic->func->ram_init(aw_haptic, true);
-	aw_haptic->func->play_stop(aw_haptic);
 #ifdef OPLUS_FEATURE_CHG_BASIC
 	aw_haptic->func->set_ram_addr(aw_haptic);
 #else
@@ -622,6 +622,26 @@ static int ram_update(struct aw_haptic *aw_haptic)
 				    haptic_ram_name_205[index]);
 			return request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
 				haptic_ram_name_205[index], aw_haptic->dev, GFP_KERNEL,
+				aw_haptic, ram_load);
+		}
+	} else if (aw_haptic->device_id == DEVICE_ID_0816) {
+		if (aw_haptic->vibration_style == HAPTIC_VIBRATION_CRISP_STYLE) {
+			aw_dev_info("%s:130Hz haptic bin name  %s\n", __func__,
+				    haptic_ram_name_130[index]);
+			return request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
+				haptic_ram_name_130[index], aw_haptic->dev, GFP_KERNEL,
+				aw_haptic, ram_load);
+		} else if (aw_haptic->vibration_style == HAPTIC_VIBRATION_SOFT_STYLE) {
+			aw_dev_info("%s:130Hz haptic bin name  %s\n", __func__,
+				    haptic_ram_name_130_soft[index]);
+			return request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
+				haptic_ram_name_130_soft[index], aw_haptic->dev, GFP_KERNEL,
+				aw_haptic, ram_load);
+		} else {
+			aw_dev_info("%s:130Hz haptic bin name  %s\n", __func__,
+				    haptic_ram_name_130[index]);
+			return request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
+				haptic_ram_name_130[index], aw_haptic->dev, GFP_KERNEL,
 				aw_haptic, ram_load);
 		}
 	} else {
@@ -1023,7 +1043,8 @@ static void vibrator_work_routine(struct work_struct *work)
 			    || aw_haptic->device_id == DEVICE_ID_0833
 			    || aw_haptic->device_id == DEVICE_ID_0815
 			    || aw_haptic->device_id == DEVICE_ID_0809
-			    || aw_haptic->device_id == DEVICE_ID_1419) {
+			    || aw_haptic->device_id == DEVICE_ID_1419
+			    || aw_haptic->device_id == DEVICE_ID_0816) {
 				ram_vbat_comp(aw_haptic, false);
 				aw_haptic->func->bst_mode_config(aw_haptic, AW_BST_BOOST_MODE);
 			} else {
@@ -1423,7 +1444,8 @@ static ssize_t aw_activate_store(void *chip_data, const char *buf, uint32_t val)
 		if (aw_haptic->device_id == DEVICE_ID_0815 ||
 		    aw_haptic->device_id == DEVICE_ID_0809 ||
 		    aw_haptic->device_id == DEVICE_ID_81538 ||
-			aw_haptic->device_id == DEVICE_ID_1419)
+		    aw_haptic->device_id == DEVICE_ID_1419 ||
+		    aw_haptic->device_id == DEVICE_ID_0816)
 			aw_haptic->func->set_gain(aw_haptic, aw_haptic->gain);
 		//aw_haptic->func->set_repeat_seq(aw_haptic,
 		//				HAPTIC_WAVEFORM_INDEX_SINE_CYCLE);
@@ -1544,9 +1566,8 @@ static ssize_t aw_vmax_store(void *chip_data, const char *buf, uint32_t val)
 
 	mutex_lock(&aw_haptic->lock);
 #ifdef OPLUS_FEATURE_CHG_BASIC
-	if (val <= HAPTIC_MAX_GAIN) {
-		aw_haptic->gain = (val * HAPTIC_RAM_VBAT_COMP_GAIN) / HAPTIC_MAX_GAIN;
-	} else if (val <= HAPTIC_MAX_LEVEL) {
+	if (val <= HAPTIC_MAX_LEVEL) {
+		val = val / 100 * 100;
 		aw_haptic->func->convert_level_to_vmax(aw_haptic, &map, val);
 		aw_haptic->vmax = map.vmax;
 		aw_haptic->gain = map.gain;

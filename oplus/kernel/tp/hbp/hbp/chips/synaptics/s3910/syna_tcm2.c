@@ -71,8 +71,8 @@ static int syna_get_frame(void *priv, u8 *raw, u32 rawsize)
 	syna_tcm_buf_lock(&tcm_hcd->tcm_dev->external_buf);
 	memset(raw, 0x0, rawsize);
 	total_size = tcm_hcd->tcm_dev->external_buf.data_length + header_size;
-	hbp_debug("Length of queuing data = %d\n", tcm_hcd->tcm_dev->external_buf.data_length);
-	hbp_debug("Total size = %d, raw size = %d\n", total_size, rawsize);
+	//hbp_debug("Length of queuing data = %d\n", tcm_hcd->tcm_dev->external_buf.data_length);
+	//hbp_debug("Total size = %d, raw size = %d\n", total_size, rawsize);
 	raw[0] = tcm_hcd->status_report_code;
 	raw[1] = (unsigned char)tcm_hcd->tcm_dev->external_buf.data_length;
 	raw[2] = (unsigned char)(tcm_hcd->tcm_dev->external_buf.data_length >> 8);
@@ -143,6 +143,7 @@ static int syna_get_irq_reason(void *priv, enum irq_reason *reason)
 			&tcm_hcd->event_data);
 	if (retval < 0) {
 		hbp_err("Fail to get event data\n");
+		hbp_dev_ctrl_hw_reset();
 		return -1;
 	}
 
@@ -157,9 +158,51 @@ static int syna_get_irq_reason(void *priv, enum irq_reason *reason)
 			|| tcm_hcd->status_report_code == REPORT_RAW
 			|| tcm_hcd->status_report_code == REPORT_DEBUG) {
 		*reason = IRQ_REASON_RESPONSE;
+	} else if (tcm_hcd->status_report_code == REPORT_DIFF) {
+		*reason = IRQ_REASON_GESTURE_DIFF;
 	}
 
 	return 0;
+}
+
+static void finger_err_handle(struct tcm_touch_data_blob *touch_data)
+{
+	hbp_info("TP_FP_ERROR_REPORT:fingerprint error type:[%*ph]\n", 6, touch_data->extra_gesture_info);
+	switch (touch_data->extra_gesture_info[0]) {
+	case FINGERPRINT_AREA_NOT_MATCH:
+		/* if (tcm->health_monitor_support) {
+			tp_healthinfo_report(&tcm->monitor_data, HEALTH_REPORT, "fingerprint_area_not_match_count");
+		} */
+		hbp_info("TP_FP_ERROR_REPORT:area size: 0x%x\n", touch_data->extra_gesture_info[2]);
+		hbp_info("TP_FP_ERROR_REPORT:FINGERPRINT_AREA_NOT_MATCH\n");
+		break;
+	case ANOTHER_FINGER_ON_NON_FP_ZONE:
+		/*if (tcm->health_monitor_support) {
+			tp_healthinfo_report(&tcm->monitor_data, HEALTH_REPORT, "another_finger_on_non-fingerprint_zone_count");
+		} */
+		hbp_info("TP_FP_ERROR_REPORT:x:0x%x,y:0x%x\n",
+			(touch_data->extra_gesture_info[3] << 8) + touch_data->extra_gesture_info[2],
+			(touch_data->extra_gesture_info[5] << 8) + touch_data->extra_gesture_info[4]);
+		hbp_info("TP_FP_ERROR_REPORT:ANOTHER_FINGER_ON_NON_FP_ZONE\n");
+		break;
+	case FINGERPRINT_DOWN_BEFORE_FP_ENABLE:
+		/* if (tcm->health_monitor_support) {
+			tp_healthinfo_report(&tcm->monitor_data, HEALTH_REPORT, "fingerprint_down_before_fp_enable_count");
+		} */
+		hbp_info("TP_FP_ERROR_REPORT:down time: 0x%x\n", touch_data->extra_gesture_info[2]);
+		hbp_info("TP_FP_ERROR_REPORT:FINGERPRINT_DOWN_BEFORE_FP_ENABLE\n");
+		break;
+	case FINGERPRINT_OUT_MOVE_IN:
+		/* if (tcm->health_monitor_support) {
+			tp_healthinfo_report(&tcm->monitor_data, HEALTH_REPORT, "fingerprint_out_move_in_count");
+		} */
+		hbp_info("TP_FP_ERROR_REPORT:FINGERPRINT_OUT_MOVE_IN\n");
+		break;
+	default:
+		hbp_info("TP_FP_ERROR_REPORT:unknown fingerprint error type: 0x%x\n", touch_data->extra_gesture_info[0]);
+		break;
+	}
+	return;
 }
 
 static int syna_get_gesture(void *priv, struct gesture_info *gesture)
@@ -187,7 +230,6 @@ static int syna_get_gesture(void *priv, struct gesture_info *gesture)
 	// 	hbp_err("Fail to get event data\n");
 	// 	return -1;
 	// }
-
 	retval = syna_tcm_parse_touch_report(tcm_hcd->tcm_dev,
 				tcm_hcd->event_data.buf,
 				tcm_hcd->event_data.data_length,
@@ -207,7 +249,6 @@ static int syna_get_gesture(void *priv, struct gesture_info *gesture)
 	case DTAP_DETECT:
 		gesture->type = DoubleTap;
 		break;
-
 	case CIRCLE_DETECT:
 		gesture->type = Circle;
 
@@ -217,9 +258,7 @@ static int syna_get_gesture(void *priv, struct gesture_info *gesture)
 		} else if (touch_data->extra_gesture_info[2] == 0x20) {
 			gesture->clockwise = 0;
 		}
-
 		break;
-
 	case SWIPE_DETECT:
 		if (touch_data->extra_gesture_info[4] == 0x41) { /*x+*/
 			gesture->type = Left2RightSwip;
@@ -245,17 +284,13 @@ static int syna_get_gesture(void *priv, struct gesture_info *gesture)
 		} else if (touch_data->extra_gesture_info[4] == 0x88) { /*2y-*/
 			gesture->type = DoubleSwip;
 		}
-
 		break;
-
 	case M_UNICODE:
 		gesture->type = Mgestrue;
 		break;
-
 	case W_UNICODE:
 		gesture->type = Wgestrue;
 		break;
-
 	case VEE_DETECT:
 		if (touch_data->extra_gesture_info[2] == 0x02) { /*up*/
 			gesture->type = UpVee;
@@ -269,20 +304,21 @@ static int syna_get_gesture(void *priv, struct gesture_info *gesture)
 		} else if (touch_data->extra_gesture_info[2] == 0x04) { /*right*/
 			gesture->type = RightVee;
 		}
-
 		break;
-
 	case TOUCH_HOLD_DOWN:
 		gesture->type = FingerprintDown;
 		break;
-
+	case TOUCH_HOLD_EARLY_DOWN:
+		gesture->type = FingerprintEarlyDown;
+		break;
 	case TOUCH_HOLD_UP:
 		gesture->type = FingerprintUp;
 		break;
-
+	case FINGERPRINT_ERR_REPORT:
+		finger_err_handle(touch_data);
+		break;
 	case HEART_DETECT:
 		gesture->type = Heart;
-
 		if (touch_data->extra_gesture_info[2] == 0x10) {
 			gesture->clockwise = 1;
 
@@ -290,24 +326,22 @@ static int syna_get_gesture(void *priv, struct gesture_info *gesture)
 			gesture->clockwise = 0;
 		}
 		break;
-
 	case STAP_DETECT:
 		gesture->type = SingleTap;
 		break;
-
 	case S_UNICODE:
 		gesture->type = SGesture;
 		break;
-
 	case TRIANGLE_DETECT:
 	default:
 		hbp_err("not support\n");
 		break;
 	}
-
-	if (gesture->type == FingerprintDown || gesture->type == FingerprintUp) {
+	if (gesture->type == FingerprintDown || gesture->type == FingerprintEarlyDown
+		|| gesture->type == FingerprintUp) {
 		gesture->Point_start.x = touch_data->data_point[0] | (touch_data->data_point[1] << 8);
 		gesture->Point_start.y = touch_data->data_point[2] | (touch_data->data_point[3] << 8);
+		gesture->tp_firmware_time = touch_data->data_point[5];
 		gesture->Point_end.x = TOUCH_HOLD_AREA_RATE_DEFAULT;
 		gesture->Point_end.y = 0;
 	} else if (gesture->type == SingleTap || gesture->type == DoubleTap) {
@@ -341,7 +375,6 @@ static int syna_get_gesture(void *priv, struct gesture_info *gesture)
 		gesture->Point_4th.y    = (touch_data->data_point[22] |
 					   (touch_data->data_point[23] << 8)) / 10 * INPUT_RESOLUTION_NUM;
 	}
-
 	hbp_info("lpwg:0x%x, type:%d, clockwise: %d, points: (%d, %d)(%d, %d)(%d, %d)(%d, %d)(%d, %d)(%d, %d)\n",
 		 touch_data->gesture_id, gesture->type, gesture->clockwise, \
 		 gesture->Point_start.x, gesture->Point_start.y, \
@@ -350,7 +383,6 @@ static int syna_get_gesture(void *priv, struct gesture_info *gesture)
 		 gesture->Point_2nd.x, gesture->Point_2nd.y, \
 		 gesture->Point_3rd.x, gesture->Point_3rd.y, \
 		 gesture->Point_4th.x, gesture->Point_4th.y);
-
 	return 0;
 }
 
@@ -467,6 +499,7 @@ static int syna_dev_probe(struct platform_device *pdev)
 	struct tcm_dev *tcm_dev = NULL;
 	struct chip_info info;
 	int ret = 0;
+	int retry = 0;
 
 	//TODO:need get from dts
 	if (!match_from_cmdline(&pdev->dev, &info)) {
@@ -513,7 +546,14 @@ static int syna_dev_probe(struct platform_device *pdev)
 		goto err_exit;
 	}
 
-	syna_tcm_detect_device(tcm_hcd->tcm_dev);
+	for (retry = 0; retry < 5; retry++) {
+		ret = syna_tcm_detect_device(tcm_hcd->tcm_dev);
+		if (ret >= 0) {
+			break;
+		}
+		hbp_err("Detect device fail, retry = %d.\n", retry);
+		hbp_dev_ctrl_hw_reset();
+	}
 
 	tcm_hcd->probe_done = true;
 	hbp_info("probe end\n");
@@ -523,10 +563,17 @@ err_exit:
 	return ret;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+static void syna_dev_remove(struct platform_device *pdev)
+#else
 static int syna_dev_remove(struct platform_device *pdev)
+#endif
 {
-	//syna_cdev_remove_sysfs(struct syna_tcm *ptcm);
+	hbp_info("syna_dev_remove.\n");
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+#else
 	return 0;
+#endif
 }
 
 static struct of_device_id syna_tcm2_of_match[] = {

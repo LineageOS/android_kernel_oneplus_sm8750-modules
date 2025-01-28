@@ -1930,6 +1930,7 @@ static unsigned int nvt_trigger_reason(void *chip_data, int gesture_enable, int 
 	int32_t ret = -1;
 	uint32_t irq_reason = IRQ_IGNORE;
 	uint8_t *point_data = NULL;
+	static int point_num = 0;
 
 	if (IS_ERR_OR_NULL(chip_info) || IS_ERR_OR_NULL(chip_info->point_data)) {
 		TPD_INFO("%s:NULL chip_info", __func__);
@@ -1943,6 +1944,8 @@ static unsigned int nvt_trigger_reason(void *chip_data, int gesture_enable, int 
 		TPD_INFO("CTP_SPI_READ failed.(%d)\n", ret);
 		return IRQ_IGNORE;
 	}
+
+	TPD_SPECIFIC_PRINT(point_num, "down_thd: %d, up_thd: %d, maxdiff: %d\n", point_data[61], point_data[62], (point_data[63] + (point_data[64] << 8)));
 
 	/*some kind of protect mechanism, after WDT firware redownload and try to save tp*/
 	ret = nvt_wdt_fw_recovery(chip_info, point_data);
@@ -2389,7 +2392,7 @@ static void nvt_health_report(void *chip_data, struct monitor_data *mon_data)
 
 	if (buf[0] & 0x10) {
 		if (!chip_info->base_negative_finger) {
-			TPD_DETAIL("Health register(0x01):base_negative_finger");
+			TPD_INFO("Health register(0x01):base_negative_finger");
 			tp_healthinfo_report(mon_data, HEALTH_REPORT, "base_negative_finger");
 			chip_info->base_negative_finger = true;
 		}
@@ -2399,7 +2402,7 @@ static void nvt_health_report(void *chip_data, struct monitor_data *mon_data)
 
 	if (buf[0] & 0x40) {
 		if (!chip_info->base_rxabs_baseline) {
-			TPD_DETAIL("Health register(0x01):base_rxabs_baseline");
+			TPD_INFO("Health register(0x01):base_rxabs_baseline");
 			tp_healthinfo_report(mon_data, HEALTH_REPORT, "base_rxabs_baseline");
 			chip_info->base_rxabs_baseline = true;
 		}
@@ -2409,7 +2412,7 @@ static void nvt_health_report(void *chip_data, struct monitor_data *mon_data)
 
 	if (buf[0] & 0x80) {
 		if (!chip_info->baseline_err) {
-			TPD_DETAIL("Health register(0x01):nt_baseline_err");
+			TPD_INFO("Health register(0x01):nt_baseline_err");
 			tp_healthinfo_report(mon_data, HEALTH_REPORT, "nt_baseline_err");
 			chip_info->baseline_err = true;
 		}
@@ -2419,7 +2422,7 @@ static void nvt_health_report(void *chip_data, struct monitor_data *mon_data)
 
 	if (buf[1] & 0x01) {
 		if (!chip_info->er_prevent) {
-			TPD_DETAIL("Health register(0x01):grip er prevent");
+			TPD_INFO("Health register(0x01):grip er prevent");
 			tp_healthinfo_report(mon_data, HEALTH_REPORT, HEALTH_REPORT_GRIP);
 			chip_info->er_prevent = true;
 		}
@@ -2429,7 +2432,7 @@ static void nvt_health_report(void *chip_data, struct monitor_data *mon_data)
 
 	if (buf[1] & 0x02) {
 		if (!chip_info->poor_gnd) {
-			TPD_DETAIL("Health register(0x01):poor gnd report");
+			TPD_INFO("Health register(0x01):poor gnd report");
 			tp_healthinfo_report(mon_data, HEALTH_REPORT, "nt_tp_poor_gnd");
 			chip_info->poor_gnd = true;
 		}
@@ -2439,7 +2442,7 @@ static void nvt_health_report(void *chip_data, struct monitor_data *mon_data)
 
 	if (buf[1] & 0x04) {
 		if (!chip_info->water_mode) {
-			TPD_DETAIL("Health register(0x01):water_mode");
+			TPD_INFO("Health register(0x01):water_mode");
 			tp_healthinfo_report(mon_data, HEALTH_REPORT, HEALTH_REPORT_SHIELD_WATER);
 			chip_info->water_mode = true;
 		}
@@ -2449,7 +2452,7 @@ static void nvt_health_report(void *chip_data, struct monitor_data *mon_data)
 
 	if (buf[1] & 0x08) {
 		if (!chip_info->bending_mode) {
-			TPD_DETAIL("Health register(0x01):bending_mode");
+			TPD_INFO("Health register(0x01):bending_mode");
 			tp_healthinfo_report(mon_data, HEALTH_REPORT, "nt_tp_bending_mode");
 			chip_info->bending_mode = true;
 		}
@@ -2459,7 +2462,7 @@ static void nvt_health_report(void *chip_data, struct monitor_data *mon_data)
 
 	if (buf[1] & 0x10) {
 		if (!chip_info->shield_palm) {
-			TPD_DETAIL("Health register(0x01):shield_palm");
+			TPD_INFO("Health register(0x01):shield_palm");
 			tp_healthinfo_report(mon_data, HEALTH_REPORT, HEALTH_REPORT_SHIELD_PALM);
 			chip_info->shield_palm = true;
 		}
@@ -2469,7 +2472,7 @@ static void nvt_health_report(void *chip_data, struct monitor_data *mon_data)
 
 	if (buf[1] & 0x20) {
 		if (!chip_info->health_esd) {
-			TPD_DETAIL("Health register(0x01):health_esd");
+			TPD_INFO("Health register(0x01):health_esd");
 			tp_healthinfo_report(mon_data, HEALTH_REPORT, "nt_tp_health_esd");
 			chip_info->health_esd = true;
 		}
@@ -2479,7 +2482,7 @@ static void nvt_health_report(void *chip_data, struct monitor_data *mon_data)
 
 	if (buf[2] & 0x08) {
 		if (!chip_info->frequent_frequency_hopping) {
-			TPD_DETAIL("Health register(0x01):frequent_frequency_hopping");
+			TPD_INFO("Health register(0x01):frequent_frequency_hopping");
 			tp_healthinfo_report(mon_data, HEALTH_REPORT, "nt_tp_frequent_frequency_hopping");
 			chip_info->frequent_frequency_hopping = true;
 		}
@@ -2489,7 +2492,7 @@ static void nvt_health_report(void *chip_data, struct monitor_data *mon_data)
 
 	if (buf[2] & 0x10) {
 		if (!chip_info->frequency_hopping) {
-			TPD_DETAIL("Health register(0x01):frequency_hopping");
+			TPD_INFO("Health register(0x01):frequency_hopping");
 			tp_healthinfo_report(mon_data, HEALTH_REPORT, HEALTH_REPORT_HOPPING);
 			chip_info->frequency_hopping = true;
 		}
@@ -3269,6 +3272,32 @@ static int nvt_enable_pen_mode(struct chip_data_nt36536 *chip_info, bool enable)
 	} else {
 		ret = nvt_extend_cmd_store(chip_info, EVENTBUFFER_EXT_CMD, EVENTBUFFER_EXT_PEN_MODE_OFF);
 	}
+
+	return ret;
+}
+
+static int nvt_set_pen_jitter_para(void *chip_data, int level)
+{
+	int8_t ret = -1;
+	struct chip_data_nt36536 *chip_info = (struct chip_data_nt36536 *)chip_data;
+
+	TPD_DEBUG("%s:level = %d, chip_info->is_sleep_writed = %d\n", __func__,
+			level, chip_info->is_sleep_writed);
+
+	ret = nvt_extend_cmd2_store(chip_info, EVENTBUFFER_EXT_CMD, EVENTBUFFER_EXT_PEN_JITTER_LEVEL, level);
+
+	return ret;
+}
+
+static int nvt_notify_keyboard_open(void *chip_data)
+{
+	int8_t ret = -1;
+	struct chip_data_nt36536 *chip_info = (struct chip_data_nt36536 *)chip_data;
+
+	TPD_INFO("%s:hall_status = %d, suspend_state = %d, is_hall_near_resume = %d\n", __func__,
+			chip_info->ts->hall_status, chip_info->ts->suspend_state, chip_info->ts->is_hall_near_resume);
+
+	ret = nvt_extend_cmd_store(chip_info, EVENTBUFFER_EXT_CMD, EVENTBUFFER_EXT_NOTIFY_KEYBOARD_OPEN);
 
 	return ret;
 }
@@ -5618,6 +5647,8 @@ static struct oplus_touchpanel_operations nvt_ops = {
 	.sensitive_lv_set         = nvt_sensitive_lv_set,
 	.set_gesture_state        = nvt_set_gesture_state,
 	.notify_pencil_type       = nvt_notify_pencil_type,
+	.pen_sensitive_lv_set     = nvt_set_pen_jitter_para,
+	.notify_keyboard_open     = nvt_notify_keyboard_open,
 	.ftm_process_extra        = NULL,
 };
 
@@ -6866,6 +6897,19 @@ static int nvt_fw_pen_noise_test(struct seq_file *s, void *chip_data,
 	int32_t *pen_ring_x_noise_n_data = NULL;
 	int32_t *pen_ring_y_noise_p_data = NULL;
 	int32_t *pen_ring_y_noise_n_data = NULL;
+	/* add for pen noise p2p */
+	uint8_t *pen_tip_x_noise_p2p_record = NULL;
+	uint8_t *pen_tip_y_noise_p2p_record = NULL;
+	uint8_t *pen_ring_x_noise_p2p_record = NULL;
+	uint8_t *pen_ring_y_noise_p2p_record = NULL;
+	int8_t pen_tip_x_noise_p2p_result = -NVT_MP_UNKNOWN;
+	int8_t pen_tip_y_noise_p2p_result = -NVT_MP_UNKNOWN;
+	int8_t pen_ring_x_noise_p2p_result = -NVT_MP_UNKNOWN;
+	int8_t pen_ring_y_noise_p2p_result = -NVT_MP_UNKNOWN;
+	int32_t *pen_tip_x_noise_p2p_data = NULL;
+	int32_t *pen_tip_y_noise_p2p_data = NULL;
+	int32_t *pen_ring_x_noise_p2p_data = NULL;
+	int32_t *pen_ring_y_noise_p2p_data = NULL;
 	int i = 0;
 	int j = 0;
 	int buf_len = 0;
@@ -6988,6 +7032,55 @@ static int nvt_fw_pen_noise_test(struct seq_file *s, void *chip_data,
 
 		if (!pen_ring_y_noise_n_record) {
 			TPD_INFO("pen_ring_y_noise_n_record malloc memory failed!\n");
+			goto MEM_ALLOC_ERR;
+		}
+
+		/* add for pen noise p2p */
+		pen_tip_x_noise_p2p_data = tp_devm_kzalloc(&chip_info->s_client->dev, buf_len, GFP_KERNEL);
+		if (!pen_tip_x_noise_p2p_data) {
+			TPD_INFO("pen_tip_x_noise_p2p_data malloc memory failed!\n");
+			goto MEM_ALLOC_ERR;
+		}
+
+		pen_tip_y_noise_p2p_data = tp_devm_kzalloc(&chip_info->s_client->dev, buf_len, GFP_KERNEL);
+		if (!pen_tip_y_noise_p2p_data) {
+			TPD_INFO("pen_tip_y_noise_p2p_data malloc memory failed!\n");
+			goto MEM_ALLOC_ERR;
+		}
+
+		pen_ring_x_noise_p2p_data = tp_devm_kzalloc(&chip_info->s_client->dev, buf_len, GFP_KERNEL);
+		if (!pen_ring_x_noise_p2p_data) {
+			TPD_INFO("pen_ring_x_noise_p2p_data malloc memory failed!\n");
+			goto MEM_ALLOC_ERR;
+		}
+
+		pen_ring_y_noise_p2p_data = tp_devm_kzalloc(&chip_info->s_client->dev, buf_len, GFP_KERNEL);
+		if (!pen_ring_y_noise_p2p_data) {
+			TPD_INFO("pen_ring_y_noise_p2p_data malloc memory failed!\n");
+			goto MEM_ALLOC_ERR;
+		}
+
+		pen_tip_x_noise_p2p_record = tp_devm_kzalloc(&chip_info->s_client->dev, record_len, GFP_KERNEL);
+		if (!pen_tip_x_noise_p2p_record) {
+			TPD_INFO("pen_tip_x_noise_p2p_record malloc memory failed!\n");
+			goto MEM_ALLOC_ERR;
+		}
+
+		pen_tip_y_noise_p2p_record = tp_devm_kzalloc(&chip_info->s_client->dev, record_len, GFP_KERNEL);
+		if (!pen_tip_y_noise_p2p_record) {
+			TPD_INFO("pen_tip_y_noise_p2p_record malloc memory failed!\n");
+			goto MEM_ALLOC_ERR;
+		}
+
+		pen_ring_x_noise_p2p_record = tp_devm_kzalloc(&chip_info->s_client->dev, record_len, GFP_KERNEL);
+		if (!pen_ring_x_noise_p2p_record) {
+			TPD_INFO("pen_ring_x_noise_p2p_record malloc memory failed!\n");
+			goto MEM_ALLOC_ERR;
+		}
+
+		pen_ring_y_noise_p2p_record = tp_devm_kzalloc(&chip_info->s_client->dev, record_len, GFP_KERNEL);
+		if (!pen_ring_y_noise_p2p_record) {
+			TPD_INFO("pen_ring_y_noise_p2p_record malloc memory failed!\n");
 			goto MEM_ALLOC_ERR;
 		}
 
@@ -7307,6 +7400,138 @@ static int nvt_fw_pen_noise_test(struct seq_file *s, void *chip_data,
 		TPD_INFO("pen_ring_y_noise_data_p || pen_ring_y_noise_data_n is NULL\n");
 	}
 
+	/* add for pen noise p2p check */
+	if (chip_info->p_nvt_autotest_offset->pen_tip_x_noise_data_p2p ||
+			chip_info->p_nvt_autotest_offset->pen_tip_y_noise_data_p2p ||
+			chip_info->p_nvt_autotest_offset->pen_ring_x_noise_data_p2p ||
+			chip_info->p_nvt_autotest_offset->pen_ring_y_noise_data_p2p) {
+		pen_tip_x_noise_p2p_result = NVT_MP_PASS;
+		pen_tip_y_noise_p2p_result = NVT_MP_PASS;
+		pen_ring_x_noise_p2p_result = NVT_MP_PASS;
+		pen_ring_y_noise_p2p_result = NVT_MP_PASS;
+
+		/* calculate */
+		for (j = 0; j < pen_rx_num; j++) {
+			for (i = 0; i < tx_num; i++) {
+				iArrayIndex = j * tx_num + i;
+				pen_tip_x_noise_p2p_data[iArrayIndex] = \
+					pen_tip_x_noise_p_data[iArrayIndex] - pen_tip_x_noise_n_data[iArrayIndex];
+				pen_tip_y_noise_p2p_data[iArrayIndex] = \
+					pen_tip_y_noise_p_data[iArrayIndex] - pen_tip_y_noise_n_data[iArrayIndex];
+				pen_ring_x_noise_p2p_data[iArrayIndex] = \
+					pen_ring_x_noise_p_data[iArrayIndex] - pen_ring_x_noise_n_data[iArrayIndex];
+				pen_ring_y_noise_p2p_data[iArrayIndex] = \
+					pen_ring_y_noise_p_data[iArrayIndex] - pen_ring_y_noise_n_data[iArrayIndex];
+			}
+		}
+
+		/* write test data to log */
+		memset(data_buf, 0, sizeof(data_buf));
+		snprintf(data_buf, 64, "%s\n", "[NVT PEN TIP X NOISE DATA P2P]");
+		tp_test_write(nvt_testdata->fp, nvt_testdata->length, data_buf,
+				strlen(data_buf), nvt_testdata->pos);
+		nvt_output_data(pen_tip_x_noise_p2p_data, chip_info, nvt_testdata,
+				tx_num, tx_num * pen_rx_num);
+
+		memset(data_buf, 0, sizeof(data_buf));
+		snprintf(data_buf, 64, "%s\n", "[NVT PEN TIP Y NOISE DATA P2P]");
+		tp_test_write(nvt_testdata->fp, nvt_testdata->length, data_buf,
+				strlen(data_buf), nvt_testdata->pos);
+		nvt_output_data(pen_tip_y_noise_p2p_data, chip_info, nvt_testdata,
+				pen_tx_num, pen_tx_num * rx_num);
+
+		memset(data_buf, 0, sizeof(data_buf));
+		snprintf(data_buf, 64, "%s\n", "[NVT PEN RING X NOISE DATA P2P]");
+		tp_test_write(nvt_testdata->fp, nvt_testdata->length, data_buf,
+				strlen(data_buf), nvt_testdata->pos);
+		nvt_output_data(pen_ring_x_noise_p2p_data, chip_info, nvt_testdata,
+				tx_num, tx_num * pen_rx_num);
+
+		memset(data_buf, 0, sizeof(data_buf));
+		snprintf(data_buf, 64, "%s\n", "[NVT PEN RING Y NOISE DATA P2P]");
+		tp_test_write(nvt_testdata->fp, nvt_testdata->length, data_buf,
+				strlen(data_buf), nvt_testdata->pos);
+		nvt_output_data(pen_ring_y_noise_p2p_data, chip_info, nvt_testdata,
+				pen_tx_num, pen_tx_num * rx_num);
+
+		/* check results */
+		for (j = 0; j < pen_rx_num; j++) {
+			for (i = 0; i < tx_num; i++) {
+				iArrayIndex = j * tx_num + i;
+
+				/* pen tip x noise */
+				if(pen_tip_x_noise_p2p_data[iArrayIndex] <
+						chip_info->p_nvt_autotest_offset->pen_tip_x_noise_data_p2p) {
+					pen_tip_x_noise_p2p_result = -NVT_MP_FAIL;
+					pen_tip_x_noise_p2p_record[iArrayIndex] = 1;
+					TPD_INFO("pen tip x noise p2p data failed at data[%d][%d] = %d [%d]\n",
+							i, j, pen_tip_x_noise_p2p_data[iArrayIndex],
+							chip_info->p_nvt_autotest_offset->pen_tip_x_noise_data_p2p);
+					if (!(*err_cnt)) {
+						seq_printf(s, "pen tip x noise p2p data failed at data[%d][%d] = %d [%d]\n",
+								i, j, pen_tip_x_noise_p2p_data[iArrayIndex],
+								chip_info->p_nvt_autotest_offset->pen_tip_x_noise_data_p2p);
+					}
+					(*err_cnt)++;
+				}
+
+				/* pen tip y noise */
+				if(pen_tip_y_noise_p2p_data[iArrayIndex] <
+						chip_info->p_nvt_autotest_offset->pen_tip_y_noise_data_p2p) {
+					pen_tip_y_noise_p2p_result = -NVT_MP_FAIL;
+					pen_tip_y_noise_p2p_record[iArrayIndex] = 1;
+					TPD_INFO("pen tip y noise p2p data failed at data[%d][%d] = %d [%d]\n",
+							i, j, pen_tip_y_noise_p2p_data[iArrayIndex],
+							chip_info->p_nvt_autotest_offset->pen_tip_y_noise_data_p2p);
+					if (!(*err_cnt)) {
+						seq_printf(s, "pen tip y noise p2p data failed at data[%d][%d] = %d [%d]\n",
+								i, j, pen_tip_y_noise_p2p_data[iArrayIndex],
+								chip_info->p_nvt_autotest_offset->pen_tip_y_noise_data_p2p);
+					}
+					(*err_cnt)++;
+				}
+
+				/* pen ring x noise */
+				if(pen_ring_x_noise_p2p_data[iArrayIndex] <
+						chip_info->p_nvt_autotest_offset->pen_ring_x_noise_data_p2p) {
+					pen_ring_x_noise_p2p_result = -NVT_MP_FAIL;
+					pen_ring_x_noise_p2p_record[iArrayIndex] = 1;
+					TPD_INFO("pen ring x noise p2p data failed at data[%d][%d] = %d [%d]\n",
+							i, j, pen_ring_x_noise_p2p_data[iArrayIndex],
+							chip_info->p_nvt_autotest_offset->pen_ring_x_noise_data_p2p);
+					if (!(*err_cnt)) {
+						seq_printf(s, "pen ring x noise p2p data failed at data[%d][%d] = %d [%d]\n",
+								i, j, pen_ring_x_noise_p2p_data[iArrayIndex],
+								chip_info->p_nvt_autotest_offset->pen_ring_x_noise_data_p2p);
+					}
+					(*err_cnt)++;
+				}
+
+				/* pen ring y noise */
+				if(pen_ring_y_noise_p2p_data[iArrayIndex] <
+						chip_info->p_nvt_autotest_offset->pen_ring_y_noise_data_p2p) {
+					pen_ring_y_noise_p2p_result = -NVT_MP_FAIL;
+					pen_ring_y_noise_p2p_record[iArrayIndex] = 1;
+					TPD_INFO("pen ring y noise p2p data failed at data[%d][%d] = %d [%d]\n",
+							i, j, pen_ring_y_noise_p2p_data[iArrayIndex],
+							chip_info->p_nvt_autotest_offset->pen_ring_y_noise_data_p2p);
+					if (!(*err_cnt)) {
+						seq_printf(s, "pen ring y noise p2p data failed at data[%d][%d] = %d [%d]\n",
+								i, j, pen_ring_y_noise_p2p_data[iArrayIndex],
+								chip_info->p_nvt_autotest_offset->pen_ring_y_noise_data_p2p);
+					}
+					(*err_cnt)++;
+				}
+			}
+		}
+	} else {
+		TPD_INFO("pen noise p2p criteria are all zero\n");
+		pen_tip_x_noise_p2p_result = NVT_MP_PASS;
+		pen_tip_y_noise_p2p_result = NVT_MP_PASS;
+		pen_ring_x_noise_p2p_result = NVT_MP_PASS;
+		pen_ring_y_noise_p2p_result = NVT_MP_PASS;
+	}
+
 	/*---Leave Test Mode---*/
 MEM_ALLOC_ERR:
 	tp_devm_kfree(&chip_info->s_client->dev, (void **)&pen_tip_x_noise_p_data, buf_len);
@@ -7327,10 +7552,23 @@ MEM_ALLOC_ERR:
 	tp_devm_kfree(&chip_info->s_client->dev, (void **)&pen_ring_y_noise_p_record, buf_len);
 	tp_devm_kfree(&chip_info->s_client->dev, (void **)&pen_ring_y_noise_n_record, buf_len);
 
+	/* add for pen noise p2p check */
+	tp_devm_kfree(&chip_info->s_client->dev, (void **)&pen_tip_x_noise_p2p_data, buf_len);
+	tp_devm_kfree(&chip_info->s_client->dev, (void **)&pen_tip_y_noise_p2p_data, buf_len);
+	tp_devm_kfree(&chip_info->s_client->dev, (void **)&pen_ring_x_noise_p2p_data, buf_len);
+	tp_devm_kfree(&chip_info->s_client->dev, (void **)&pen_ring_y_noise_p2p_data, buf_len);
+
+	tp_devm_kfree(&chip_info->s_client->dev, (void **)&pen_tip_x_noise_p2p_record, buf_len);
+	tp_devm_kfree(&chip_info->s_client->dev, (void **)&pen_tip_y_noise_p2p_record, buf_len);
+	tp_devm_kfree(&chip_info->s_client->dev, (void **)&pen_ring_x_noise_p2p_record, buf_len);
+	tp_devm_kfree(&chip_info->s_client->dev, (void **)&pen_ring_y_noise_p2p_record, buf_len);
+
 	return (pen_tip_x_noise_p_result + pen_tip_x_noise_n_result +
 		pen_tip_y_noise_p_result + pen_tip_y_noise_n_result +
 		pen_ring_x_noise_p_result + pen_ring_x_noise_n_result +
-		pen_ring_y_noise_p_result + pen_ring_y_noise_n_result);
+		pen_ring_y_noise_p_result + pen_ring_y_noise_n_result +
+		pen_tip_x_noise_p2p_result + pen_tip_y_noise_p2p_result +
+		pen_ring_x_noise_p2p_result + pen_ring_y_noise_p2p_result);
 }
 
 static int nvt_fw_noise_test(struct seq_file *s, void *chip_data,
@@ -8480,10 +8718,58 @@ static int nvt_autotest_preoperation(struct seq_file *s, void *chip_data,
 			case TYPE_PEN_Y_TIP       : NVT_LIMIT_LOADING(pen_tip_y_data)       ; break;
 			case TYPE_PEN_X_RING      : NVT_LIMIT_LOADING(pen_ring_x_data)      ; break;
 			case TYPE_PEN_Y_RING      : NVT_LIMIT_LOADING(pen_ring_y_data)      ; break;
-			case TYPE_PEN_X_TIP_NOISE : NVT_LIMIT_LOADING(pen_tip_x_noise_data) ; break;
-			case TYPE_PEN_Y_TIP_NOISE : NVT_LIMIT_LOADING(pen_tip_y_noise_data) ; break;
-			case TYPE_PEN_X_RING_NOISE: NVT_LIMIT_LOADING(pen_ring_x_noise_data); break;
-			case TYPE_PEN_Y_RING_NOISE: NVT_LIMIT_LOADING(pen_ring_y_noise_data); break;
+			case TYPE_PEN_X_TIP_NOISE :
+				NVT_LIMIT_LOADING(pen_tip_x_noise_data);
+				if (item_head->para_num) {
+					p_data32 = (int32_t *)(
+							ts->com_test_data.limit_fw->data + p_item_offset[m] +
+							sizeof(struct auto_test_item_header));
+					chip_info->p_nvt_autotest_offset->pen_tip_x_noise_data_p2p = p_data32[0];
+					TPD_INFO("pen_tip_x_noise_data_p2p = %d\n",
+							chip_info->p_nvt_autotest_offset->pen_tip_x_noise_data_p2p);
+				} else {
+					chip_info->p_nvt_autotest_offset->pen_tip_x_noise_data_p2p = 0;
+				}
+				break;
+			case TYPE_PEN_Y_TIP_NOISE :
+				NVT_LIMIT_LOADING(pen_tip_y_noise_data);
+				if (item_head->para_num) {
+					p_data32 = (int32_t *)(
+							ts->com_test_data.limit_fw->data + p_item_offset[m] +
+							sizeof(struct auto_test_item_header));
+					chip_info->p_nvt_autotest_offset->pen_tip_y_noise_data_p2p = p_data32[0];
+					TPD_INFO("pen_tip_y_noise_data_p2p = %d\n",
+							chip_info->p_nvt_autotest_offset->pen_tip_y_noise_data_p2p);
+				} else {
+					chip_info->p_nvt_autotest_offset->pen_tip_y_noise_data_p2p = 0;
+				}
+				break;
+			case TYPE_PEN_X_RING_NOISE:
+				NVT_LIMIT_LOADING(pen_ring_x_noise_data);
+				if (item_head->para_num) {
+					p_data32 = (int32_t *)(
+							ts->com_test_data.limit_fw->data + p_item_offset[m] +
+							sizeof(struct auto_test_item_header));
+					chip_info->p_nvt_autotest_offset->pen_ring_x_noise_data_p2p = p_data32[0];
+					TPD_INFO("pen_ring_x_noise_data_p2p = %d\n",
+							chip_info->p_nvt_autotest_offset->pen_ring_x_noise_data_p2p);
+				} else {
+					chip_info->p_nvt_autotest_offset->pen_ring_x_noise_data_p2p = 0;
+				}
+				break;
+			case TYPE_PEN_Y_RING_NOISE:
+				NVT_LIMIT_LOADING(pen_ring_y_noise_data);
+				if (item_head->para_num) {
+					p_data32 = (int32_t *)(
+							ts->com_test_data.limit_fw->data + p_item_offset[m] +
+							sizeof(struct auto_test_item_header));
+					chip_info->p_nvt_autotest_offset->pen_ring_y_noise_data_p2p = p_data32[0];
+					TPD_INFO("pen_ring_y_noise_data_p2p = %d\n",
+							chip_info->p_nvt_autotest_offset->pen_ring_y_noise_data_p2p);
+				} else {
+					chip_info->p_nvt_autotest_offset->pen_ring_y_noise_data_p2p = 0;
+				}
+				break;
 			default:
 				TPD_INFO("[%d] unknown pen item bit \n", item_head->item_bit);
 			break;
@@ -9002,15 +9288,18 @@ static int nvt_tp_probe(struct spi_device *client)
 	chip_info->is_pen_connected = &ts->is_pen_connected;
 
 	/*---prepare for spi parameter---*/
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	if (ts->s_client->master->flags & SPI_MASTER_HALF_DUPLEX) {
 		TPD_INFO("Full duplex not supported by master\n");
 		ret = -EIO;
 		goto err_spi_setup;
 	}
-
+#endif
 	ts->s_client->bits_per_word = 8;
 	ts->s_client->mode = SPI_MODE_0;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	ts->s_client->chip_select = 0; /*modify reg=0 for more tp vendor share same spi interface*/
+#endif
 
 #ifdef CONFIG_TOUCHPANEL_MTK_PLATFORM
 	/* new usage of MTK spi API */

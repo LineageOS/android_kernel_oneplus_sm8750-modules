@@ -37,12 +37,16 @@
 #define ADSP_CDSP_MAGIC 0x64736461
 #define CLOSE_MAGIC 0x0
 
+#define MAX_VERSION_OTA_LEN 50
+
 static char caller_function_name[KSYM_SYMBOL_LEN];
 static char pidbuffer[MAX_PIDBUFFER_LEN];
 static struct dump_info *dp_info;
 
 unsigned long entries[MAX_STACK_DEPTH];
 char *entries1[MAX_STACK_DEPTH];
+
+static char version_ota[MAX_VERSION_OTA_LEN] = {0};
 
 void dump_save_stack_trace(void)
 {
@@ -125,7 +129,7 @@ void save_dump_reason_to_smem(char *info, char *function_name)
 		pr_debug("\r%s: dump_reason : %s strl=%d function caused panic :%s strl1=%d \n", __func__,
 				dp_info->dump_reason, strlinfo, function_name, strlfun);
         dump_save_stack_trace();
-		save_dump_reason_to_device_info(dp_info->dump_reason);
+		write_device_info("dump reason is ", dp_info->dump_reason);
 		flag++;
 	}
 }
@@ -263,6 +267,57 @@ static void minidump_smem_init(void) {
 	pr_debug("minidump_smem_init minidump_mask = %d\n", smem_minidump_status -> minidump_mask);
 }
 
+static ssize_t version_ota_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
+{
+	return simple_read_from_buffer(buf, count, ppos, version_ota, strlen(version_ota));
+}
+
+static void save_version_ota_to_smem(void)
+{
+	int length;
+	size_t size = 0;
+
+	dp_info = qcom_smem_get(QCOM_SMEM_HOST_ANY, SMEM_DUMP_INFO, &size);
+	if (IS_ERR_OR_NULL(dp_info)) {
+		pr_debug("%s: get dp_info failure\n", __func__);
+		return;
+	}
+
+	length = sizeof("OTA Version: ") - 1 + strlen(version_ota) + sizeof("\r\n") - 1;
+	if (length < DUMP_REASON_SIZE) {
+		snprintf(dp_info->dump_reason, DUMP_REASON_SIZE, "OTA Version: %s\r\n", version_ota);
+	}
+}
+
+static ssize_t version_ota_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
+{
+	size_t len = min(count, (size_t)(MAX_VERSION_OTA_LEN - 1));
+	if (!len)
+		return -EINVAL;
+
+	if (copy_from_user(version_ota, buf, len))
+		return -EFAULT;
+
+	version_ota[len] = '\0';
+
+	write_device_info("OTA Version: ", version_ota);
+	save_version_ota_to_smem();
+
+	return count;
+}
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
+static const struct proc_ops version_ota_fops = {
+	.proc_read = version_ota_read,
+	.proc_write = version_ota_write,
+};
+#else
+static struct file_operations version_ota_fops = {
+	.read = version_ota_read,
+	.write = version_ota_write,
+};
+#endif
+
 static int __init dump_reason_init(void)
 {
 	struct proc_dir_entry *pde = NULL;
@@ -275,6 +330,12 @@ static int __init dump_reason_init(void)
 	if (IS_ERR_OR_NULL(pde)) {
 		pr_err("%s: minidump_rus register failed\n", __func__);
 	}
+
+	pde = proc_create("version_ota", 0666, NULL, &version_ota_fops);
+	if (IS_ERR_OR_NULL(pde)) {
+		pr_err("%s: version_ota register failed\n", __func__);
+	}
+
 	return 0;
 }
 

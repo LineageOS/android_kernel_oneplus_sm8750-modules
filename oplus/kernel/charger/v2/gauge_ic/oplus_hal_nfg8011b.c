@@ -15,7 +15,12 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
+#include <linux/version.h>
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+#include <linux/unaligned.h>
+#else
 #include <asm/unaligned.h>
+#endif
 #include <linux/uaccess.h>
 #include <linux/interrupt.h>
 #include <linux/of_gpio.h>
@@ -24,7 +29,6 @@
 #include <linux/iio/consumer.h>
 #include <linux/debugfs.h>
 #include <linux/kernel.h>
-#include <linux/version.h>
 #include <oplus_mms_gauge.h>
 #include "oplus_hal_bq27541.h"
 #include "oplus_hal_nfg8011b.h"
@@ -96,6 +100,48 @@ bool nfg8011b_sha256_hmac_authenticate(struct chip_bq27541 *chip)
 error:
 	mutex_unlock(&chip->bq28z610_alt_manufacturer_access);
 	return false;
+}
+
+int nfg8011b_get_car_c_parameters(struct chip_bq27541 *chip, int *car_c_ptr)
+{
+	int ret;
+	int data_check;
+	int try_count = NFG8011B_SUBCMD_TRY_COUNT;
+	u8 extend_data[14] = {0};
+	struct gauge_track_info_reg extend = { NFG8011B_SUBCMD_ALG_ADDR_1 , 12 };
+
+	if (!chip || !car_c_ptr)
+		return -EINVAL;
+
+	for (; try_count > 0; try_count--) {
+		mutex_lock(&chip->bq28z610_alt_manufacturer_access);
+		ret = bq27541_i2c_txsubcmd(chip, NFG8011B_DATAFLASHBLOCK, extend.addr);
+		if (ret < 0)
+			goto error;
+		usleep_range(1000, 1000);
+		ret = bq27541_read_i2c_block(chip, NFG8011B_DATAFLASHBLOCK, (extend.len + 2), extend_data);
+		if (ret < 0)
+			goto error;
+		data_check = (extend_data[1] << 0x8) | extend_data[0];
+		mutex_unlock(&chip->bq28z610_alt_manufacturer_access);
+		if (data_check != extend.addr) {
+			chg_info("not match. add=0x%4x, count=%d, extend_data[0]=0x%2x, extend_data[1]=0x%2x\n",
+				extend.addr, try_count, extend_data[0], extend_data[1]);
+			usleep_range(2000, 2000);
+		} else {
+			break;
+		}
+	}
+	if (!try_count)
+		return -EINVAL;
+
+	/* data10 and data11 represent car values */
+	*car_c_ptr = (extend_data[11] << 0x08) | extend_data[10];
+	return 0;
+
+error:
+	mutex_unlock(&chip->bq28z610_alt_manufacturer_access);
+	return ret;
 }
 
 int nfg8011b_get_qmax_parameters(struct chip_bq27541 *chip, int *cell_qmax)
@@ -1125,6 +1171,150 @@ error:
 	return -EINVAL;
 }
 
+/* Check if firmware version >= min_version */
+static bool bq27541_check_fw_version(struct chip_bq27541 *chip, const char *min_version)
+{
+	u8 version_cmd[2] = {NFG8011B_FW_VERSION, 0x00};
+	u8 version_data[14] = {0};
+	int ret;
+
+	if (min_version == NULL) {
+		chg_info("min_version is NULL\n");
+		return false;
+	}
+
+	/* Read firmware version information */
+	ret = bq27541_write_i2c_block(chip, NFG8011B_DATAFLASHBLOCK, sizeof(version_cmd), version_cmd);
+	if (ret < 0)
+		return false;
+
+	ret = bq27541_read_i2c_block(chip, NFG8011B_DATAFLASHBLOCK, sizeof(version_data), version_data);
+	if (ret < 0 || version_data[0] != NFG8011B_FW_VERSION || version_data[1] != 0x00) {
+		chg_info("version read failed\n");
+		return false;
+	}
+
+	/* version string comparison */
+	return (memcmp(&(version_data[2]), min_version, 7) >= 0);
+}
+
+#define FW_VERSION_1_3_0_P1T4 (u8[]) {0x01, 0x03, 0x00, 'P', '1', 't', '4'}
+int nfg8011b_set_soc_froce_to_0_threshold(struct chip_bq27541 *chip, u16 voltage_mv, u16 time_sec)
+{
+	u8 read_cmd[2] = {NFG8011B_FORCE_TO_0, 0x00};
+	u8 write_data[6] = {NFG8011B_FORCE_TO_0, 0x00,
+				(u8)voltage_mv, (u8)(voltage_mv >> 8),
+				(u8)time_sec, (u8)(time_sec >> 8)};
+	u8 response[6];
+	u8 checksum = 0;
+	int ret;
+	int i;
+
+	if (chip == NULL) {
+		chg_info("chip is NULL\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&chip->bq28z610_alt_manufacturer_access);
+	/* Version check */
+	if (bq27541_check_fw_version(chip, FW_VERSION_1_3_0_P1T4) == false) {
+		chg_info("firmware version too old, need >=1.3.0P1T4\n");
+		ret = -EOPNOTSUPP;
+		goto error;
+	}
+
+	/* 1. Read current value for verification */
+	ret = bq27541_write_i2c_block(chip, NFG8011B_DATAFLASHBLOCK, sizeof(read_cmd), read_cmd);
+	if (ret < 0) goto error;
+	ret = bq27541_read_i2c_block(chip, NFG8011B_DATAFLASHBLOCK, sizeof(response), response);
+	if (ret < 0 || response[0] != 0xC3 || response[1] != 0x00) {
+		chg_info("read verification failed\n");
+		goto error;
+	}
+
+	/* 2. Write new threshold to RAM (with checksum) */
+	ret = bq27541_write_i2c_block(chip, NFG8011B_DATAFLASHBLOCK, sizeof(write_data), write_data);
+	if (ret < 0)
+		goto error;
+
+	/* Calculate checksum */
+	for (i = 0; i < sizeof(write_data); i++)
+		checksum += write_data[i];
+	checksum = 0xFF - checksum;
+
+	ret = bq27541_i2c_txsubcmd_onebyte(chip, NFG8011B_AUTHENCHECKSUM, checksum);
+	if (ret < 0)
+		goto error;
+	ret = bq27541_i2c_txsubcmd_onebyte(chip, NFG8011B_AUTHENLEN, 0x08);
+	if (ret < 0)
+		goto error;
+
+	/* 3. Read back for verification */
+	ret = bq27541_write_i2c_block(chip, NFG8011B_DATAFLASHBLOCK, sizeof(read_cmd), read_cmd);
+	if (ret < 0) goto error;
+	ret = bq27541_read_i2c_block(chip, NFG8011B_DATAFLASHBLOCK, sizeof(response), response);
+	if (ret < 0 || memcmp(write_data, response, sizeof(write_data)) != 0) {
+		chg_info("write verification failed\n");
+		goto error;
+	}
+
+	chg_info("RAM froce_to_0 threshold updated success: %dmV %ds\n", voltage_mv, time_sec);
+	mutex_unlock(&chip->bq28z610_alt_manufacturer_access);
+	return 0;
+
+error:
+	chg_info("RAM froce_to_0 threshold update failed\n");
+	mutex_unlock(&chip->bq28z610_alt_manufacturer_access);
+	return (ret < 0) ? ret : -EINVAL;
+}
+
+int nfg8011b_set_battery_full(struct chip_bq27541 *chip, bool full)
+{
+	u8 mac_data[4] = {0x31, 0x00, 0xAA, 0x55};
+	u8 checksum = 0;
+	int ret;
+	int i;
+
+	if (chip == NULL) {
+		chg_info("chip is NULL\n");
+		return -EINVAL;
+	}
+
+	if (full == false) {
+		return 0;
+	}
+
+	mutex_lock(&chip->bq28z610_alt_manufacturer_access);
+	/* Version check */
+	if (bq27541_check_fw_version(chip, FW_VERSION_1_3_0_P1T4) == false) {
+		chg_info("firmware version too old, need >=1.3.0P1T4\n");
+		ret = -EOPNOTSUPP;
+		goto error;
+	}
+
+	/* Execute battery full report command */
+	ret = bq27541_write_i2c_block(chip, NFG8011B_DATAFLASHBLOCK, ARRAY_SIZE(mac_data), mac_data);
+	if (ret < 0)
+		goto error;
+
+	for (i = 0; i < ARRAY_SIZE(mac_data); i++)
+		checksum = checksum + mac_data[i];
+	checksum = 0xff - (checksum & 0xff);
+	ret = bq27541_i2c_txsubcmd_onebyte(chip, NFG8011B_AUTHENCHECKSUM, checksum);
+	if (ret < 0)
+		goto error;
+	ret = bq27541_i2c_txsubcmd_onebyte(chip, NFG8011B_AUTHENLEN, 0x06);
+	if (ret < 0)
+		goto error;
+	chg_info("force set battery full success\n");
+	mutex_unlock(&chip->bq28z610_alt_manufacturer_access);
+	return 0;
+
+error:
+	chg_info("force set battery full fail\n");
+	mutex_unlock(&chip->bq28z610_alt_manufacturer_access);
+	return (ret < 0) ? ret : -EINVAL;
+}
 
 int nfg8011b_get_sili_lifetime_info(struct chip_bq27541 *chip, u8 *info, int len)
 {
@@ -1148,6 +1338,7 @@ int nfg8011b_get_sili_lifetime_info(struct chip_bq27541 *chip, u8 *info, int len
 		{ NFG8011B_SUBCMD_LIFETIME_2_ADDR, 24, 0, 23},
 		{ NFG8011B_SUBCMD_ISC_INFO_ADDR, 32, 22, 31},
 		{ NFG8011B_SUBCMD_ISC_LAST_TEN_ADDR, 20, 0, 19},
+		{ NFG8011B_SUBCMD_SOH2_ADDR, 6, 0, 5},
 	};
 
 	extend = nfg8011b_extend;
@@ -1594,5 +1785,25 @@ error:
 	chg_info("addr=0x%04x offset=%d buf=[%*ph] write fail\n", addr, offset, len, buf);
 	mutex_unlock(&chip->bq28z610_alt_manufacturer_access);
 	return -EINVAL;
+}
+
+#define FW_VERSION_1_3_0_P1T2 (u8[]) {0x01, 0x03, 0x00, 'P', '1', 't', '2'}
+int nfg8011b_soc_centi_init(struct chip_bq27541 *chip)
+{
+	int rc = 0;
+
+	mutex_lock(&chip->bq28z610_alt_manufacturer_access);
+	if (bq27541_check_fw_version(chip, FW_VERSION_1_3_0_P1T2) == false) {
+		chg_info("firmware version too old, need >= 1.3.0P1T2\n");
+		rc = -ENOTSUPP;
+		goto error;
+	}
+	mutex_unlock(&chip->bq28z610_alt_manufacturer_access);
+	chip->cmd_addr.reg_soc_centi = NFG801B_REG_RSOC_CENTI;
+
+	return 0;
+error:
+	mutex_unlock(&chip->bq28z610_alt_manufacturer_access);
+	return rc;
 }
 

@@ -59,7 +59,6 @@ static const struct snd_kcontrol_new oplus_pa_manager_snd_controls[] = {
 	SOC_ENUM_EXT("SpeakerL_Amp_Switch", (oplus_amp_control_enum)[0], speaker_l_amp_get, speaker_l_amp_set),
 	SOC_ENUM_EXT("SpeakerR_Amp_Switch", (oplus_amp_control_enum)[0], speaker_r_amp_get, speaker_r_amp_set),
 	SOC_ENUM_EXT("Rcv_Amp_Switch", (oplus_amp_control_enum)[1], rcv_amp_get, rcv_amp_set),
-	SOC_ENUM_EXT("RcvL_Amp_Switch", (oplus_amp_control_enum)[1], rcv_l_amp_get, rcv_l_amp_set),
 	SOC_ENUM_EXT("Ext_Amp_Mode", (oplus_amp_control_enum)[2], ext_amp_mode_get, ext_amp_mode_set),
 	SOC_ENUM_EXT("Ext_Amp_Vdd_Need", (oplus_amp_control_enum)[3], ext_amp_vdd_get, ext_amp_vdd_set),
 	SOC_ENUM_EXT("Ext_Amp_Boost_Volume", (oplus_amp_control_enum)[4], ext_amp_boost_volume_get, ext_amp_boost_volume_set),
@@ -81,6 +80,8 @@ static const struct snd_soc_dapm_route oplus_analog_pa_manager_wcd9378_dapm_map[
 	{"OPLUS_SPKR_DRV", NULL, "AUX_MIXER"},
 	{"AUX PGA", NULL, "OPLUS_SPKR_DRV"},
 };
+
+static bool g_rcv_as_l_spk = false;
 
 /*------------------------------------------------------------------------------*/
 extern struct oplus_amp_status *contrl_status;
@@ -264,7 +265,13 @@ int speaker_r_amp_set(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *
 
 int rcv_amp_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	struct oplus_speaker_device *speaker_device = get_speaker_dev(R_SPK);
+	struct oplus_speaker_device *speaker_device = NULL;
+
+	if (g_rcv_as_l_spk) {
+		speaker_device = get_speaker_dev(L_SPK);
+	} else {
+		speaker_device = get_speaker_dev(R_SPK);
+	}
 
 	ucontrol->value.integer.value[0] = 0;
 
@@ -288,91 +295,17 @@ int rcv_amp_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontr
 int rcv_amp_set(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	int value = ucontrol->value.integer.value[0];
+	struct oplus_speaker_device *speaker_device = NULL;
 
 	enum oplus_pa_work_mode work_mode = WORK_MODE_OFF;
 	int protection_needed = 0;
-
-	struct oplus_speaker_device *speaker_device = get_speaker_dev(R_SPK);
 	int ret = 0;
 
-	if (value == 0) {
-		work_mode = WORK_MODE_OFF;
+	if (g_rcv_as_l_spk) {
+		speaker_device = get_speaker_dev(L_SPK);
 	} else {
-		work_mode = WORK_MODE_RECEIVER;
-		protection_needed = 1;
+		speaker_device = get_speaker_dev(R_SPK);
 	}
-
-	if (speaker_device == NULL) {
-		pr_err("%s, %d, speaker_device == NULL\n", __func__, __LINE__);
-
-		return -ENODEV;
-	} else if (contrl_status == NULL) {
-		pr_err("%s, %d, contrl_status == NULL\n", __func__, __LINE__);
-	} else {
-		if (speaker_device->speaker_enable_set != NULL) {
-			pr_debug("%s, %d, speaker_device->speaker_status = %d, contrl_status->rcv_enable = %d\n",
-				__func__, __LINE__, speaker_device->speaker_status, contrl_status->rcv_enable);
-
-			if (speaker_device->speaker_mode != work_mode) {
-				pr_debug("%s, %d, channel = %d, value = %d, contrl_status->amp_mode_setting = %d\n",
-				__func__, __LINE__, R_SPK - L_SPK, value, contrl_status->amp_mode_setting);
-
-				speaker_device->speaker_mode = work_mode;
-				ret = speaker_device->speaker_enable_set(speaker_device, value);
-				if (ret != 0) {
-					pr_err("%s, %d, ret = %d\n", __func__, __LINE__, ret);
-					speaker_device->speaker_mode = WORK_MODE_OFF;
-				} else {
-					contrl_status->amp_mode_setting = work_mode;
-					contrl_status->rcv_enable = (speaker_device->speaker_mode == WORK_MODE_RECEIVER) ? 1:0;
-				}
-
-				if (speaker_device->speaker_protection_set != NULL) {
-					pr_debug("%s, %d, channel = %d, value = %d\n", __func__, __LINE__, R_SPK - L_SPK, protection_needed);
-
-					speaker_device->speaker_protection_set(speaker_device, protection_needed);
-				}
-			}
-		} else {
-			pr_debug("%s, %d, channel = %d, speaker_mode_set == NULL\n", __func__, __LINE__, R_SPK - L_SPK);
-		}
-	}
-
-	return 0;
-}
-
-int rcv_l_amp_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
-{
-	struct oplus_speaker_device *speaker_device = get_speaker_dev(L_SPK);
-
-	ucontrol->value.integer.value[0] = 0;
-
-	if (speaker_device == NULL) {
-		pr_err("%s, %d, speaker_device == NULL\n", __func__, __LINE__);
-
-		return -ENODEV;
-	} else if (contrl_status == NULL) {
-		pr_err("%s, %d, contrl_status == NULL\n", __func__, __LINE__);
-
-		return -ENOMEM;
-	} else {
-		ucontrol->value.integer.value[0] = contrl_status->rcv_enable;
-	}
-
-	pr_debug("%s, %d, status = %ld\n", __func__, __LINE__, ucontrol->value.integer.value[0]);
-
-	return 0;
-}
-
-int rcv_l_amp_set(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
-{
-	int value = ucontrol->value.integer.value[0];
-
-	enum oplus_pa_work_mode work_mode = WORK_MODE_OFF;
-	int protection_needed = 0;
-
-	struct oplus_speaker_device *speaker_device = get_speaker_dev(L_SPK);
-	int ret = 0;
 
 	if (value == 0) {
 		work_mode = WORK_MODE_OFF;
@@ -713,6 +646,15 @@ int oplus_add_analog_pa_manager_wcd9378_dapm(struct snd_soc_dapm_context *dapm)
 	return ret;
 }
 EXPORT_SYMBOL(oplus_add_analog_pa_manager_wcd9378_dapm);
+
+void set_pa_index_order(int m_pa_index) {
+	if (m_pa_index) {
+		g_rcv_as_l_spk = true;
+	} else {
+		g_rcv_as_l_spk = false;
+	}
+}
+EXPORT_SYMBOL(set_pa_index_order);
 /*------------------------------------------------------------------------------*/
 static int __init oplus_pa_manager_init(void)
 {

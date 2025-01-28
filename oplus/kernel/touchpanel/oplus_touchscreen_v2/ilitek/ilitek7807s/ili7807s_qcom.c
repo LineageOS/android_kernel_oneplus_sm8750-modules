@@ -2771,8 +2771,9 @@ int ili_core_spi_setup(int num)
 	}
 
 	ILI_INFO("spi clock = %u\n", freq[num]);
-	ilits->spi->chip_select =
-		0; /*modify reg=0 for more tp vendor share same spi interface*/
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
+	ilits->spi->chip_select = 0; /*modify reg=0 for more tp vendor share same spi interface*/
+#endif
 	ilits->spi->mode = SPI_MODE_0;
 	ilits->spi->bits_per_word = 8;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)
@@ -2789,13 +2790,14 @@ int ili_core_spi_setup(int num)
 		ILI_ERR("Failed to setup spi device\n");
 		return -ENODEV;
 	}
-
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	ILI_INFO("name = %s, bus_num = %d,cs = %d, mode = %d, speed = %d\n",
 		 ilits->spi->modalias,
 		 ilits->spi->master->bus_num,
 		 ilits->spi->chip_select,
 		 ilits->spi->mode,
 		 ilits->spi->max_speed_hz);
+#endif
 	return 0;
 }
 
@@ -4419,12 +4421,12 @@ int ilitek7807s_spi_probe(struct spi_device *spi)
 		ILI_ERR("spi device is NULL\n");
 		return -ENODEV;
 	}
-
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	if (spi->master->flags & SPI_MASTER_HALF_DUPLEX) {
 		ILI_ERR("Full duplex not supported by master\n");
 		return -EIO;
 	}
-
+#endif
 	reset_healthinfo_time_counter(&time_counter);
 
 	/*step1:Alloc chip_info*/

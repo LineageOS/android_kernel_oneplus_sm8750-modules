@@ -17,6 +17,7 @@ enum oplus_chg_mutual_cmd_type {
 	CMD_GAUGE_CALIB_UPDATE,
 	CMD_DEC_CV_DOWN_OBTAIN,
 	CMD_DEC_CV_DOWN_UPDATE,
+	CMD_PRECHG_R_OBTAIN,
 };
 
 enum oplus_chg_mutual_cmd_error {

@@ -73,6 +73,23 @@ static void ssc_interactive_set_dc_mode(uint16_t dc_mode)
 	ssc_interactive_set_fifo(LCM_DC_MODE_TYPE, dc_mode);
 }
 
+static void ssc_interactive_set_pulse_mode(uint16_t pulse_mode)
+{
+	struct ssc_interactive *ssc_cxt = g_ssc_cxt;
+	spin_lock(&ssc_cxt->rw_lock);
+	if (pulse_mode == ssc_cxt->a_info.pulse_mode) {
+		spin_unlock(&ssc_cxt->rw_lock);
+		return;
+	} else {
+		pr_info("pulse_mode change to %d\n", pulse_mode);
+	}
+	ssc_cxt->a_info.pulse_mode = pulse_mode;
+	spin_unlock(&ssc_cxt->rw_lock);
+
+	ssc_interactive_set_fifo(LCM_PULSE_MODE_TYPE, pulse_mode);
+}
+
+
 static void ssc_interactive_set_blank_mode(enum panel_event_notifier_tag panel_tag, uint16_t blank_mode)
 {
 	uint16_t brightness = 0;
@@ -83,15 +100,16 @@ static void ssc_interactive_set_blank_mode(enum panel_event_notifier_tag panel_t
 		return;
 	}
 
+	spin_lock(&ssc_cxt->rw_lock);
 	if (((panel_tag == PANEL_EVENT_NOTIFICATION_PRIMARY) && (blank_mode == ssc_cxt->a_info.primary_blank_mode))
 		|| ((panel_tag == PANEL_EVENT_NOTIFICATION_SECONDARY) && (blank_mode == ssc_cxt->a_info.secondary_blank_mode))
 		|| (panel_tag < PANEL_EVENT_NOTIFICATION_PRIMARY)
 		|| (panel_tag > PANEL_EVENT_NOTIFICATION_SECONDARY)) {
 		pr_debug("panel_tag:%d,blank_mode:%u\n", panel_tag, blank_mode);
+		spin_unlock(&ssc_cxt->rw_lock);
 		return;
 	}
 
-	spin_lock(&ssc_cxt->rw_lock);
 	if (panel_tag == PANEL_EVENT_NOTIFICATION_PRIMARY) {
 		ssc_cxt->a_info.primary_blank_mode = blank_mode;
 	} else {
@@ -106,10 +124,10 @@ static void ssc_interactive_set_blank_mode(enum panel_event_notifier_tag panel_t
 	} else {
 		brightness = ssc_cxt->last_second_bri;
 	}
-	spin_unlock(&ssc_cxt->rw_lock);
 	pr_info("panel_tag:%d,blank_mode:%d,primary_blank_mode:%u,secondary_blank_mode:%u,last_primary_bri:%u,last_second_bri:%u,resend brightness:%d\n",
 			(int)panel_tag, (int)blank_mode, ssc_cxt->a_info.primary_blank_mode, ssc_cxt->a_info.secondary_blank_mode,
 				ssc_cxt->last_primary_bri, ssc_cxt->last_second_bri, brightness);
+	spin_unlock(&ssc_cxt->rw_lock);
 
 	if (g_ssc_cxt->is_fold_dev && (PANEL_EVENT_NOTIFICATION_SECONDARY == panel_tag)) {
 		ssc_interactive_set_fifo(LCM_BLANK_MODE_TYPE_SEC, blank_mode);
@@ -599,6 +617,12 @@ static void lcdinfo_callback(enum panel_event_notifier_tag panel_tag,
 			ssc_interactive_set_blank_mode(panel_tag, SCREEN_OFF);
 		}
 		break;
+	case DRM_PANEL_EVENT_PULSE_MODE:
+		if (g_ssc_cxt->need_lb_algo) {
+			ssc_interactive_set_pulse_mode(notification->notif_data.data);
+		}
+		break;
+
 	default:
 		break;
 	}

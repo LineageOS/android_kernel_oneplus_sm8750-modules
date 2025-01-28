@@ -1570,9 +1570,8 @@ static ssize_t sih_vmax_store(void *chip_data, const char *buf, uint32_t val)
 
 	mutex_lock(&sih_haptic->lock);
 #ifdef OPLUS_FEATURE_CHG_BASIC
-	if (val <= HAPTIC_MAX_GAIN) {
-		sih_haptic->chip_ipara.gain = (val * HAPTIC_RAM_VBAT_COMP_GAIN) / HAPTIC_MAX_GAIN;
-	} else if (val <= HAPTIC_MAX_LEVEL) {
+	if (val <= HAPTIC_MAX_LEVEL) {
+		val = val / 100 * 100;
 		sih_haptic->hp_func->convert_level_to_vmax(sih_haptic, &map, val);
 		sih_haptic->chip_ipara.vmax = map.vmax;
 		sih_haptic->chip_ipara.gain = map.gain;

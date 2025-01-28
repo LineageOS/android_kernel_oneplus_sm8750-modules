@@ -34,7 +34,7 @@ static inline int __hbp_spi_alloc_mem(struct spi_transfer **spi_xfer,
 
 	if (xfer_len > cache->xfer_count) {
 		kfree(cache->xfer);
-		cache->xfer = kcalloc(xfer_len, sizeof(struct spi_transfer), GFP_KERNEL);
+		cache->xfer = kcalloc(xfer_len, sizeof(struct spi_transfer), GFP_DMA);
 		if (!cache->xfer) {
 			cache->xfer_count = 0;
 			ret = -ENOMEM;
@@ -49,7 +49,7 @@ static inline int __hbp_spi_alloc_mem(struct spi_transfer **spi_xfer,
 
 	if (tx_size > cache->tx_count) {
 		kfree(cache->tx_buf);
-		cache->tx_buf = (uint8_t *)kmalloc(tx_size, GFP_KERNEL);
+		cache->tx_buf = (uint8_t *)kmalloc(tx_size, GFP_DMA);
 		if (!cache->tx_buf) {
 			cache->tx_count = 0;
 			ret = -ENOMEM;
@@ -65,7 +65,7 @@ static inline int __hbp_spi_alloc_mem(struct spi_transfer **spi_xfer,
 
 	if (rx_size > cache->rx_count) {
 		kfree(cache->rx_buf);
-		cache->rx_buf = (uint8_t *)kmalloc(rx_size, GFP_KERNEL);
+		cache->rx_buf = (uint8_t *)kmalloc(rx_size, GFP_DMA);
 		if (!cache->rx_buf) {
 			cache->rx_count = 0;
 			ret = -ENOMEM;
@@ -304,9 +304,17 @@ static int __hbp_spi_sync(struct spi_device *spi, u8 *tx, u8 *rx, u32 len, struc
 	return ret;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+#define spi_master			spi_controller
+#endif
+
 static inline bool hbp_spi_bus_ready(struct spi_device *spi_dev)
 {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+	struct spi_master *master = spi_dev->controller;
+#else
 	struct spi_master *master = spi_dev->master;
+#endif
 	struct device *ctrl_dev;
 	int retry = 100;
 	static int error_cnt = 0;
@@ -511,6 +519,8 @@ static int hbp_spi_probe(struct spi_device *spi_dev)
 	int ret = 0;
 	struct platform_device *spi_platform;
 	struct spi_bus *bus;
+	struct device_node *np = spi_dev->dev.of_node;
+	int cs_setup[2] = {0, 0};
 
 	hbp_info("enter.\n");
 
@@ -542,7 +552,28 @@ static int hbp_spi_probe(struct spi_device *spi_dev)
 	bus->spi_ops.shutdown = hbp_spi_shutdown;
 	bus->spi_ops.spi_set_para = hbp_spi_setup;
 	bus->spi_ops.spi_get_para = hbp_spi_get_para;
+	ret = of_property_read_u32_array(np, "spi-cs-setup", cs_setup, 2);
+	if (ret) {
+		hbp_info("spi-cs-setup is null\n");
+	} else {
+		bus->spi_dev->cs_setup.value = cs_setup[0];
+		bus->spi_dev->cs_setup.unit = cs_setup[1];
+		hbp_info("cs_setup %d %d\n", cs_setup[0], cs_setup[1]);
+	}
 
+#ifdef CONFIG_TOUCHPANEL_MTK_PLATFORM
+#else
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0))
+	if (cs_setup[0] == 0) {
+		bus->delay_params.spi_cs_clk_delay = 50;
+	} else {
+		bus->delay_params.spi_cs_clk_delay = cs_setup[0];
+	}
+	bus->delay_params.spi_inter_words_delay = cs_setup[1];
+	spi_dev->controller_data = (void *)&bus->delay_params;
+	hbp_info("qcom cs_setup %d %d\n", cs_setup[0], cs_setup[1]);
+#endif
+#endif
 	spi_set_drvdata(spi_dev, bus);
 
 	spi_platform->dev.parent = &spi_dev->dev;

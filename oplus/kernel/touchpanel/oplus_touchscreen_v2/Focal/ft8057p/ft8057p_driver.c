@@ -1912,7 +1912,7 @@ static fw_check_state fts_fw_check(void *chip_data,
 
 	if (panel_data->manufacture_info.version) {
 		sprintf(dev_version, "%04x", panel_data->tp_fw);
-		strlcpy(&(panel_data->manufacture_info.version[7]), dev_version, 5);
+		strncpy(&(panel_data->manufacture_info.version[7]), dev_version, 5);
 	}
 
 	return FW_NORMAL;

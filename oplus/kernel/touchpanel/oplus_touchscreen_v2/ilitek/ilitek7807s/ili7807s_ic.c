@@ -768,7 +768,7 @@ out:
 					 dev_version);
 
 			} else {
-				strlcpy(&ilits->ts->panel_data.manufacture_info.version[12], dev_version, 3);
+				strncpy(&ilits->ts->panel_data.manufacture_info.version[12], dev_version, 3);
 			}
 
 		} else {
@@ -778,7 +778,7 @@ out:
 				ver_len = MAX_DEVICE_VERSION_LENGTH - 4;
 			}
 
-			strlcpy(&ilits->ts->panel_data.manufacture_info.version[ver_len],
+			strncpy(&ilits->ts->panel_data.manufacture_info.version[ver_len],
 				dev_version, MAX_DEVICE_VERSION_LENGTH - ver_len);
 		}
 	}

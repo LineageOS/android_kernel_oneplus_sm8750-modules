@@ -855,9 +855,9 @@ static int battery_chg_write(struct battery_chg_dev *bcdev, void *data,
 			pr_err("Error, timed out sending message\n");
 			if (g_oplus_chip)
 				g_oplus_chip->transfer_timeout_count++;
-			oplus_chg_track_upload_adsp_err_info(
-				bcdev, TRACK_ADSP_ERR_GLINK_ABNORMAL);
 			mutex_unlock(&bcdev->rw_lock);
+                        oplus_chg_track_upload_adsp_err_info(
+                                bcdev, TRACK_ADSP_ERR_GLINK_ABNORMAL);
 			return -ETIMEDOUT;
 		}
 
@@ -3100,6 +3100,12 @@ static int battery_psy_get_prop(struct power_supply *psy,
 					oplus_get_abnormal_disconnect_keep_connect()) &&
 					oplus_quirks_keep_connect_status() && chip->mmi_chg)
 					pval->intval = chip->keep_prop_status;
+
+				if (chip->prop_status == POWER_SUPPLY_STATUS_FULL &&
+				    (chip->tbatt_status == BATTERY_STATUS__WARM_TEMP ||
+				     chip->tbatt_status == BATTERY_STATUS__COLD_TEMP) &&
+				     chip->ui_soc != 100)
+					pval->intval = POWER_SUPPLY_STATUS_CHARGING;
 			} else if (!chip->authenticate) {
 				pval->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
 			} else {
@@ -7854,7 +7860,53 @@ static void smbchg_set_aicl_point(int vol)
 	/*do nothing*/
 }
 
+static int oplus_chg_usb_set_input_current(int current_ma, int aicl_point)
+{
+	int i = 0;
+	int rc = 0;
+	int chg_vol;
+	int prop_id = 0;
+	bool pre_step = false;
+
+	struct battery_chg_dev *bcdev = NULL;
+	struct psy_state *pst = NULL;
+	struct oplus_chg_chip *chip = g_oplus_chip;
+
+	bcdev = chip->pmic_spmi.bcdev_chip;
+	pst = &bcdev->psy_list[PSY_TYPE_USB];
+	prop_id = get_property_id(pst, POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT);
+
+	for (i = 1; i <= current_ma/100; i++) {
+		rc = write_property_id(bcdev, pst, prop_id, i * 1000 * 100);
+		if (rc)
+			chg_err("set usb icl to %d mA fail\n", i * 100);
+		else
+			chg_err("set icl to %d mA \n", i * 100);
+
+		usleep_range(90000, 91000);
+
+		chg_vol = qpnp_get_prop_charger_voltage_now();
+		if (chg_vol < aicl_point) {
+			i = i - 1;
+			pre_step = true;
+			break;
+		}
+	}
+	if (i <= 0)
+		i = 1;
+	if (pre_step) {
+		rc = write_property_id(bcdev, pst, prop_id, i * 1000 * 100);
+		if (rc)
+			chg_err("set usb icl to %d mA fail\n", i * 100);
+		else
+			chg_err("set icl to %d mA \n", i * 100);
+	}
+	chg_err("usb input max current limit aicl chg_vol = %d current_ma = %d \n", chg_vol, current_ma);
+	return rc;
+}
+
 #define AICL_POINT_VOL_9V 7600
+#define UNKONW_CURR 500
 
 static int oplus_chg_set_input_current(int current_ma)
 {
@@ -7863,6 +7915,9 @@ static int oplus_chg_set_input_current(int current_ma)
 	int aicl_point = 0;
 	int prop_id = 0;
 	int max_pdo_current;
+	int charger_type;
+	bool present = false;
+
 	struct battery_chg_dev *bcdev = NULL;
 	struct psy_state *pst = NULL;
 	struct oplus_chg_chip *chip = g_oplus_chip;
@@ -7906,9 +7961,21 @@ static int oplus_chg_set_input_current(int current_ma)
 		goto aicl_return;
 	}
 
-	if (max_pdo_current > 0)
+	if (max_pdo_current > 0) {
 		current_ma = min(current_ma, chip->pd_curr_max);
+		current_ma = min(current_ma, max_pdo_current);
+	}
 	chg_err("current_ma = %d\n", current_ma);
+
+	present = oplus_chg_is_usb_present();
+	if(chip->usb_aicl_enhance) {
+		charger_type = opchg_get_charger_type();
+		if ((charger_type == POWER_SUPPLY_TYPE_USB || charger_type == POWER_SUPPLY_TYPE_USB_CDP ||
+			(charger_type == POWER_SUPPLY_TYPE_UNKNOWN && current_ma == UNKONW_CURR)) && present) {
+			rc = oplus_chg_usb_set_input_current(current_ma, aicl_point);
+			goto aicl_return;
+		}
+	}
 
 	rc = write_property_id(bcdev, pst, prop_id, DEFAULT_CURR_BY_CC * 1000);
 	if (rc) {
@@ -11762,7 +11829,7 @@ static const struct proc_ops proc_debug_reg_ops =
 	.proc_read = proc_debug_reg_read,
 	.proc_write  = proc_debug_reg_write,
 	.proc_open  = simple_open,
-	.proc_lseek = seq_lseek,
+	.proc_lseek = noop_llseek,
 };
 
 #ifdef WLS_QI_DEBUG
@@ -11820,7 +11887,7 @@ static const struct proc_ops proc_icl_ops =
 	.proc_read = proc_icl_read,
 	.proc_write  = proc_icl_write,
 	.proc_open  = simple_open,
-	.proc_lseek = seq_lseek,
+	.proc_lseek = noop_llseek,
 };
 
 static ssize_t proc_fcc_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
@@ -11877,7 +11944,7 @@ static const struct proc_ops proc_fcc_ops =
 	.proc_read = proc_fcc_read,
 	.proc_write  = proc_fcc_write,
 	.proc_open  = simple_open,
-	.proc_lseek = seq_lseek,
+	.proc_lseek = noop_llseek,
 };
 #endif /*WLS_QI_DEBUG*/
 #endif
@@ -12257,7 +12324,7 @@ static void oplus_chg_track_icl_err_load_trigger_work(
 	if (!bcdev->icl_err_load_trigger)
 		return;
 
-	oplus_chg_track_upload_trigger_data(*(bcdev->icl_err_load_trigger));
+	oplus_chg_track_upload_trigger_data(bcdev->icl_err_load_trigger);
 	mutex_lock(&bcdev->track_icl_err_lock);
 	kfree(bcdev->icl_err_load_trigger);
 	bcdev->icl_err_load_trigger = NULL;
@@ -12275,7 +12342,7 @@ static void oplus_chg_track_adsp_err_load_trigger_work(
 	if (!bcdev->adsp_err_load_trigger)
 		return;
 
-	oplus_chg_track_upload_trigger_data(*(bcdev->adsp_err_load_trigger));
+	oplus_chg_track_upload_trigger_data(bcdev->adsp_err_load_trigger);
 	mutex_lock(&bcdev->track_adsp_err_lock);
 	kfree(bcdev->adsp_err_load_trigger);
 	bcdev->adsp_err_load_trigger = NULL;

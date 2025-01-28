@@ -44,6 +44,9 @@ enum gauge_topic_item {
 	GAUGE_ITEM_CAR_C,
 	GAUGE_ITEM_RATIO_LIMIT_CURR,
 	GAUGE_ITEM_SUB_BTB_STATE,
+	GAUGE_ITEM_GAUGE_R_INFO,
+	GAUGE_ITEM_SOC_CENTI,
+	GAUGE_ITEM_VOL_FCL,
 };
 
 enum gauge_type_id {
@@ -53,6 +56,8 @@ enum gauge_type_id {
 	DEVICE_ZY0602,
 	DEVICE_ZY0603,
 	DEVICE_NFG8011B,
+	DEVICE_SN28Z729 = 7,
+	DEVICE_MPC7022,
 };
 
 typedef enum {
@@ -106,6 +111,42 @@ struct gauge_calib_info {
 	int qmax_time;
 	unsigned char calib_args[GAUGE_CALIB_ARGS_LEN];
 }__attribute__((aligned(4)));
+
+#define OPLUS_GAUGE_THREE_LEVEL_TERM_VOLT_LEN   18
+#define OPLUS_GAUGE_CUV_STATE_CHECK_TRY_MAX    2
+#define OPLUS_GAUGE_CUV_STATE_1    1
+#define OPLUS_GAUGE_CUV_STATE_2    0
+
+enum battery_test_state {
+	BATTERY_STOP_TEST_TYPE,
+	BATTERY_START_TEST_TYPE,
+	BATTERY_MAX_TEST_TYPE,
+};
+
+struct oplus_gauge_nvram_stress_test {
+	int input_count;
+	int interval_ms;
+	int input_state;
+
+	/* nvram test */
+	int sum_cnt;
+	int fail_cnt;
+	int suc_cnt;
+
+	/* term volt test */
+	int term_volt_sum_cnt;
+	int term_volt_fail_cnt;
+	int term_volt_suc_cnt;
+
+	/* normal gauge test */
+	int read_sum_cnt;
+	int read_fail_cnt;
+	int read_suc_cnt;
+
+	int test_state;
+	int read_test_state;
+	int term_volt_test_state;
+};
 
 int oplus_gauge_get_batt_mvolts(void);
 int oplus_gauge_get_batt_fc(void);
@@ -212,4 +253,20 @@ int oplus_gauge_sec_ecw(struct oplus_mms *topic, bool *val);
 int oplus_gauge_sec_shutdown(struct oplus_mms *topic, bool *val);
 int oplus_gauge_sec_set_prikey(struct oplus_mms *topic, int index, uint8_t *prikey, int len);
 int oplus_gauge_sec_get_prikey_index(struct oplus_mms *topic, int *index);
+int oplus_gauge_set_cuv_state(struct oplus_mms *mms, int state);
+int oplus_gauge_get_cuv_state(struct oplus_mms *mms, int *state);
+bool oplus_gauge_get_fcl_curr(int hw_vth, int sw_vth, int vbat, int *curr_dec, int *min_curr, bool *hw);
+int oplus_gauge_get_fcl_support(struct oplus_mms *mms, bool *fcl_support);
+int oplus_gauge_get_vb_offset(struct oplus_mms *mms, int *vb_offset);
+
+int oplus_gauge_start_nvram_stress_test(struct oplus_mms *topic,
+		int input_count, int interval_ms);
+int oplus_gauge_start_stress_read_test(struct oplus_mms *topic,
+		int input_count, int interval_ms);
+int oplus_gauge_get_nvram_stress_test(struct oplus_mms *topic,
+		struct oplus_gauge_nvram_stress_test *data);
+int oplus_gauge_start_term_volt_stress_test(struct oplus_mms *topic,
+		int input_count, int interval_ms);
+int oplus_gauge_get_three_level_term_volt(struct oplus_mms *topic, int term_volt[]);
+
 #endif /* __OPLUS_MMS_GAUGE_H__ */

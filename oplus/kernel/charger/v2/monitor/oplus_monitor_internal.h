@@ -119,6 +119,7 @@ struct oplus_monitor {
 
 	struct work_struct charge_info_update_work;
 	struct work_struct wired_plugin_work;
+	struct work_struct wired_present_work;
 	struct work_struct ffc_step_change_work;
 	struct work_struct ffc_end_work;
 #if IS_ENABLED(CONFIG_OPLUS_FPGA_NOTIFY)
@@ -145,6 +146,7 @@ struct oplus_monitor {
 	struct votable *wls_fcc_votable;
 	struct votable *wls_charge_suspend_votable;
 	struct votable *wls_charging_disable_votable;
+	struct votable *wls_rx_disable_votable;
 	struct votable *chg_disable_votable;
 	struct votable *vooc_curr_votable;
 
@@ -210,6 +212,7 @@ struct oplus_monitor {
 	int cc_detect;
 	bool otg_enable;
 	bool pd_svooc;
+	int vbus_vol_type;
 
 	/* wireless */
 	int wls_iout_ma;
@@ -217,11 +220,15 @@ struct oplus_monitor {
 	int wls_icl_ma;
 	int wls_charge_type;
 	int wls_pre_type;
+	int wls_dock_type;
 	int wls_magcvr_status;
 	unsigned int wls_err_code;
 	bool wls_online;
 	bool wls_suspend;
 	bool wls_user_suspend;
+	int tx_manu_id;
+	int vendor_id;
+	int product_id;
 
 	/* common */
 	enum oplus_temp_region temp_region;

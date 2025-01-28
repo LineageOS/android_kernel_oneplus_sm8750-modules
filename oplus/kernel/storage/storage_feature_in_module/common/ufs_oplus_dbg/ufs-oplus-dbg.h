@@ -178,6 +178,8 @@ struct ufs_ioctl_query_data {
 	 * Please check include/uapi/scsi/ufs/ufs.h for the definition of it.
 	 */
 	__u8 idn;
+	/* for string descriptor */
+	__u8 index;
 	/*
 	 * User should specify the size of the buffer (buffer[0] below) where
 	 * it wants to read the query data (attribute/flag/descriptor).

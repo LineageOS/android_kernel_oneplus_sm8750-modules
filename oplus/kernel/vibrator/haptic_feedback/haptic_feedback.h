@@ -160,6 +160,7 @@ struct haptic_uvlo_mode_event_info {
 	uint32_t track_type;
 	uint32_t reg_value;
 	char fail_info[MAX_FAIL_INFO_LEN];
+	uint32_t uvlo_report_counts;
 };
 
 struct haptic_uvlo_mode_track_event {

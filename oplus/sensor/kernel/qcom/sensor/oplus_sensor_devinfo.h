@@ -24,7 +24,7 @@
 #define SMEM_SENSOR 130
 
 #define REG_NUM 10
-#define PARAMETER_NUM 32
+#define PARAMETER_NUM 33
 #define FEATURE_NUM 13
 #define SOURCE_NUM 3
 #define PANEL_SOURCE_NUM 2
@@ -66,6 +66,7 @@ enum sensor_algo_id {
     OPLUS_CAMERA_PROTECT,
     OPLUS_MAG_FUSION,
     OPLUS_MEASUREMENT,
+    OPLUS_EXPAND_GPIO,
     SENSOR_ALGO_NUM
 };
 

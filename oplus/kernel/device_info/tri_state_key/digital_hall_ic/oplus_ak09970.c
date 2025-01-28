@@ -45,6 +45,7 @@ static int ak09970_i2c_read_block(struct oplus_dhall_chip *chip, u8 addr, u8 *da
 	int err = 0, retry = 0;
 	struct i2c_client *client = chip->client;
 	struct i2c_msg msgs[2] = {{0}, {0}};
+	u8 *rbuf = NULL;
 #if defined(CONFIG_OPLUS_FEATURE_FEEDBACK) || defined(CONFIG_OPLUS_FEATURE_FEEDBACK_MODULE)
 	char payload[1024] = {0x00};
 #endif
@@ -56,6 +57,13 @@ static int ak09970_i2c_read_block(struct oplus_dhall_chip *chip, u8 addr, u8 *da
 		TRI_KEY_LOG(" length %d exceeds %d\n", len, AK09970_I2C_REG_MAX_SIZE);
 		return -EINVAL;
 	}
+
+	rbuf = kzalloc(len,  GFP_KERNEL | GFP_DMA);
+	if (!rbuf) {
+		TRI_KEY_LOG("rbuf null\n");
+		return -ENOMEM;
+	}
+
 	mutex_lock(&ak09970_i2c_mutex);
 
 	msgs[0].addr = client->addr;
@@ -66,7 +74,7 @@ static int ak09970_i2c_read_block(struct oplus_dhall_chip *chip, u8 addr, u8 *da
 	msgs[1].addr = client->addr;
 	msgs[1].flags = I2C_M_RD;
 	msgs[1].len = len;
-	msgs[1].buf = data;
+	msgs[1].buf = rbuf;
 
 	for (retry = 0; retry < MAX_I2C_RETRY_TIME; retry++) {
 		err = i2c_transfer(client->adapter, msgs, (sizeof(msgs) / sizeof(msgs[0])));
@@ -86,12 +94,18 @@ static int ak09970_i2c_read_block(struct oplus_dhall_chip *chip, u8 addr, u8 *da
 #if defined(CONFIG_OPLUS_FEATURE_FEEDBACK) || defined(CONFIG_OPLUS_FEATURE_FEEDBACK_MODULE)
 		scnprintf(payload, sizeof(payload),
 				"NULL$$EventField@@DownHallRead$$FieldData@@Err%d$$detailData@@%d[%*ph]%d",
-				err, addr, len, data, len);
+				err, addr, len, rbuf, len);
 		oplus_kevent_fb(FB_TRI_STATE_KEY, TRIKEY_FB_BUS_TRANS_TYPE, payload);
 #endif
 		err = -EIO;
 	}
 	mutex_unlock(&ak09970_i2c_mutex);
+
+	memcpy(data, rbuf, len);
+	if (rbuf) {
+		kfree(rbuf);
+		rbuf = NULL;
+	}
 
 	return err;
 }
@@ -103,6 +117,7 @@ static int ak09970_i2c_write_block(struct oplus_dhall_chip *chip, u8 addr, u8 *d
 	int idx = 0;
 	int num = 0;
 	char buf[AK09970_I2C_REG_MAX_SIZE] = {0};
+	char *wbuf = NULL;
 	char rdata[AK09970_I2C_REG_MAX_SIZE] = {0};
 
 	struct i2c_client *client = chip->client;
@@ -111,24 +126,30 @@ static int ak09970_i2c_write_block(struct oplus_dhall_chip *chip, u8 addr, u8 *d
 #endif
 
 	if (!client) {
-		TRI_KEY_LOG("client null\n");
+		TRI_KEY_LOG("client null.\n");
 		return -EINVAL;
 	} else if (len >= AK09970_I2C_REG_MAX_SIZE) {
 		TRI_KEY_LOG(" length %d exceeds %d\n", len, AK09970_I2C_REG_MAX_SIZE);
 		return -EINVAL;
 	}
 
+	wbuf = kzalloc(AK09970_I2C_REG_MAX_SIZE, GFP_KERNEL | GFP_DMA);
+	if (!wbuf) {
+		TRI_KEY_LOG("wbuf alloc failed.\n");
+		return -ENOMEM;
+	}
+
 	mutex_lock(&ak09970_i2c_mutex);
 
-	buf[num++] = addr;
+	wbuf[num++] = addr;
 	for (idx = 0; idx < len; idx++) {
-		buf[num++] = data[idx];
+		wbuf[num++] = data[idx];
 	}
 
 	for (retry = 0; retry < MAX_I2C_RETRY_TIME; retry++) {
 		/*TRI_KEY_LOG("----ak09970_i2c_write_block: (0x%02X %p %d)\n",addr, data, len);
 		/dump_stack();*/
-		err = i2c_master_send(client, buf, num);
+		err = i2c_master_send(client, wbuf, num);
 
 		if (err < 0) {
 			TRI_KEY_LOG("send command error!! %d\n", err);
@@ -148,6 +169,10 @@ static int ak09970_i2c_write_block(struct oplus_dhall_chip *chip, u8 addr, u8 *d
 	}
 
 	mutex_unlock(&ak09970_i2c_mutex);
+	if (wbuf) {
+		kfree(wbuf);
+		wbuf = NULL;
+	}
 
 	if (chip->fpga_trans_support) {
 		ak09970_i2c_read_block(chip, addr, rdata, len);
@@ -900,7 +925,7 @@ static int ak09970_reset_device(struct oplus_dhall_chip *chip)
 	return err;
 }
 
-static void ak09970_parse_dts(struct oplus_dhall_chip *chip)
+static void ak09970_parse_dts(struct oplus_dhall_chip *chip, struct extcon_dev_data *hall_dev)
 {
 	struct device_node *np = NULL;
 	int rc = 0;
@@ -965,6 +990,9 @@ static void ak09970_parse_dts(struct oplus_dhall_chip *chip)
 	} else {
 		chip->fpga_trans_support = false;
 	}
+
+	hall_dev->secondry_panel_notify = of_property_read_bool(np, "secondry_panel_notify");
+	TRI_KEY_LOG("%s:secondry_panel_notify:%d\n", __func__, hall_dev->secondry_panel_notify);
 }
 
 static int ak09970_communicate_test(void)
@@ -1003,6 +1031,46 @@ static struct dhall_operations  ak09970_ops = {
 	.get_threeaxis_data  = ak09970_get_data,
 	.communicate_test = ak09970_communicate_test,
 };
+
+#if IS_ENABLED(CONFIG_DRM_OPLUS_PANEL_NOTIFY) || IS_ENABLED(CONFIG_QCOM_PANEL_EVENT_NOTIFIER)
+int register_panel_notifier(struct extcon_dev_data *hall_dev, struct oplus_dhall_chip *chip, int panel_id)
+{
+	int retry = 0;
+
+	for(retry = 0; retry < MAX_RETRY_PANEL; retry++) {
+		switch (panel_id) {
+		case PRIMARY_PANEL:
+			hall_dev->active_panel = trikey_dev_get_panel(chip->client->dev.of_node, PRIMARY_PANEL);
+			break;
+		case SECONDARY_PANEL:
+			hall_dev->active_panel_sec = trikey_dev_get_panel(chip->client->dev.of_node, SECONDARY_PANEL);
+			break;
+		default:
+			hall_dev->active_panel = trikey_dev_get_panel(chip->client->dev.of_node, PRIMARY_PANEL);
+			break;
+		}
+
+		if (hall_dev->active_panel) {
+			TRI_KEY_ERR("Success to get panel for panelID[%d]\n", panel_id);
+			break;
+		}
+		msleep(500);
+	}
+
+	if (retry == MAX_RETRY_PANEL) {
+		TRI_KEY_ERR("ts check panel dt failed\n");
+		if (hall_dev) {
+			kfree(hall_dev);
+			hall_dev = NULL;
+		}
+		return -EPROBE_DEFER; /* retry */
+	}
+
+	return 0;
+}
+
+#endif
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6,6,0)
 static int ak09970_i2c_probe(struct i2c_client *client)
 #else
@@ -1012,9 +1080,6 @@ static int ak09970_i2c_probe(struct i2c_client *client, const struct i2c_device_
 	struct oplus_dhall_chip *chip = NULL;
 	struct extcon_dev_data	*hall_dev = NULL;
 	int err = 0;
-#if IS_ENABLED(CONFIG_DRM_OPLUS_PANEL_NOTIFY) || IS_ENABLED(CONFIG_QCOM_PANEL_EVENT_NOTIFIER)
-	u8 retry;
-#endif
 
 	TRI_KEY_LOG("call \n");
 
@@ -1039,27 +1104,18 @@ static int ak09970_i2c_probe(struct i2c_client *client, const struct i2c_device_
 	hall_dev->client = client;
 	i2c_set_clientdata(client, hall_dev);
 	hall_dev->dev = &client->dev;
-	ak09970_parse_dts(chip);
+	ak09970_parse_dts(chip, hall_dev);
 
 /* ts check panel dt */
 #if IS_ENABLED(CONFIG_DRM_OPLUS_PANEL_NOTIFY) || IS_ENABLED(CONFIG_QCOM_PANEL_EVENT_NOTIFIER)
-	/* get spi of_node from spi_register_driver */
-	for(retry = 0; retry < 10; retry++) {
-		hall_dev->active_panel = trikey_dev_get_panel(chip->client->dev.of_node);
-		if (hall_dev->active_panel) {
-			TRI_KEY_ERR("Success to get panel info\n");
-			break;
-		}
-		msleep(500);
+	err = register_panel_notifier(hall_dev, chip, PRIMARY_PANEL);
+	if (err == (-EPROBE_DEFER)) {
+		return err; /* retry */
 	}
 
-	if (retry == 10) {
-		TRI_KEY_ERR("ts check panel dt failed\n");
-		if (hall_dev) {
-			kfree(hall_dev);
-			hall_dev = NULL;
-		}
-		return -EPROBE_DEFER; /* retry */
+	if (hall_dev->secondry_panel_notify) {
+		TRI_KEY_LOG("need register secondry panel notifier\n");
+		register_panel_notifier(hall_dev, chip, SECONDARY_PANEL);
 	}
 #endif
 	if (!IS_ERR_OR_NULL(chip->pctrl) && !IS_ERR_OR_NULL(chip->irq_state)) {

@@ -148,7 +148,7 @@ static int aw882xx_i2c_writes(struct aw882xx *aw882xx,
 	int ret = -1;
 	unsigned char *data = NULL;
 
-	data = kmalloc(len+1, GFP_KERNEL);
+	data = kzalloc(len+1, GFP_KERNEL);
 	if (data == NULL)
 		return -ENOMEM;
 
@@ -537,7 +537,7 @@ static int aw882xx_check_status_reg(struct aw882xx *aw882xx)
 			offset = strlen(info);
 			scnprintf(info + offset, sizeof(info) - offset - 1, "regs:(");
 			if (aw882xx->aw_pa && (PID_1852_ID == aw882xx->aw_pa->chip_id)) {
-				for (i = 0; i < sizeof(fb_regs_aw88264); i++) {
+				for (i = 0; i < sizeof(fb_regs_aw88264) / sizeof(fb_regs_aw88264[0]); i++) {
 					ret = aw882xx_i2c_read(aw882xx, fb_regs_aw88264[i], &reg_val);
 					if (ret < 0) {
 						break;
@@ -547,7 +547,7 @@ static int aw882xx_check_status_reg(struct aw882xx *aw882xx)
 					}
 				}
 			} else {
-				for (i = 0; i < sizeof(fb_regs_aw88265); i++) {
+				for (i = 0; i < sizeof(fb_regs_aw88265) / sizeof(fb_regs_aw88265[0]); i++) {
 					ret = aw882xx_i2c_read(aw882xx, fb_regs_aw88265[i], &reg_val);
 					if (ret < 0) {
 						break;
@@ -595,6 +595,13 @@ static int aw882xx_set_check_feedback(struct snd_kcontrol *kcontrol,
 	int need_chk = ucontrol->value.integer.value[0];
 	aw_pr_info("%d", need_chk);
 
+#ifdef OPLUS_FEATURE_SPEAKER_MUTE
+	if (speaker_mute_control == 1) {
+		aw_pr_info("speaker_mute_control=%d, return", speaker_mute_control);
+		return 0;
+	}
+#endif
+
 	if ((need_chk == AW882XX_CHECK_PA_ERR_FEEDBACK) && !(g_control_fb & BYPASS_PA_ERR_FB_10041) &&
 		aw882xx->allow_pw && aw882xx->pstream) {
 		aw882xx_check_status_reg(aw882xx);
@@ -611,8 +618,12 @@ static int aw882xx_get_vbatlow_cnt(struct snd_kcontrol *kcontrol,
 			aw_componet_codec_ops.kcontrol_codec(kcontrol);
 	struct aw882xx *aw882xx =
 			aw_componet_codec_ops.codec_get_drvdata(codec);
-
-	if (aw882xx->allow_pw && aw882xx->pstream) {
+#ifdef OPLUS_FEATURE_SPEAKER_MUTE
+	if (aw882xx->allow_pw && aw882xx->pstream && (speaker_mute_control == 0))
+#else
+	if (aw882xx->allow_pw && aw882xx->pstream)
+#endif
+	{
 		aw882xx_check_status_reg(aw882xx);
 	}
 	ucontrol->value.integer.value[0] = aw882xx->vbatlow_cnt;
@@ -2450,7 +2461,7 @@ static int aw882xx_gpio_request(struct aw882xx *aw882xx)
 
 	if (gpio_is_valid(aw882xx->irq_gpio)) {
 		ret = devm_gpio_request_one(aw882xx->dev, aw882xx->irq_gpio,
-			GPIOF_DIR_IN, "aw882xx_int");
+			GPIOF_IN, "aw882xx_int");
 		if (ret) {
 			aw_dev_err(aw882xx->dev, "int request failed");
 			return ret;
@@ -2776,7 +2787,7 @@ static int aw882xx_awrw_write(struct aw882xx *aw882xx, const char *buf, size_t c
 		return -EINVAL;
 	}
 
-	data_buf = kmalloc(data_len + 1, GFP_KERNEL);
+	data_buf = kzalloc(data_len + 1, GFP_KERNEL);
 	if (data_buf == NULL)
 		return -ENOMEM;
 
@@ -2908,7 +2919,7 @@ static ssize_t awrw_show(struct device *dev,
 	}
 
 	data_len = AWRW_DATA_BYTES * packet->reg_num;
-	reg_data = kmalloc(data_len, GFP_KERNEL);
+	reg_data = kzalloc(data_len, GFP_KERNEL);
 	if (reg_data == NULL)
 		return -ENOMEM;
 

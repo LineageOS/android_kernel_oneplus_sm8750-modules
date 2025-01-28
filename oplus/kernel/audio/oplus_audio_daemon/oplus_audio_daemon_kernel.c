@@ -24,7 +24,9 @@
 #include <sound/control.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
 #include <soc/oplus/system/oplus_mm_kevent_fb.h>
+#endif /*CONFIG_OPLUS_FEATURE_MM_FEEDBACK*/
 #include "oplus_audio_daemon_kernel.h"
 
 #define KEY_OPLUS_AUDIO_DAEMON_KERNEL_RUS            "OPLUS_AUDIORUS_DM_KEL="
@@ -37,6 +39,10 @@
 #define ADSP_RESET_LIMIT_TIME         LIMIT_10MIN
 #define FEEDBACK_DELAY_10S            10
 #define FEEDBACK_LIMIT_10MIN          LIMIT_10MIN
+
+#ifndef MAX_PAYLOAD_DATASIZE
+#define MAX_PAYLOAD_DATASIZE (512)
+#endif
 
 enum {
 	TRIGGER_ADSP_RESET = 0,
@@ -215,7 +221,9 @@ static void oplus_audio_daemon_trigger_func(struct work_struct *work)
 				scnprintf(fb_info + strlen(fb_info), sizeof(fb_info) - strlen(fb_info), ", trigger adsp crash failed");
 			}
 		}
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
 		mm_fb_audio_fatal_delay(10050, FEEDBACK_LIMIT_10MIN, FEEDBACK_DELAY_10S, "%s", fb_info);
+#endif /*CONFIG_OPLUS_FEATURE_MM_FEEDBACK*/
 	}
 
 	pr_info("%s(), exit ----- type=%u", __func__, type);
@@ -368,11 +376,13 @@ bool oplus_audio_daemon_trigger(unsigned int type)
 			now_time = ktime_get();
 			if (ktime_after(now_time, ktime_add_ms(last_trg_tm, trg_limit_tm * 1000))) {
 				/* trigger by self */
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
 				mm_fb_audio_fatal_delay(10050, FEEDBACK_LIMIT_10MIN, FEEDBACK_DELAY_10S,
 					"payload@@daemon for kernel,type=%u,rcd_cnt=%u,error continue time=%lld(ms),"
 					"trg_type=%u,already trg_cnt=%u,last trg delt time=%lld(ms)",
 					type, g_dm.rd[type].rcd_cnt, ktime_ms_delta(now_time, g_dm.rd[type].start_time),
 					g_dm_cfg[type].trg_type, g_dm.rd[type].trg_cnt, ktime_ms_delta(now_time, last_trg_tm));
+#endif /*CONFIG_OPLUS_FEATURE_MM_FEEDBACK*/
 
 				g_dm.rd[type].last_trg_time = now_time;
 				g_dm.rd[type].trg_cnt++;

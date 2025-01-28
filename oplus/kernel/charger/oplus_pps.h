@@ -82,7 +82,7 @@
 #define PPS_BTB_OV_CNT 8
 #define PPS_TBATT_OV_CNT 1
 #define PPS_DISCONNECT_IOUT_MIN 300
-#define PPS_DISCONNECT_IOUT_CNT 3
+#define PPS_DISCONNECT_IOUT_CNT 4
 #define BTB_CHECK_MAX_CNT 3
 #define BTB_CHECK_TIME_US 10000
 
@@ -114,12 +114,13 @@
 #define PPS_ACTION_START_DIFF_VOLT_V2 600
 #define PPS_ACTION_START_DIFF_VOLT_3RD 450
 #define PPS_ACTION_VOLT_CHANGE_DIFF_VOLT_3RD 100
-#define PPS_ACTION_CURR_MIN 1500
+#define PPS_ACTION_CURR_MIN_OPLUS 800
+#define PPS_ACTION_CURR_MIN_THIRD 1000
 
 #define PPS_ACTION_START_DELAY 300
 #define PPS_ACTION_MOS_DELAY 50
-#define PPS_ACTION_VOLT_DELAY 200
-#define PPS_ACTION_CURR_DELAY 200
+#define PPS_ACTION_VOLT_DELAY 500
+#define PPS_ACTION_CURR_DELAY 500
 #define PPS_ACTION_CHECK_DELAY 500
 #define PPS_ACTION_CHECK_ICURR_CNT 3
 
@@ -528,6 +529,7 @@ struct pps_current_limits {
 	int cp_r_down;
 	int cp_tdie_down;
 	int current_slow_chg;
+	int current_fcl;
 };
 
 struct oplus_pps_limits {
@@ -623,6 +625,7 @@ struct oplus_pps_chip {
 	struct delayed_work update_pps_work;
 	struct delayed_work check_vbat_diff_work;
 	struct delayed_work ready_force2svooc_work;
+	struct delayed_work sstimeout_ucp_enable_work;
 
 #if IS_ENABLED(CONFIG_OPLUS_DYNAMIC_CONFIG_CHARGER)
 	struct oplus_cfg debug_cfg;
@@ -708,6 +711,7 @@ struct oplus_pps_chip {
 	struct delayed_work pps_err_load_trigger_work;
 	struct pd_adapter_info adapter_info;
 	char pd_event_name[PD_EVENT_NAME_LEN];
+	int target_vbus_mv;
 };
 
 struct oplus_pps_operations {
@@ -726,6 +730,7 @@ struct oplus_pps_operations {
 	void (*pps_cp_reset)(void);
 	int (*pps_cp_mode_init)(int mode);
 	void (*pps_cp_pmid2vout_enable)(bool enable);
+	int (*pps_cp_sstimeout_ucp_enable)(bool enable);
 
 	int (*pps_mos_ctrl)(int on);
 	int (*pps_get_cp_master_vbus)(void);
@@ -845,4 +850,5 @@ bool oplus_pps_get_adapter_voltage_status(void);
 int oplus_chg_track_pack_pps_adapter_info(u8 *pps_adapter_info, int lenth);
 bool oplus_support_pps(void);
 void oplus_pps_shutdown(void);
+int oplus_pps_get_adapter_power(void);
 #endif /*_OPLUS_PPS_H_*/

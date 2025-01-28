@@ -18,6 +18,10 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/pcm.h>
+#include <linux/version.h>
+#include <linux/gpio.h>
+#include <linux/of_gpio.h>
+#include <sound/core.h>
 
 #define AUDIO_EXTEND_DRIVER_NAME "audio-extend-drv"
 
@@ -36,6 +40,7 @@ enum {
 	CODEC_DAI_NAME,
 	CODEC_VENDOR,
 	CONFIG_PATH,
+	EMI_GPIO,
 	CODEC_PROP_END,
 	CODEC_PROP_MAX = CODEC_PROP_END,
 };
@@ -53,6 +58,7 @@ static const char *extend_speaker_prop[CODEC_PROP_MAX] = {
 	[CODEC_DAI_NAME] = "oplus,speaker-codec-dai-name",
 	[CODEC_VENDOR] = "oplus,speaker-vendor",
 	[CONFIG_PATH] = "oplus,config-path",
+	[EMI_GPIO] = "oplus,emi-gpio",
 };
 
 static const char *extend_dac_prop[CODEC_PROP_MAX] = {
@@ -69,6 +75,7 @@ struct codec_prop_info {
 	const char **codec_dai_name;
 	const char *codec_vendor;
 	const char *config_path;
+	int emi_gpio;
 };
 
 struct audio_extend_data {
@@ -79,6 +86,54 @@ struct audio_extend_data {
 };
 
 static struct audio_extend_data *g_extend_pdata = NULL;
+
+static uint32_t oplus_emi_selector;
+static int oplus_emi_ctl_info(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 1;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = 1;
+	return 0;
+}
+
+static int oplus_get_emi_ctl(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.integer.value[0] = oplus_emi_selector;
+	return 0;
+}
+
+static int oplus_set_emi_ctl(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	if (!g_extend_pdata || !g_extend_pdata->spk_pa_info ||
+		(g_extend_pdata->spk_pa_info->emi_gpio < 0)) {
+		return -EINVAL;
+	}
+
+	int enable = ucontrol->value.integer.value[0];
+
+	pr_info("%s: enable = %d\n", __func__, enable);
+	oplus_emi_selector = enable;
+
+	if (gpio_is_valid(g_extend_pdata->spk_pa_info->emi_gpio)) {
+		gpio_set_value_cansleep(g_extend_pdata->spk_pa_info->emi_gpio, enable);
+	}
+
+	return 1;
+}
+
+static const struct snd_kcontrol_new oplus_emi_controls[] = {
+	{
+		.name = "EMI CTL",
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.info = oplus_emi_ctl_info,
+		.get = oplus_get_emi_ctl,
+		.put = oplus_set_emi_ctl,
+	},
+};
 
 static int maxim_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 				  struct snd_pcm_hw_params *params)
@@ -99,7 +154,11 @@ static int ak4376_audrx_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_component *component = NULL;
 	struct snd_soc_dapm_context *dapm = NULL;
 	struct snd_soc_dai *codec_dai = NULL;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 7, 0))
+	codec_dai = snd_soc_rtd_to_codec(rtd, 0);
+#else
 	codec_dai = asoc_rtd_to_codec(rtd, 0);
+#endif
 	component = codec_dai->component;
 
 	if (!component) {
@@ -247,6 +306,11 @@ static int extend_codec_prop_parse(struct device *dev, const char *codec_prop[],
 		return -EINVAL;
 	}
 
+	codec_info->emi_gpio = of_get_named_gpio(dev->of_node, codec_prop[EMI_GPIO], 0);
+	if (codec_info->emi_gpio < 0) {
+		pr_warn("%s: No EMI GPIO provided!\n", __func__);
+	}
+
 	return 0;
 }
 
@@ -334,6 +398,24 @@ void extend_codec_i2s_be_dailinks(struct device *dev, struct snd_soc_dai_link *d
 }
 EXPORT_SYMBOL(extend_codec_i2s_be_dailinks);
 
+void extend_codec_register_control(struct snd_soc_card *card)
+{
+	if (!g_extend_pdata) {
+		pr_err("%s: No extend data, do nothing.\n", __func__);
+		return;
+	}
+
+	if (card && card->dev && g_extend_pdata->use_extern_spk &&
+		g_extend_pdata->spk_pa_info && gpio_is_valid(g_extend_pdata->spk_pa_info->emi_gpio)) {
+		int ret = snd_soc_add_card_controls(card, oplus_emi_controls,
+				ARRAY_SIZE(oplus_emi_controls));
+		if (ret < 0) {
+			dev_err(card->dev, "Failed to add EMI controls: %d\n", ret);
+		}
+	}
+}
+EXPORT_SYMBOL(extend_codec_register_control);
+
 static int audio_extend_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -382,15 +464,30 @@ static int audio_extend_probe(struct platform_device *pdev)
 		audio_extend_proc_init(g_extend_pdata);
 	}
 
+	if (g_extend_pdata->spk_pa_info && gpio_is_valid(g_extend_pdata->spk_pa_info->emi_gpio)) {
+		ret = devm_gpio_request_one(&pdev->dev,
+				g_extend_pdata->spk_pa_info->emi_gpio,
+				GPIOF_OUT_INIT_HIGH, "AUDIO_EMI");
+		if (ret) {
+			dev_err(&pdev->dev, "Failed to request emi gpio\n");
+		}
+	}
+
 	return 0;
 }
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0))
 static int audio_extend_remove(struct platform_device *pdev)
+#else
+static void audio_extend_remove(struct platform_device *pdev)
+#endif
 {
 	dev_info(&pdev->dev, "%s: dev name %s\n", __func__,
 		dev_name(&pdev->dev));
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 10, 0))
 	return 0;
+#endif
 }
 
 static const struct of_device_id audio_extend_of_match[] = {

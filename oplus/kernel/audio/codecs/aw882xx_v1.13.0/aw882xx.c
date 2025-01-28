@@ -53,7 +53,7 @@ static int s_speaker_reboot = 0;
 #include <soc/oplus/system/oplus_mm_kevent_fb.h>
 #endif
 
-#define AW882XX_DRIVER_VERSION "v1.13.0.10"
+#define AW882XX_DRIVER_VERSION "Dv1.13.0.11"
 #define AW882XX_I2C_NAME "aw882xx_smartpa"
 
 #define AW_READ_CHIPID_RETRIES		5	/* 5 times */
@@ -148,7 +148,7 @@ static int aw882xx_i2c_writes(struct aw882xx *aw882xx,
 	int ret = -1;
 	unsigned char *data = NULL;
 
-	data = kmalloc(len+1, GFP_KERNEL);
+	data = kzalloc(len+1, GFP_KERNEL);
 	if (data == NULL) {
 		aw_dev_err(aw882xx->dev, "can not allocate memory");
 		return -ENOMEM;
@@ -500,7 +500,7 @@ const unsigned char fb_regs_aw88265[] = {0x02, 0x04, 0x05, 0x06, 0x07, 0x09, 0x0
 static bool g_chk_err = false;
 static uint32_t g_control_fb = 0;
 
-static int aw882xx_check_status_reg(struct aw882xx *aw882xx)
+static int aw882xx_check_status_reg(void)
 {
 	unsigned int reg_val = 0;
 	char fd_buf[MM_KEVENT_MAX_PAYLOAD_SIZE] = {0};
@@ -508,66 +508,82 @@ static int aw882xx_check_status_reg(struct aw882xx *aw882xx)
 	int offset = 0;
 	int i = 0;
 	int ret = 0;
+	struct aw_device *local_dev = NULL;
+	struct list_head *pos = NULL;
+	struct list_head *dev_list = NULL;
+	struct aw882xx *aw882xx = NULL;
 
-	if ((aw882xx->last_fb !=0) && ktime_before(ktime_get(), ktime_add_ms(aw882xx->last_fb, MM_FB_KEY_RATELIMIT_1MIN))) {
-		return 0;
+	ret = aw882xx_dev_get_list_head(&dev_list);
+	if (ret < 0) {
+		aw_pr_err("get dev list failed");
+		return ret;
 	}
 
-	ret = aw882xx_i2c_read(aw882xx, AW882XX_STATUS_REG, &reg_val);
-	if (ret < 0) {
-		offset = strlen(info);
-		scnprintf(info + offset, sizeof(info) - offset - 1, \
-				"AW882xx SPK%u:failed to read regs 0x%x, ret=%d,", \
-				aw882xx->aw_pa->channel + 1, AW882XX_STATUS_REG, ret);
-		aw_dev_info(aw882xx->dev, "i2c read error, ret=%d", ret);
-	} else {
-		aw_dev_info(aw882xx->dev, "read reg[0x%x]=0x%x", AW882XX_STATUS_REG, reg_val);
-		if (g_control_fb & TEST_PA_ERR_FB_10041) {
-			reg_val = 0xFFFF;
-			aw_dev_info(aw882xx->dev, "just for test 10041, change reg[0x%x]=0x%x", AW882XX_STATUS_REG, reg_val);
+	list_for_each(pos, dev_list) {
+		local_dev = container_of(pos, struct aw_device, list_node);
+		aw882xx = (struct aw882xx *)local_dev->private_data;
+		if (aw882xx == NULL) {
+			aw_pr_err("get aw882xx is NULL\n");
+			continue;
 		}
-		/* 2024/07/08, Add for smartpa vbatlow err check. */
-		if (reg_val & VBAT_LOW_REG_BIT_MASK) {
-			aw882xx->vbatlow_cnt++;
-			aw_dev_info(aw882xx->dev, "vbatlow_cnt=%u", aw882xx->vbatlow_cnt);
-		}
-		if ((AW882XX_STATUS_NORMAL_VALUE & AW882XX_STATUS_CHECK_MASK) != (reg_val & AW882XX_STATUS_CHECK_MASK)) {
+
+		ret = aw882xx_i2c_read(aw882xx, AW882XX_STATUS_REG, &reg_val);
+		if (ret < 0) {
 			offset = strlen(info);
 			scnprintf(info + offset, sizeof(info) - offset - 1, \
-					"AW882xx SPK%u:reg[0x%x]=0x%x,", \
-					aw882xx->aw_pa->channel + 1, AW882XX_STATUS_REG, reg_val);
-			for (i = 0; i < ARRAY_SIZE(check_err); i++) {
-				if (check_err[i].err_val == (1 & (reg_val>>check_err[i].bit))) {
-					offset = strlen(info);
-					scnprintf(info + offset, sizeof(info) - offset - 1, "%s,", check_err[i].info);
-				}
+					"AW882xx SPK%u:failed to read regs 0x%x, ret=%d,", \
+					aw882xx->aw_pa->channel + 1, AW882XX_STATUS_REG, ret);
+			aw_dev_info(aw882xx->dev, "i2c read error, ret=%d", ret);
+			break;
+		} else {
+			aw_dev_info(aw882xx->dev, "read reg[0x%x]=0x%x", AW882XX_STATUS_REG, reg_val);
+			if (g_control_fb & TEST_PA_ERR_FB_10041) {
+				reg_val = 0xFFFF;
+				aw_dev_info(aw882xx->dev, "just for test 10041, change reg[0x%x]=0x%x", AW882XX_STATUS_REG, reg_val);
 			}
+			/* 2024/07/08, Add for smartpa vbatlow err check. */
+			if (reg_val & VBAT_LOW_REG_BIT_MASK) {
+				aw882xx->vbatlow_cnt++;
+				aw_dev_info(aw882xx->dev, "vbatlow_cnt=%u", aw882xx->vbatlow_cnt);
+			}
+			if ((AW882XX_STATUS_NORMAL_VALUE & AW882XX_STATUS_CHECK_MASK) != (reg_val & AW882XX_STATUS_CHECK_MASK)) {
+				offset = strlen(info);
+				scnprintf(info + offset, sizeof(info) - offset - 1, \
+						"AW882xx SPK%u:reg[0x%x]=0x%x,", \
+						aw882xx->aw_pa->channel + 1, AW882XX_STATUS_REG, reg_val);
+				for (i = 0; i < ARRAY_SIZE(check_err); i++) {
+					if (check_err[i].err_val == (1 & (reg_val>>check_err[i].bit))) {
+						offset = strlen(info);
+						scnprintf(info + offset, sizeof(info) - offset - 1, "%s,", check_err[i].info);
+					}
+				}
 
-			offset = strlen(info);
-			scnprintf(info + offset, sizeof(info) - offset - 1, "regs:(");
-			if (aw882xx->aw_pa && (PID_1852_ID == aw882xx->aw_pa->chip_id)) {
-				for (i = 0; i < sizeof(fb_regs_aw88264); i++) {
-					ret = aw882xx_i2c_read(aw882xx, fb_regs_aw88264[i], &reg_val);
-					if (ret < 0) {
-						break;
-					} else {
-						offset = strlen(info);
-						scnprintf(info + offset, sizeof(info) - offset - 1, "%x,", reg_val);
+				offset = strlen(info);
+				scnprintf(info + offset, sizeof(info) - offset - 1, "regs:(");
+				if (aw882xx->aw_pa && (PID_1852_ID == aw882xx->aw_pa->chip_id)) {
+					for (i = 0; i < sizeof(fb_regs_aw88264) / sizeof(fb_regs_aw88264[0]); i++) {
+						ret = aw882xx_i2c_read(aw882xx, fb_regs_aw88264[i], &reg_val);
+						if (ret < 0) {
+							break;
+						} else {
+							offset = strlen(info);
+							scnprintf(info + offset, sizeof(info) - offset - 1, "%x,", reg_val);
+						}
+					}
+				} else {
+					for (i = 0; i < sizeof(fb_regs_aw88265) / sizeof(fb_regs_aw88265[0]); i++) {
+						ret = aw882xx_i2c_read(aw882xx, fb_regs_aw88265[i], &reg_val);
+						if (ret < 0) {
+							break;
+						} else {
+							offset = strlen(info);
+							scnprintf(info + offset, sizeof(info) - offset - 1, "%x,", reg_val);
+						}
 					}
 				}
-			} else {
-				for (i = 0; i < sizeof(fb_regs_aw88265); i++) {
-					ret = aw882xx_i2c_read(aw882xx, fb_regs_aw88265[i], &reg_val);
-					if (ret < 0) {
-						break;
-					} else {
-						offset = strlen(info);
-						scnprintf(info + offset, sizeof(info) - offset - 1, "%x,", reg_val);
-					}
-				}
+				offset = strlen(info);
+				scnprintf(info + offset, sizeof(info) - offset - 1, ");");
 			}
-			offset = strlen(info);
-			scnprintf(info + offset, sizeof(info) - offset - 1, ")");
 		}
 	}
 
@@ -581,8 +597,7 @@ static int aw882xx_check_status_reg(struct aw882xx *aw882xx)
 		}
 		mm_fb_audio_kevent_named(OPLUS_AUDIO_EVENTID_SMARTPA_ERR,
 				MM_FB_KEY_RATELIMIT_5MIN, fd_buf);
-		aw882xx->last_fb = ktime_get();
-		aw_dev_info(aw882xx->dev, "fd_buf=%s", fd_buf);
+		aw_pr_err("fd_buf=%s", fd_buf);
 	}
 
 	return 1;
@@ -912,7 +927,7 @@ static int aw882xx_get_vbatlow_cnt(struct snd_kcontrol *kcontrol,
 
 	if (g_chk_err && !(g_control_fb & BYPASS_PA_ERR_FB_10041) &&
 		aw882xx->allow_pw && aw882xx->pstream) {
-		aw882xx_check_status_reg(aw882xx);
+		aw882xx_check_status_reg();
 	}
 	ucontrol->value.integer.value[0] = aw882xx->vbatlow_cnt;
 	aw_pr_info("vbatlow_cnt = %u", aw882xx->vbatlow_cnt);
@@ -993,6 +1008,12 @@ static int aw882xx_spk_mute_ctrl_set(struct snd_kcontrol *kcontrol,
 		aw882xx = (struct aw882xx *)local_dev->private_data;
 		if (aw882xx->pstream) {
 			if (speaker_mute_control == 1) {
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+/* 2025/04/18, not check feedback when mute */
+				g_chk_err = false;
+				cancel_delayed_work_sync(&aw882xx->check_work);
+				aw882xx->check_step = 0;
+#endif /* CONFIG_OPLUS_FEATURE_MM_FEEDBACK */
 				cancel_delayed_work_sync(&aw882xx->dc_work);
 				cancel_delayed_work_sync(&aw882xx->start_work);
 				mutex_lock(&aw882xx->lock);
@@ -1032,7 +1053,7 @@ static int aw882xx_mute(struct snd_soc_dai *dai, int mute, int stream)
 /* 2022/02/15, Add for smartpa err feedback.*/
 	if (mute) {
 		if (g_chk_err && !(g_control_fb & BYPASS_PA_ERR_FB_10041)) {
-			aw882xx_check_status_reg(aw882xx);
+			aw882xx_check_status_reg();
 			g_chk_err = false;
 		}
 		cancel_delayed_work_sync(&aw882xx->check_work);
@@ -1267,7 +1288,7 @@ static int aw882xx_switch_set(struct snd_kcontrol *kcontrol,
 /* 2022/02/15, Add for smartpa err feedback.*/
 /*MTK platform set aw_dev_0_switch before pcm close, so check reg here rather than aw882xx_mute */
 			if (g_chk_err && !(g_control_fb & BYPASS_PA_ERR_FB_10041)) {
-				aw882xx_check_status_reg(aw882xx);
+				aw882xx_check_status_reg();
 				g_chk_err = false;
 			}
 			cancel_delayed_work_sync(&aw882xx->check_work);
@@ -2857,7 +2878,7 @@ static int aw882xx_gpio_request(struct aw882xx *aw882xx)
 
 	if (gpio_is_valid(aw882xx->irq_gpio)) {
 		ret = devm_gpio_request_one(aw882xx->dev, aw882xx->irq_gpio,
-			GPIOF_DIR_IN, "aw882xx_int");
+			GPIOF_IN, "aw882xx_int");
 		if (ret) {
 			aw_dev_err(aw882xx->dev, "int request failed");
 			return ret;
@@ -2933,7 +2954,13 @@ static void oplus_aw882xx_parse_feature_dt(struct aw882xx *aw882xx)
 		aw882xx->que_dela_work = false;
 	}
 
-	aw_dev_info(aw882xx->dev, "parse dt spin_flag: %d, need_f0_cali:%d, que_dela_work:%d ", aw882xx->spin_flag, aw882xx->need_f0_cali, aw882xx->que_dela_work);
+	if (of_property_read_bool(np, "need-add-bus-id")) {
+		aw882xx->need_add_bus_id = true;
+	} else {
+		aw882xx->need_add_bus_id = false;
+	}
+
+	aw_dev_info(aw882xx->dev, "parse dt spin_flag: %d, need_f0_cali:%d, que_dela_work:%d, need_add_bus_id:%d", aw882xx->spin_flag, aw882xx->need_f0_cali, aw882xx->que_dela_work, aw882xx->need_add_bus_id);
 
 	return;
 }
@@ -3184,7 +3211,7 @@ static int aw882xx_awrw_write(struct aw882xx *aw882xx, const char *buf, size_t c
 		return -EINVAL;
 	}
 
-	data_buf = kmalloc(data_len + 1, GFP_KERNEL);
+	data_buf = kzalloc(data_len + 1, GFP_KERNEL);
 	if (data_buf == NULL) {
 		aw_dev_err(aw882xx->dev, "alloc memory failed");
 		return -ENOMEM;
@@ -3314,7 +3341,7 @@ static ssize_t awrw_show(struct device *dev,
 	}
 
 	data_len = AWRW_DATA_BYTES * packet->reg_num;
-	reg_data = kmalloc(data_len, GFP_KERNEL);
+	reg_data = kzalloc(data_len, GFP_KERNEL);
 	if (reg_data == NULL) {
 		aw_dev_err(aw882xx->dev, "memory alloc failed");
 		ret = -EINVAL;
@@ -3675,7 +3702,7 @@ static ssize_t aw882xx_dbgfs_range_read(struct file *file,
 		pr_err("%s aw882xx is null\n", __func__);
 		return -EINVAL;
 	}
-	str = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	str = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!str) {
 		ret = -ENOMEM;
 		pr_err("[0x%x] memory allocation failed\n", aw882xx->i2c->addr);
@@ -3702,7 +3729,7 @@ static ssize_t aw882xx_dbgfs_check_re_show(struct file *file,
 		pr_err("%s aw882xx is null\n", __func__);
 		return -EINVAL;
 	}
-	str = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	str = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!str) {
 		ret = -ENOMEM;
 		pr_err("[0x%x] memory allocation failed\n", aw882xx->i2c->addr);
@@ -3736,7 +3763,7 @@ static ssize_t aw882xx_dbgfs_check_cali_re(struct file *file,
 	cancel_delayed_work_sync(&aw882xx->check_work);
 #endif
 
-	str = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	str = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!str) {
 		ret = -ENOMEM;
 		pr_err("[0x%x] memory allocation failed\n", aw882xx->i2c->addr);
@@ -3765,7 +3792,7 @@ static ssize_t aw882xx_dbgfs_f0_range_read(struct file *file,
 		pr_err("%s aw882xx is null\n", __func__);
 		return -EINVAL;
 	}
-	str = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	str = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!str) {
 		ret = -ENOMEM;
 		pr_err("[0x%x] memory allocation failed\n", aw882xx->i2c->addr);
@@ -3796,7 +3823,7 @@ static ssize_t aw882xx_dbgfs_cali_f0_show(struct file *file,
 	struct aw882xx *aw882xx = i2c_get_clientdata(i2c);
 	struct aw_device *aw_dev = aw882xx->aw_pa;
 
-	str = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	str = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!str) {
 		ret = -ENOMEM;
 		pr_err("[0x%x] memory allocation failed\n", aw882xx->i2c->addr);
@@ -3895,6 +3922,11 @@ static void aw882xx_debug_init(struct aw882xx *aw882xx, struct i2c_client *i2c)
 {
 	char name[50];
 	scnprintf(name, MAX_CONTROL_NAME, "%s-%x", i2c->name, i2c->addr);
+#ifdef OPLUS_ARCH_EXTENDS
+	if (aw882xx->need_add_bus_id) {
+		scnprintf(name, MAX_CONTROL_NAME, "%s-%x-%x", i2c->name, i2c->adapter->nr, i2c->addr);
+	}
+#endif
 	aw882xx->dbg_dir = proc_mkdir(name, NULL);
 	proc_create_data("range", S_IRUGO, aw882xx->dbg_dir,
 					&aw882xx_dbgfs_range_fops, i2c);

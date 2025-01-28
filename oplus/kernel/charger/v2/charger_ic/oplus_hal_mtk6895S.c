@@ -39,6 +39,10 @@
 #include <linux/regmap.h>
 #include <linux/of_platform.h>
 #include <linux/rtc.h>
+#include <linux/version.h>
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+#include <linux/vmalloc.h>
+#endif
 
 #include <asm/setup.h>
 
@@ -71,6 +75,10 @@
 #include <oplus_chg_wls.h>
 #include <oplus_chg_monitor.h>
 
+#ifndef CONFIG_DISABLE_OPLUS_FUNCTION
+#include <soc/oplus/system/boot_mode.h>
+#include <soc/oplus/system/oplus_project.h>
+#endif
 static int oplus_chg_set_pps_config(struct oplus_chg_ic_dev *ic_dev, int vbus_mv, int ibus_ma);
 static int oplus_chg_set_fixed_pd_config(struct oplus_chg_ic_dev *ic_dev, int vol_mv, int curr_ma);
 static int oplus_pps_get_authentiate(struct oplus_chg_ic_dev *ic_dev);
@@ -106,6 +114,7 @@ static unsigned int adc_vin_reg;
 #define PPS_RANDOM_NUMBER	    4
 #define NO_OF_DATA_OBJECTS_MAX      7
 #define PPS_KEY_COUNT		    4
+#define LOW_BATT_SOC 1
 
 static uint32_t pps_random[PPS_RANDOM_NUMBER] = { 1111, 2222, 3333, 4444 };
 static uint32_t pps_adapter_result[NO_OF_DATA_OBJECTS_MAX] = { 0 };
@@ -365,6 +374,7 @@ int oplus_chg_get_voocphy_support(void)
 }
 EXPORT_SYMBOL(oplus_chg_get_voocphy_support);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 struct oplus_gauge_chip {
 	int gauge_unused;
 };
@@ -378,6 +388,7 @@ void oplus_gauge_init(struct oplus_gauge_chip *chip)
 	return;
 }
 EXPORT_SYMBOL(oplus_gauge_init);
+#endif
 /*end TODO V2*/
 
 int get_uisoc(struct mtk_charger *info)
@@ -406,6 +417,30 @@ int get_uisoc(struct mtk_charger *info)
 	chr_debug("%s:%d\n", __func__,
 		ret);
 	return ret;
+}
+
+int oplus_chg_get_batt_soc(void)
+{
+	int batt_soc = 50; /* default batt_soc set 50 */
+	struct oplus_mms *gauge_topic;
+	union mms_msg_data data = { 0 };
+	int rc;
+
+	gauge_topic = oplus_mms_get_by_name("gauge");
+	if (!gauge_topic)
+		return batt_soc;
+
+	rc = oplus_mms_get_item_data(gauge_topic, GAUGE_ITEM_SOC, &data, true);
+	if (!rc) {
+		batt_soc = data.intval;
+		if (batt_soc < 0) {
+			chg_err("batt soc not ready, batt_soc=%d\n", batt_soc);
+			batt_soc = 50;
+		}
+	}
+
+	chr_info("get batt soc = %d\n", batt_soc);
+	return batt_soc;
 }
 
 int get_battery_voltage(struct mtk_charger *info)
@@ -2517,7 +2552,7 @@ int wakeup_sc_algo_cmd(struct scd_cmd_param_t_1 *data, int subcmd, int para1)
 		int size = SCD_NL_MSG_T_HDR_LEN + sizeof(struct scd_cmd_param_t_1);
 
 		if (size > (PAGE_SIZE << 1))
-			sc_msg = vmalloc(size);
+			sc_msg = (struct sc_nl_msg_t*)vmalloc(size);
 		else {
 			if (in_interrupt())
 				sc_msg = kmalloc(size, GFP_ATOMIC);
@@ -2527,7 +2562,7 @@ int wakeup_sc_algo_cmd(struct scd_cmd_param_t_1 *data, int subcmd, int para1)
 
 		if (sc_msg == NULL) {
 			if (size > PAGE_SIZE)
-				sc_msg = vmalloc(size);
+				sc_msg = (struct sc_nl_msg_t*)vmalloc(size);
 
 			if (sc_msg == NULL)
 				return -1;
@@ -3721,7 +3756,11 @@ static void mtk_charger_init_timer(struct mtk_charger *info)
 #endif /* CONFIG_PM */
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+static void mtk_charger_setup_files(struct platform_device *pdev)
+#else
 static int mtk_charger_setup_files(struct platform_device *pdev)
+#endif
 {
 	int ret = 0;
 	struct proc_dir_entry *battery_dir = NULL, *entry = NULL;
@@ -3801,7 +3840,11 @@ static int mtk_charger_setup_files(struct platform_device *pdev)
 	battery_dir = proc_mkdir("mtk_battery_cmd", NULL);
 	if (!battery_dir) {
 		chr_err("%s: mkdir /proc/mtk_battery_cmd failed\n", __func__);
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 		return -ENOMEM;
+#else
+		return;
+#endif
 	}
 
 	entry = proc_create_data("current_cmd", 0644, battery_dir,
@@ -3829,12 +3872,21 @@ static int mtk_charger_setup_files(struct platform_device *pdev)
 		goto fail_procfs;
 	}
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	return 0;
+#else
+        return;
+#endif
 
 fail_procfs:
 	remove_proc_subtree("mtk_battery_cmd", NULL);
 _out:
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	return ret;
+#else
+	return;
+#endif
 }
 
 void mtk_charger_get_atm_mode(struct mtk_charger *info)
@@ -5022,6 +5074,35 @@ static int oplus_mt6375_set_aicl_point(struct oplus_chg_ic_dev *ic_dev, int vbat
 	return 0;
 }
 
+static int oplus_chg_wls_set_vindpm(struct oplus_chg_ic_dev *ic_dev, int vindpm_mv)
+{
+	int rc = 0;
+	int vol = 0;
+
+	if (!ic_dev) {
+		chg_err("wls set vindpm fail, ic_dev is null\n");
+		return -ENODEV;
+	}
+
+	switch (vindpm_mv) {
+	case WLS_VINDPM_BPP:
+	case WLS_VINDPM_EPP:
+	case WLS_VINDPM_AIRVOOC:
+	case WLS_VINDPM_AIRSVOOC:
+		vol = HW_AICL_POINT_VOL_5V_PHASE1;
+		break;
+	case WLS_VINDPM_DEFAULT:
+		return rc;
+	default:
+		vol = HW_AICL_POINT_VOL_5V_PHASE1;
+		break;
+	}
+
+	rc = oplus_mt6375_set_aicl_point(ic_dev, vol);
+	chg_info("wls set vindpm vol: %d\n", vol);
+	return rc;
+}
+
 static int usb_icl[] = {
 	300, 500, 900, 1200, 1350, 1500, 2000, 2400, 3000,
 };
@@ -5590,6 +5671,7 @@ static int mtk_chg_set_otg_boost_curr_limit(struct oplus_chg_ic_dev *ic_dev, int
 	int rc;
 	struct mtk_charger *info = oplus_chg_ic_get_drvdata(ic_dev);
 	struct charger_device *chg;
+	int batt_soc;
 
 	if (info == NULL) {
 		chg_err("info is NULL");
@@ -5597,7 +5679,14 @@ static int mtk_chg_set_otg_boost_curr_limit(struct oplus_chg_ic_dev *ic_dev, int
 	}
 
 	chg = info->chg1_dev;
-	rc =  charger_dev_set_boost_current_limit(chg, curr_uA);
+	batt_soc = oplus_chg_get_batt_soc();
+	chg_info("mtk_chg_set_otg_boost_curr_limit get batt_soc is %d\n", batt_soc);
+	if ((batt_soc <= LOW_BATT_SOC) && (info->low_batt_otg_boost_curr_ua != 0) &&
+		(info->low_batt_otg_boost_curr_ua <= curr_uA)) {
+		curr_uA = info->low_batt_otg_boost_curr_ua;
+		chg_info("batt_soc is low, set curr %d ua\n", curr_uA);
+	}
+	rc = charger_dev_set_boost_current_limit(chg, curr_uA);
 	if (rc < 0)
 		chg_err("set otg cc err, rc=%d\n", rc);
 	return rc;
@@ -7081,6 +7170,10 @@ static void *oplus_chg_get_func(struct oplus_chg_ic_dev *ic_dev,
 	case OPLUS_IC_FUNC_BUCK_GET_LPD_INFO:
 		func = OPLUS_CHG_IC_FUNC_CHECK(OPLUS_IC_FUNC_BUCK_GET_LPD_INFO, mtk_chg_get_lpd_info);
 		break;
+	case OPLUS_IC_FUNC_BUCK_SET_VINDPM:
+		func = OPLUS_CHG_IC_FUNC_CHECK(OPLUS_IC_FUNC_BUCK_SET_VINDPM,
+					       oplus_chg_wls_set_vindpm);
+		break;
 	default:
 		chg_err("this func(=%d) is not supported\n", func_id);
 		func = NULL;
@@ -8510,6 +8603,12 @@ static int mtk_charger_probe(struct platform_device *pdev)
 		chg_err("can't find primary charger!\n");
 	}
 #endif
+#ifndef CONFIG_DISABLE_OPLUS_FUNCTION
+	if (info->chg1_dev && (get_eng_version() == AGING || get_eng_version() == HIGH_TEMP_AGING)) {
+		chg_err("charger_dev_enable_safety_timer disable\n");
+		charger_dev_enable_safety_timer(info->chg1_dev, false);
+	}
+#endif
 
 	mutex_init(&info->cable_out_lock);
 	mutex_init(&info->charger_lock);
@@ -8743,9 +8842,17 @@ reg_ic_err:
 	return 0;
 }
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 static int mtk_charger_remove(struct platform_device *dev)
+#else
+static void mtk_charger_remove(struct platform_device *dev)
+#endif
 {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	return 0;
+#else
+	return;
+#endif
 }
 
 static void mtk_charger_shutdown(struct platform_device *dev)
