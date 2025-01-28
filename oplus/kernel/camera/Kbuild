@@ -1,0 +1,67 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# Copyright (C) 2025 The LineageOS Project
+
+obj-m := camera_extension.o
+
+camera_extension-y := \
+    camera_extension/cam_sensor_module/cam_actuator/cam_actuator_custom.o \
+    camera_extension/cam_sensor_module/cam_sensor_io/cam_sensor_io_custom.o \
+    camera_extension/cam_sensor_module/cam_sensor_io/cam_sensor_util_custom.o \
+    camera_extension/cam_sensor_module/cam_eeprom/cam_eeprom_custom.o \
+    camera_extension/cam_sensor_module/cam_sensor/cam_sensor_custom.o \
+    camera_extension/cam_sensor_module/cam_ois/cam_ois_custom.o \
+    camera_extension/cam_sensor_module/cam_ois/fw_download_interface.o \
+    camera_extension/cam_sensor_module/cam_ois/SEM1217S/sem1217_fw.o \
+    camera_extension/cam_sensor_module/cam_ois/BU24721/bu24721_fw.o \
+    camera_extension/cam_sensor_module/cam_ois/DW9786/dw9786_fw.o \
+    camera_extension/cam_monitor/cam_monitor.o \
+    camera_extension/cam_utils/cam_debug.o \
+    camera_extension/main.o \
+    camera_extension/cam_sensor_module/cam_tof/cam_tof8801/tof8801_driver.o \
+    camera_extension/cam_sensor_module/cam_tof/cam_tof8801/tof8801_bootloader.o \
+    camera_extension/cam_sensor_module/cam_tof/cam_tof8801/tof_hex_interpreter.o \
+    camera_extension/cam_sensor_module/cam_tof/cam_tof8801/tof8801_app0.o \
+    camera_extension/cam_sensor_module/cam_tof/cam_tof8806/ams_i2c.o \
+    camera_extension/cam_sensor_module/cam_tof/cam_tof8806/tmf8806_driver.o \
+    camera_extension/cam_sensor_module/cam_tof/cam_tof8806/tmf8806_hex_interpreter.o \
+    camera_extension/cam_sensor_module/cam_tof/cam_tof8806/tmf8806_shim.o \
+    camera_extension/cam_sensor_module/cam_tof/cam_tof8806/tmf8806.o \
+    camera_extension/cam_sensor_module/cam_tof/cam_tof8806/tmf8806_image.o \
+    camera_extension/cam_sensor_module/cam_tof/cam_tof_common/tof_pdrv.o
+
+ccflags-y := \
+    -DFEATURE_ENABLE=1 \
+    -DOPLUS_FEATURE_CAMERA_COMMON \
+    -I$(srctree)/$(src)/../../../qcom/opensource/camera-kernel \
+    -I$(srctree)/$(src)/../../../qcom/opensource/camera-kernel/drivers/cam_core \
+    -I$(srctree)/$(src)/../../../qcom/opensource/camera-kernel/drivers/cam_cpas/include \
+    -I$(srctree)/$(src)/../../../qcom/opensource/camera-kernel/drivers/cam_presil/inc \
+    -I$(srctree)/$(src)/../../../qcom/opensource/camera-kernel/drivers/cam_req_mgr \
+    -I$(srctree)/$(src)/../../../qcom/opensource/camera-kernel/drivers/cam_sensor_module/cam_actuator \
+    -I$(srctree)/$(src)/../../../qcom/opensource/camera-kernel/drivers/cam_sensor_module/cam_cci \
+    -I$(srctree)/$(src)/../../../qcom/opensource/camera-kernel/drivers/cam_sensor_module/cam_csiphy \
+    -I$(srctree)/$(src)/../../../qcom/opensource/camera-kernel/drivers/cam_sensor_module/cam_eeprom \
+    -I$(srctree)/$(src)/../../../qcom/opensource/camera-kernel/drivers/cam_sensor_module/cam_ois \
+    -I$(srctree)/$(src)/../../../qcom/opensource/camera-kernel/drivers/cam_sensor_module/cam_res_mgr \
+    -I$(srctree)/$(src)/../../../qcom/opensource/camera-kernel/drivers/cam_sensor_module/cam_sensor \
+    -I$(srctree)/$(src)/../../../qcom/opensource/camera-kernel/drivers/cam_sensor_module/cam_sensor_io \
+    -I$(srctree)/$(src)/../../../qcom/opensource/camera-kernel/drivers/cam_sensor_module/cam_sensor_utils \
+    -I$(srctree)/$(src)/../../../qcom/opensource/camera-kernel/drivers/cam_smmu \
+    -I$(srctree)/$(src)/../../../qcom/opensource/camera-kernel/drivers/cam_utils \
+    -I$(srctree)/$(src)/../../../qcom/opensource/camera-kernel/drivers/oplus/cam_sensor_module/cam_link \
+    -I$(srctree)/$(src)/../../../qcom/opensource/camera-kernel/drivers/oplus/cam_sensor_module/cam_module_utils \
+    -I$(srctree)/$(src)/../../../qcom/opensource/camera-kernel/include/uapi/camera \
+    -I$(srctree)/$(src)/camera_extension/cam_monitor \
+    -I$(srctree)/$(src)/camera_extension/cam_sensor_module/cam_actuator \
+    -I$(srctree)/$(src)/camera_extension/cam_sensor_module/cam_eeprom \
+    -I$(srctree)/$(src)/camera_extension/cam_sensor_module/cam_ois \
+    -I$(srctree)/$(src)/camera_extension/cam_sensor_module/cam_sensor \
+    -I$(srctree)/$(src)/camera_extension/cam_sensor_module/cam_sensor_io \
+    -I$(srctree)/$(src)/camera_extension/cam_sensor_module/cam_tof/cam_tof8801 \
+    -I$(srctree)/$(src)/camera_extension/cam_sensor_module/cam_tof/cam_tof8801/include \
+    -I$(srctree)/$(src)/camera_extension/cam_sensor_module/cam_tof/cam_tof8806 \
+    -I$(srctree)/$(src)/camera_extension/cam_sensor_module/cam_tof/cam_tof8806/include \
+    -I$(srctree)/$(src)/camera_extension/cam_sensor_module/cam_tof/cam_tof_common \
+    -I$(srctree)/$(src)/camera_extension/cam_utils
+
+KBUILD_EXTRA_SYMBOLS := $(M)/../../../qcom/opensource/camera-kernel/Module.symvers
