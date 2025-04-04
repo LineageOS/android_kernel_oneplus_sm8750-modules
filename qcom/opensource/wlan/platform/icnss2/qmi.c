@@ -1152,7 +1152,7 @@ static bool is_prj_support_region_id(void) {
 	icnss_pr_info("the project support region id is: %d\n", project_id);
 	if (project_id == 24211 || project_id == 24212) {
 		return true;
-	} else if (project_id == 24882 || project_id == 24881) {
+	} else if (project_id == 24882 || project_id == 24881 || project_id == 24885 || project_id == 24886 || project_id == 24816) {
 		return true;
 	}
 	return false;
