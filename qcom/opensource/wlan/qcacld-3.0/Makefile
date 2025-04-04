@@ -28,14 +28,30 @@ else
 KBUILD_OPTIONS += MODNAME?=wlan
 endif
 
+WLAN_CHIPSET := qca_cld3
+LOCAL_DEV_NAME := $(patsubst .%,%,\
+	$(lastword $(strip $(subst /, ,$(M)))))
+
+ifneq ($(filter qcacld-3.0,$(LOCAL_DEV_NAME)),)
+WLAN_VARIANT := peach_v2
+WLAN_MODULE_ROOT := $(M)
+else
+WLAN_VARIANT := $(LOCAL_DEV_NAME)
+WLAN_MODULE_ROOT := $(patsubst %/,%,$(dir $(M)))
+endif
+
+WLAN_CONFIG_PROFILE := $(subst _,-,$(WLAN_VARIANT))
+
 KBUILD_EXTRA := \
     CONFIG_IPA_OUT_OF_TREE=y \
-    WLAN_PROFILE=sun_gki_peach-v2 \
-    MODNAME=qca_cld3_peach_v2
-
+    CONFIG_QCA_CLD_WLAN_PROFILE=sun_gki_$(WLAN_CONFIG_PROFILE) \
+    WLAN_PROFILE=$(WLAN_VARIANT) \
+    DYNAMIC_SINGLE_CHIP=$(WLAN_VARIANT) \
+    MODNAME=$(WLAN_CHIPSET)_$(WLAN_VARIANT) \
+    DEVNAME=$(WLAN_VARIANT)
 KBUILD_OPTIONS += \
-    KBUILD_EXTRA_SYMBOLS=$(M)/../../dataipa/drivers/platform/msm/Module.symvers \
-    KBUILD_EXTRA_SYMBOLS+=$(M)/../platform/Module.symvers
+    KBUILD_EXTRA_SYMBOLS=$(WLAN_MODULE_ROOT)/../../dataipa/drivers/platform/msm/Module.symvers \
+    KBUILD_EXTRA_SYMBOLS+=$(WLAN_MODULE_ROOT)/../platform/Module.symvers
 
 #By default build for CLD
 WLAN_SELECT := CONFIG_QCA_CLD_WLAN=m
