@@ -47,8 +47,12 @@ TRACE_EVENT(fpga_stat,
 );
 #endif /* _FPGA_TRACE_H */
 
+#ifndef FPGA_TRACE_INCLUDE_PATH
+#define FPGA_TRACE_INCLUDE_PATH ../../../vendor/oplus/kernel/device_info/oplus_fpga/fpga_monitor
+#endif
+
 #undef TRACE_INCLUDE_PATH
-#define TRACE_INCLUDE_PATH ../../../vendor/oplus/kernel/device_info/oplus_fpga/fpga_monitor
+#define TRACE_INCLUDE_PATH FPGA_TRACE_INCLUDE_PATH
 #undef TRACE_INCLUDE_FILE
 #define TRACE_INCLUDE_FILE fpga_trace
 
