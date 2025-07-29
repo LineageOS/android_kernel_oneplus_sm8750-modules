@@ -1675,7 +1675,7 @@ enum Tfa98xx_Error dsp_msg(struct tfa_device *tfa, int length24,
 				pr_debug(
 					"Multi-msg buf full.Sending multi-msg, length=%d\n",
 					len);
-			if (tfa->has_msg == 0) /* via i2c */ {
+			if (tfa->has_msg == 0 && (tfa->dev_ops.dsp_msg != NULL)) /* via i2c */ {
 				/* Send tot the target selected */
 				error = (tfa->dev_ops.dsp_msg)(
 					tfa, len,
@@ -1716,7 +1716,7 @@ enum Tfa98xx_Error dsp_msg(struct tfa_device *tfa, int length24,
 					"Last message for the multi-message received. Multi-message length=%d\n",
 						length);
 
-			if (tfa->has_msg == 0) /* via i2c */ {
+			if (tfa->has_msg == 0 && (tfa->dev_ops.dsp_msg != NULL)) /* via i2c */ {
 				/* Send tot the target selected */
 				error = (tfa->dev_ops.dsp_msg)(tfa,
 					length, (const char *)blob);
@@ -1729,7 +1729,7 @@ enum Tfa98xx_Error dsp_msg(struct tfa_device *tfa, int length24,
 			lastmessage = 0; /* reset to be able to re-start */
 		}
 	} else {
-		if (tfa->has_msg == 0) /* via i2c */
+		if (tfa->has_msg == 0 && (tfa->dev_ops.dsp_msg != NULL)) /* via i2c */
 			error = (tfa->dev_ops.dsp_msg)(tfa, length, buf);
 		else { /* via msg hal */
 			error = tfa98xx_write_dsp(tfa, length,
@@ -1775,7 +1775,7 @@ enum Tfa98xx_Error dsp_msg_read(struct tfa_device *tfa, int length24,
 		}
 	}
 
-	if (tfa->has_msg == 0) /* via i2c */
+	if (tfa->has_msg == 0 && (tfa->dev_ops.dsp_msg_read != NULL)) /* via i2c */
 		error = (tfa->dev_ops.dsp_msg_read)(tfa, length, bytes);
 	else { /* via msg hal */
 		error = tfa98xx_read_dsp(tfa, length, bytes);

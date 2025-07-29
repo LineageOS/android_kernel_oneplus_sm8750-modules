@@ -39,4 +39,6 @@ obj-$(CONFIG_SND_SOC_OPLUS_DISCRETE_TYPEC_SWITCH) += codecs/oplus_discrete_typec
 obj-$(CONFIG_AUDIO_DAEMON_KERNEL_MTK_HIFI) += oplus_audio_daemon/
 # add for audio daemon kernel with rv adsp
 obj-$(CONFIG_AUDIO_DAEMON_KERNEL_MTK_RV) += oplus_audio_daemon/
+# add for oplus audio netlink kernel
+obj-$(CONFIG_AUDIO_NETLINK_KERNEL) += oplus_audio_netlink/
 endif

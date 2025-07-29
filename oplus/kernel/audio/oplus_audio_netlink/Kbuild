@@ -81,3 +81,4 @@ endif
 # Module information used by KBuild framework
 # add for oplus audio netlink kernel communication
 oplus_audio_netlink-y := $(AUDIO_NETLNK_OBJS)
+obj-$(CONFIG_AUDIO_NETLINK_KERNEL) += oplus_audio_netlink.o

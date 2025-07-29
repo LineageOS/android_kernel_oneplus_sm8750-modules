@@ -47,6 +47,7 @@ AUDIO_KERNEL_MODULES += $(KERNEL_MODULES_OUT)/oplus_audio_tfa98xx_v6.ko
 AUDIO_KERNEL_MODULES += $(KERNEL_MODULES_OUT)/oplus_audio_sipa.ko
 AUDIO_KERNEL_MODULES += $(KERNEL_MODULES_OUT)/oplus_audio_sipa_tuning.ko
 AUDIO_KERNEL_MODULES += $(KERNEL_MODULES_OUT)/oplus_audio_pa_manager.ko
+AUDIO_KERNEL_MODULES += $(KERNEL_MODULES_OUT)/oplus_audio_aw87xxx.ko
 # add for audio daemon kernel on QCOM platform sun
 AUDIO_KERNEL_MODULES += $(KERNEL_MODULES_OUT)/oplus_audio_daemon.ko
 # add for audio netlink kernel communication

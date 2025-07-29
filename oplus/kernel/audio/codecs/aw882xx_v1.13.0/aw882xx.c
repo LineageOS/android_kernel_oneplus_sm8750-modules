@@ -3821,6 +3821,34 @@ range_err:
 	return ret;
 }
 
+static ssize_t aw882xx_dbgfs_auto_cali_re(struct file *file,
+				char __user *user_buf, size_t count,
+				loff_t *ppos)
+{
+	struct i2c_client *i2c = PDE_DATA(file_inode(file));
+	struct aw882xx *aw882xx = i2c_get_clientdata(i2c);
+	char *str = NULL;
+	int ret = 0;
+	if (!aw882xx) {
+		pr_err("%s aw882xx is null\n", __func__);
+		return -EINVAL;
+	}
+
+	str = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!str) {
+		ret = -ENOMEM;
+		pr_err("[0x%x] memory allocation failed\n", aw882xx->i2c->addr);
+		goto cali_re_err;
+	}
+
+	ret = oplus_aw_cali_re(&i2c->dev, str);
+	pr_info("%s addr 0x%x, str=%s\n", __func__, aw882xx->i2c->addr, str);
+	ret = simple_read_from_buffer(user_buf, count, ppos, str, ret);
+	kfree(str);
+cali_re_err:
+	return ret;
+}
+
 static const struct proc_ops aw882xx_dbgfs_range_fops = {
 	.proc_open = simple_open,
 	.proc_read = aw882xx_dbgfs_range_read,
@@ -3857,6 +3885,12 @@ static const struct proc_ops aw882xx_dbgfs_f0_show_fops = {
 	.proc_lseek = default_llseek,
 };
 
+static const struct proc_ops aw882xx_dbgfs_auto_cali_re_fops = {
+	.proc_open = simple_open,
+	.proc_read = aw882xx_dbgfs_auto_cali_re,
+	.proc_lseek = default_llseek,
+};
+
 static void aw882xx_debug_init(struct aw882xx *aw882xx, struct i2c_client *i2c)
 {
 	char name[50];
@@ -3870,6 +3904,8 @@ static void aw882xx_debug_init(struct aw882xx *aw882xx, struct i2c_client *i2c)
 					&aw882xx_dbgfs_cali_re_fops, i2c);
 	proc_create_data("r_impedance", S_IRUGO, aw882xx->dbg_dir,
 					&aw882xx_dbgfs_cali_r_impedance_fops, i2c);
+	proc_create_data("auto_cali_re", S_IRUGO, aw882xx->dbg_dir,
+					&aw882xx_dbgfs_auto_cali_re_fops, i2c);
 #ifdef AW_NEED_CALIB_F0
 	if (aw882xx->need_f0_cali) {
 		proc_create_data("f0_range", S_IRUGO, aw882xx->dbg_dir,
