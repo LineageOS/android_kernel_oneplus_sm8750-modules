@@ -478,13 +478,6 @@ struct sde_drm_scaler_v2 {
 #define SDE_DRM_DESTSCALER_ENHANCER_UPDATE  0x4
 #define SDE_DRM_DESTSCALER_PU_ENABLE        0x8
 
-/*
- * Possible merge_mode values for each Destination Scaler block
- */
-#define DEST_SCALER_SINGLE_PIPE   1
-#define DEST_SCALER_DUAL_PIPE     2
-#define DEST_SCALER_QUAD_PIPE     3
-
 /**
  * struct sde_drm_dest_scaler_cfg - destination scaler config structure
  * @flags:      Flag to switch between mode for destination scaler
