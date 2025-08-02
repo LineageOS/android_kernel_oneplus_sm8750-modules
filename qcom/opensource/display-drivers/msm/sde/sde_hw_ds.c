@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
  */
 
@@ -15,8 +15,10 @@
 #define DEST_SCALER_HW_VERSION  0x10
 #define DEST_SCALER_MERGE_CTRL  0x0C
 
-static void sde_hw_ds_setup_opmode(struct sde_hw_ds *hw_ds, u32 op_mode,
-			u32 merge_mode)
+#define DEST_SCALER_DUAL_PIPE   1
+#define DEST_SCALER_QUAD_PIPE   3
+
+static void sde_hw_ds_setup_opmode(struct sde_hw_ds *hw_ds, u32 op_mode)
 {
 	struct sde_hw_blk_reg_map *hw = &hw_ds->hw;
 	u32 op_mode_val;
@@ -33,24 +35,14 @@ static void sde_hw_ds_setup_opmode(struct sde_hw_ds *hw_ds, u32 op_mode,
 	SDE_REG_WRITE(hw, DEST_SCALER_OP_MODE, op_mode_val);
 }
 
-static void sde_hw_ds_setup_opmode_v1(struct sde_hw_ds *hw_ds, u32 op_mode,
-			u32 merge_mode)
+static void sde_hw_ds_setup_opmode_v1(struct sde_hw_ds *hw_ds, u32 op_mode)
 {
 	struct sde_hw_blk_reg_map *hw = &hw_ds->hw;
 
-	switch (merge_mode) {
-	case DEST_SCALER_SINGLE_PIPE:
-		op_mode = 0;
-		break;
-	case DEST_SCALER_DUAL_PIPE:
-		op_mode = BIT(0);
-		break;
-	case DEST_SCALER_QUAD_PIPE:
-		op_mode = (BIT(0) | BIT(1));
-		break;
+	if (op_mode & SDE_DS_OP_MODE_DUAL) {
+		op_mode = DEST_SCALER_DUAL_PIPE;
+		SDE_REG_WRITE(hw, DEST_SCALER_MERGE_CTRL + hw_ds->scl->base, op_mode);
 	}
-
-	SDE_REG_WRITE(hw, DEST_SCALER_MERGE_CTRL + hw_ds->scl->base, op_mode);
 }
 
 static void sde_hw_ds_setup_scaler3(struct sde_hw_ds *hw_ds,
