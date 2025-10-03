@@ -112,12 +112,12 @@ static bool pogo_debug_en = false;
 
 #define LED_MIC_MUTE            0x0b
 
-#define KEY_LOCKSCREEN          0x280
-#define KEY_SWITCHLANUAGE       0x282
+#define KEY_LOCKSCREEN          KEY_SCREENLOCK
+#define KEY_SWITCHLANUAGE       0x170
 #define KEY_MICDISABLE          0x283
 #define KEY_TOUCHPANELMUTE      0x284
-#define KEY_GLOBALSEARCH        0x285
-#define KEY_FULLSCREEN          0x286
+#define KEY_GLOBALSEARCH        KEY_SEARCH
+#define KEY_FULLSCREEN          0x174
 #define KEY_SPLITSCREEN         0x287
 #define KEY_SUPERINTCON         0x289
 #define KEY_CUSTOMERAPP1        0x28a
