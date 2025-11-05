@@ -374,6 +374,10 @@ void operate_mode_switch(struct touchpanel_data *ts)
 			mode_switch_health(ts, MODE_WATERPROOF, ts->waterproof & ~(0x1 << WATERPROOF_RUS_BIT));
 		}
 
+		if (ts->tp_scene_para_switch_support && ts->ts_ops->pen_sensitive_lv_set) {
+			ts->ts_ops->pen_sensitive_lv_set(ts->chip_data, ts->scene_info.pen_sensitive_level);
+		}
+
 		mode_switch_health(ts, MODE_NORMAL, true);
 	}
 }
@@ -2411,6 +2415,7 @@ static int init_parse_dts(struct device *dev, struct touchpanel_data *ts)
 	ts->fp_grip_support = of_property_read_bool(np, "fp_grip_support");
 	ts->disable_touch_event_support = of_property_read_bool(np, "disable_touch_event_support");
 	ts->lpwg_fw_support = of_property_read_bool(np, "lpwg_fw_support");
+	ts->tp_scene_para_switch_support = of_property_read_bool(np, "tp_scene_para_switch_support");
 
 #ifdef CONFIG_TOUCHPANEL_TRUSTED_TOUCH
 	ts->trusted_touch_support = of_property_read_bool(np, "trusted_touch_support");
@@ -4809,6 +4814,8 @@ EXIT:
 		post_message(ts->msg_list, 0, TYPE_SUSPEND, NULL);
 	}
 
+	ts->is_hall_near_resume = false;
+
 	TP_INFO(ts->tp_index, "%s: end.\n", __func__);
 	mutex_unlock(&ts->mutex);
 }
@@ -5016,6 +5023,8 @@ EXIT:
 		touch_call_fp_grip(ts, 0);
 		tp_healthinfo_report(&ts->monitor_data, HEALTH_REPORT, "finger_hold_in_resume");
 	}
+
+	ts->is_hall_near_resume = ts->hall_status;
 
 	/*step7:Unlock  && exit*/
 	TP_INFO(ts->tp_index, "%s: end!\n", __func__);

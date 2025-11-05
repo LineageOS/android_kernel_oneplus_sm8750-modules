@@ -2750,6 +2750,339 @@ static ssize_t proc_sensitive_level_read(struct file *file, char __user *user_bu
 
 DECLARE_PROC_OPS(proc_sensitive_level_fops, simple_open, proc_sensitive_level_read, proc_sensitive_level_write, NULL);
 
+/*/proc/touchpanel/touch_scene_default_para*/
+static int touch_scene_default_para_read(struct seq_file *s, void *v)
+{
+	int ret = 0;
+	int is_default_xml_exit = 0;
+	struct touchpanel_data *ts = s->private;
+	const struct firmware *fw = NULL;
+
+	char *p_node_img = NULL;
+	char *p_node_default_xml = NULL;
+	char *touch_scene_config_name_img = NULL;
+	char *touch_scene_config_name_default_xml = NULL;
+	char *postfix_img = "_sys_touch_scene_config.img";
+	char *postfix_default_xml = "/sys_touch_scene_config.xml";
+	uint8_t copy_len = 0;
+
+	TPD_INFO("%s: enter.\n",  __func__);
+	TPD_INFO("%s:s->size:%lu,s->count:%lu\n", __func__, s->size,
+		 s->count);
+
+	if (!ts) {
+		return 0;
+	}
+
+	if (s->size <= (PAGE_SIZE * 4)) {
+		s->count = s->size;
+		return 0;
+	}
+
+	touch_scene_config_name_img = kzalloc(MAX_FW_NAME_LENGTH, GFP_KERNEL);
+	if (touch_scene_config_name_img == NULL) {
+		TS_TP_INFO("touch_scene_config_name_img kzalloc error!\n");
+		return 0;
+	}
+	p_node_img = strstr(ts->panel_data.fw_name, ".");
+	if (p_node_img == NULL) {
+		TS_TP_INFO("p_node_img strstr error!\n");
+		kfree(touch_scene_config_name_img);
+		return 0;
+	}
+
+	touch_scene_config_name_default_xml = kzalloc(MAX_FW_NAME_LENGTH, GFP_KERNEL);
+	if (touch_scene_config_name_default_xml == NULL) {
+		TS_TP_INFO("touch_scene_config_name_default_xml kzalloc error!\n");
+		kfree(touch_scene_config_name_img);
+		return 0;
+	}
+	p_node_default_xml = strstr(strstr(ts->panel_data.fw_name, "/") + 1, "/");
+	if (p_node_default_xml == NULL) {
+		TS_TP_INFO("p_node_default_xml strstr error!\n");
+		kfree(touch_scene_config_name_img);
+		kfree(touch_scene_config_name_default_xml);
+		return 0;
+	}
+
+	copy_len = p_node_img - ts->panel_data.fw_name;
+	memcpy(touch_scene_config_name_img, ts->panel_data.fw_name, copy_len);
+	strlcat(touch_scene_config_name_img, postfix_img, MAX_FW_NAME_LENGTH);
+
+	TS_TP_INFO("touch_scene_config_name_img is %s\n", touch_scene_config_name_img);
+
+	copy_len = p_node_default_xml - ts->panel_data.fw_name;
+	memcpy(touch_scene_config_name_default_xml, ts->panel_data.fw_name, copy_len);
+	strlcat(touch_scene_config_name_default_xml, postfix_default_xml, MAX_FW_NAME_LENGTH);
+
+	TS_TP_INFO("touch_scene_config_name_default_xml is %s\n", touch_scene_config_name_default_xml);
+
+	ret = request_firmware(&fw, touch_scene_config_name_default_xml, ts->dev);
+	if (ret < 0) {
+		TS_TP_INFO("Request firmware failed - %s (%d)\n", touch_scene_config_name_default_xml, ret);
+	} else {
+		TS_TP_INFO("%s Request ok,size is:%lu\n", touch_scene_config_name_default_xml, fw->size);
+	}
+
+
+	is_default_xml_exit = ret;
+	if (is_default_xml_exit < 0) {
+		ret = request_firmware(&fw, touch_scene_config_name_img, ts->dev);
+		if (ret < 0) {
+			TS_TP_INFO("Request firmware failed - %s (%d)\n", touch_scene_config_name_img, ret);
+			seq_printf(s, "Request failed, Check the path %s\n", touch_scene_config_name_img);
+			seq_printf(s, "Request failed, Check the path %s\n", touch_scene_config_name_default_xml);
+			kfree(touch_scene_config_name_img);
+			kfree(touch_scene_config_name_default_xml);
+			return 0;
+		}
+
+		TS_TP_INFO("%s Request ok,size is:%lu\n", touch_scene_config_name_img, fw->size);
+	}
+
+
+	if (fw->size > 0) {
+		seq_write(s, fw->data, fw->size);
+		TS_TP_INFO("%s:seq_write data ok\n", __func__);
+	}
+
+	release_firmware(fw);
+	kfree(touch_scene_config_name_img);
+	kfree(touch_scene_config_name_default_xml);
+	return ret;
+}
+
+static int touch_scene_default_para_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, touch_scene_default_para_read, PDE_DATA(inode));
+}
+
+DECLARE_PROC_OPS(touch_scene_default_para_fops, touch_scene_default_para_open, seq_read, NULL, single_release);
+
+/*format is opearation object name:x,y,z,m,m*/
+static void touch_scen_config_write(struct touchpanel_data *ts, char *input, int len)
+{
+	int buf_len = 0;
+	int buffer_len = 0;
+	int i = 0;
+	int j = 0;
+	int value = 0;
+	int ret = 0;
+	int raw_level = 0;
+	char *buf = NULL;
+	char *get_buf = NULL;
+	char single_cmd[SCEN_SINGLE_CMD_SIZE] = {0};
+	const char buffer_scen[4][SCEN_SINGLE_CMD_SIZE] = {"screen_lock_mode", "sensitive_level", "set_package_type", "pen_sensitive_level"};
+	struct touch_scene_info *scene_info = &ts->scene_info;
+
+	memcpy(single_cmd, input, len);
+	get_buf = &single_cmd[0];
+
+	TPD_INFO("single_cmd:%s len:%d.\n", single_cmd, len);
+	buf = strchr(get_buf, ':');
+	if (buf == NULL) {
+		TPD_INFO("not find :, error.\n");
+		return;
+	}
+	buf_len = buf - get_buf;
+	if (buf_len >= len - 1) {
+		TPD_INFO("buf_len:%d, error.\n", buf_len);
+		return;
+	}
+	buf = &single_cmd[buf_len + 1];
+	ret = sscanf(buf, "%d", &value);
+	if (ret != 1) {
+		TPD_INFO("not find value in buf:%s.\n", buf);
+		return;
+	}
+	single_cmd[buf_len] = '\0';
+	for (i = 0, j = 0; i < buf_len; i++) {
+		if (get_buf[i] == ' ') {
+			j++;
+			if (j == 2) {
+				break;
+			}
+		}
+	}
+	if (j == 2) {
+		get_buf = &get_buf[i + 1];
+		buffer_len = strlen(get_buf) + 1;
+	} else {
+		TPD_INFO("get_buff error.\n");
+		return;
+	}
+
+	for (i = 0; i < 4; i++) {
+		for (j = 0; j < buffer_len; j++) {
+			if (get_buf[j] != buffer_scen[i][j]) {
+				break;
+			}
+		}
+		if (j == buffer_len) {
+			TPD_INFO("get buffer suc, i = %d", i);
+			break;
+		}
+	}
+	if (i == 4) {
+		TPD_INFO("input buffer error.\n");
+		return;
+	}
+
+	switch (i) {
+	case 0:
+		TPD_INFO("screen_lock_mode not used.\n");
+		break;
+	case 1:
+		if (value == scene_info->sensitive_level) {
+			TPD_INFO("sensitive_level:%u value:%d.\n", scene_info->sensitive_level, value);
+			break;
+		}
+		mutex_lock(&ts->mutex);
+		scene_info->sensitive_level = value;
+		if (value < 0) {
+			raw_level = -value;
+		} else {
+			if (value < SENSITIVE_LEVEL_NUM) {
+				ts->sensitive_level_chosen = value;
+			} else {
+				ts->sensitive_level_chosen = SENSITIVE_LEVEL_NUM - 1;
+			}
+			if (ts->health_monitor_support && ts->sensitive_level_chosen) {
+				ts->monitor_data.sensitive_level_chosen = ts->sensitive_level_chosen;
+			}
+			raw_level = ts->sensitive_level_used_array[ts->sensitive_level_chosen];
+		}
+		TS_TP_INFO("%s: level=%d value=%d\n", __func__, ts->sensitive_level_chosen, raw_level);
+		if (!ts->is_suspended && ts->ts_ops->sensitive_lv_set && ts->tp_scene_para_switch_support) {
+			ts->ts_ops->sensitive_lv_set(ts->chip_data, raw_level);
+		} else {
+			TS_TP_INFO("%s: TP is_suspended or not support.\n", __func__);
+		}
+		mutex_unlock(&ts->mutex);
+		break;
+	case 2:
+		scene_info->set_package_type = value;
+		TPD_INFO("set_package_type is %d\n", scene_info->set_package_type);
+		break;
+	case 3:
+		TPD_INFO("pen_sensitive_level:%u set value:%d.\n", scene_info->pen_sensitive_level, value);
+		if (value == scene_info->pen_sensitive_level) {
+			break;
+		}
+		mutex_lock(&ts->mutex);
+		scene_info->pen_sensitive_level = value;
+		TS_TP_INFO("%s: pen_sensitive_level set:%d.\n", __func__, value);
+		if (!ts->is_suspended && ts->ts_ops->pen_sensitive_lv_set && ts->tp_scene_para_switch_support) {
+			ts->ts_ops->pen_sensitive_lv_set(ts->chip_data, value);
+		} else {
+			TS_TP_INFO("%s: TP is_suspended.\n", __func__);
+		}
+		mutex_unlock(&ts->mutex);
+		break;
+	default:
+		TPD_INFO("not used.\n");
+		break;
+	}
+	return;
+}
+
+static void transfer_scen_cmdList_to_single(struct touchpanel_data *ts, char *info, int w_size)
+{
+	char *token = NULL;
+	char single_cmd[SCEN_SINGLE_CMD_SIZE] = {0};
+	char *temp = NULL;
+
+	if (info == NULL) {
+		TPD_INFO("info is null\n");
+		return;
+	}
+
+	temp = info;
+	while ((token = strsep(&temp, ";")) != NULL) {
+		if ((strlen(token) + 1) <= SCEN_SINGLE_CMD_SIZE) {
+			memcpy(single_cmd, token, strlen(token));
+			single_cmd[strlen(token)] = '\0';
+			touch_scen_config_write(ts, single_cmd, strlen(single_cmd) + 1);
+		} else {
+			TPD_INFO("token:%s size is beyond\n", token);
+		}
+	}
+
+	return;
+}
+
+static ssize_t proc_touch_scene_para_write(struct file *file, const char __user *buffer,
+				 size_t count, loff_t *ppos)
+{
+	char *buf = NULL;
+	struct touchpanel_data *ts = PDE_DATA(file_inode(file));
+
+	TPD_INFO("%s: enter.\n",  __func__);
+
+	if (count > SCEN_ALL_CMD_SIZE) {
+		TPD_INFO("%s: count is too large :%d.\n",  __func__, (int)count);
+		return count;
+	}
+
+	buf = kzalloc(SCEN_ALL_CMD_SIZE, GFP_KERNEL);
+
+	if (!buf) {
+		TPD_INFO("%s kmalloc failed.\n", __func__);
+		return count;
+	}
+
+	if (copy_from_user(buf, buffer, count)) {
+		TPD_INFO("%s: read proc input error.\n", __func__);
+		if (buf) {
+			kfree(buf);
+		}
+		return count;
+	}
+
+	TPD_INFO("%s: input:%s size:%lu. \n", __func__, buf, count);
+	transfer_scen_cmdList_to_single(ts, buf, SCEN_ALL_CMD_SIZE);
+
+	if (buf) {
+		kfree(buf);
+	}
+	return count;
+}
+
+int touch_scene_print_func(struct seq_file *s,
+			   struct touch_scene_info *scene_info)
+{
+	if (!scene_info) {
+		TPD_INFO("%s read scene info failed.\n", __func__);
+		return 0;
+	}
+	TPD_INFO("%s: enter.\n",  __func__);
+	seq_printf(s, "screen_lock_mode:%d\n", scene_info->screen_lock_mode);
+	seq_printf(s, "sensitive_level:%d\n", scene_info->sensitive_level);
+	seq_printf(s, "set_package_type:%d\n", scene_info->set_package_type);
+	seq_printf(s, "pen_sensitive_level:%d\n", scene_info->pen_sensitive_level);
+	seq_printf(s, "\n");
+	return 0;
+}
+
+static int proc_touch_scene_para_read(struct seq_file *s, void *v)
+{
+	struct touchpanel_data *ts = s->private;
+	struct touch_scene_info *scene_info = &ts->scene_info;
+
+	if (!scene_info) {
+		TPD_INFO("%s read scene info failed.\n", __func__);
+	}
+
+	return touch_scene_print_func(s, scene_info);
+}
+
+static int proc_touch_scene_para_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, proc_touch_scene_para_read, PDE_DATA(inode));
+}
+
+DECLARE_PROC_OPS(proc_touch_scene_para_fops, proc_touch_scene_para_open, seq_read, proc_touch_scene_para_write, single_release);
+
 static ssize_t proc_diaphragm_touch_level_write(struct file *file, const char __user *buffer, size_t count, loff_t *ppos)
 {
 	int value = 0;
@@ -5196,6 +5529,14 @@ int init_touchpanel_proc_part2(struct touchpanel_data *ts, struct proc_dir_entry
 		{
 			"calibration_status", 0666, NULL, &proc_cal_status_fops, ts, false,
 			ts->auto_test_need_cal_support
+		},
+		{
+			"touch_scene_default_para", 0666, NULL, &touch_scene_default_para_fops, ts, false,
+			ts->tp_scene_para_switch_support
+		},
+		{
+			"touch_scene_para", 0666, NULL, &proc_touch_scene_para_fops, ts, false,
+			ts->tp_scene_para_switch_support
 		},
 		/* proc/touchpanel/oplus_apk. Add the new test node for debug and apk. By zhangping 20190402 start*/
 #ifdef CONFIG_OPLUS_TP_APK
