@@ -8,7 +8,7 @@
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/proc_fs.h>
-#include <soc/oplus/system/oplus_mm_kevent_fb.h>
+#include "oplus_mm_kevent_fb.h"
 #include "oplus_mm_kevent.h"
 #include <linux/version.h>
 

@@ -573,7 +573,7 @@ static ssize_t tfa98xx_proc_ftm_set(struct file *file,
 	unsigned int val;
 	char *temp;
 
-	temp = kmalloc(count, GFP_KERNEL);
+	temp = kzalloc(count, GFP_KERNEL);
 	if (!temp) {
 		return -ENOMEM;
 	}

@@ -394,9 +394,6 @@ static ssize_t oplus_chg_read(struct file *fp, char __user *buff, size_t count, 
 	struct oplus_batt_bal_chip *chip = container_of(fp->private_data,
 		struct oplus_batt_bal_chip, misc_dev);
 
-	if (chip == NULL)
-		return -EINVAL;
-
 	mutex_lock(&chip->update_batt_info_lock);
 	len = sprintf(page, "sub_current=%d\nsub_voltage=%d\nsub_soc=%d\nsub_temperature=%d\nmain_soc=%d\nbal_curr=%d\n",
 		      -chip->b1_curr,  chip->b1_volt, chip->b1_soc, chip->b1_temp, chip->b2_soc, chip->target_iref);
@@ -431,9 +428,6 @@ static long oplus_chg_ioctl(struct file *fp, unsigned code, unsigned long value)
 	int b1_soc;
 	struct oplus_batt_bal_chip *chip = container_of(fp->private_data,
 		struct oplus_batt_bal_chip, misc_dev);
-
-	if (chip == NULL)
-		return -EINVAL;
 
 	mutex_lock(&chip->update_batt_info_lock);
 	b1_volt = chip->b1_volt;
@@ -1528,21 +1522,21 @@ static void oplus_batt_bal_track_work(struct work_struct *work)
 		chg_info("batt bal track trigger: %d\n", chip->track_err_type);
 		switch(chip->track_err_type) {
 		case VOL_GAP_BIG_IN_DISCHG:
-			index += snprintf(&(temp_str[index]), REASON_LENGTH_MAX - index,
+			index += scnprintf(&(temp_str[index]), REASON_LENGTH_MAX - index,
 					  "$$reason@@%s$$status@@", "vol_gap_big_in_dischg");
 			break;
 		case BAL_CURR_ACC_ERR:
-			index += snprintf(&(temp_str[index]), REASON_LENGTH_MAX - index,
+			index += scnprintf(&(temp_str[index]), REASON_LENGTH_MAX - index,
 					  "$$reason@@%s$$status@@", "bal_curr_accuracy_err");
 			break;
 		case VOL_GAP_WHEN_FULL:
-			index += snprintf(&(temp_str[index]), REASON_LENGTH_MAX - index,
+			index += scnprintf(&(temp_str[index]), REASON_LENGTH_MAX - index,
 					  "$$reason@@%s$$status@@", "vol_gap_when_full");
 			break;
 		default:
 			break;
 		}
-		index += snprintf(&(temp_str[index]), REASON_LENGTH_MAX - index,
+		index += scnprintf(&(temp_str[index]), REASON_LENGTH_MAX - index,
 				  "flow_dir:%s bal_curr:%d b1_vol:%d b1_curr:%d b1_soc:%d b1_temp:%d "
 				  "b2_vol:%d b2_curr:%d b2_soc:%d b2_temp:%d PMOS:%d bal_en:%d",
 				  oplus_batt_bal_dir_flow_text[chip->flow_dir], chip->target_iref,
@@ -3083,7 +3077,7 @@ static void oplus_batt_bal_subscribe_main_gauge_topic(struct oplus_mms *topic,
 
 	chip->main_gauge_topic = topic;
 	chip->main_gauge_subs =
-		oplus_mms_subscribe(chip->gauge_topic, chip,
+		oplus_mms_subscribe(chip->main_gauge_topic, chip,
 				    oplus_batt_bal_main_gauge_subs_callback, "batt_bal");
 	if (IS_ERR_OR_NULL(chip->main_gauge_subs)) {
 		chg_err("subscribe gauge topic error, rc=%ld\n",
@@ -3116,7 +3110,7 @@ static void oplus_batt_bal_subscribe_sub_gauge_topic(struct oplus_mms *topic,
 
 	chip->sub_gauge_topic = topic;
 	chip->sub_gauge_subs =
-		oplus_mms_subscribe(chip->gauge_topic, chip,
+		oplus_mms_subscribe(chip->sub_gauge_topic, chip,
 				    oplus_batt_bal_sub_gauge_subs_callback, "batt_bal");
 	if (IS_ERR_OR_NULL(chip->sub_gauge_subs)) {
 		chg_err("subscribe gauge topic error, rc=%ld\n",
@@ -3503,7 +3497,7 @@ static int oplus_batt_bal_strategy_init(struct oplus_batt_bal_chip *chip)
 
 
 #if IS_ENABLED(CONFIG_OPLUS_DYNAMIC_CONFIG_CHARGER)
-#include "config/dynamic_cfg/oplus_batt_bal_cfg.c"
+#include "config/dynamic_cfg/oplus_batt_bal_cfg.h"
 #endif
 
 #if defined(CONFIG_THERMAL) && (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0))
@@ -3649,7 +3643,11 @@ static const struct dev_pm_ops bal_pm_ops = {
 	.suspend = oplus_chg_batt_bal_pm_suspend,
 };
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+static void oplus_chg_batt_bal_remove(struct platform_device *pdev)
+#else
 static int oplus_chg_batt_bal_remove(struct platform_device *pdev)
+#endif
 {
 	struct oplus_batt_bal_chip *chip = platform_get_drvdata(pdev);
 
@@ -3676,7 +3674,9 @@ static int oplus_chg_batt_bal_remove(struct platform_device *pdev)
 	devm_kfree(&pdev->dev, chip);
 	platform_set_drvdata(pdev, NULL);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	return 0;
+#endif
 }
 
 static const struct of_device_id oplus_chg_batt_bal_match[] = {

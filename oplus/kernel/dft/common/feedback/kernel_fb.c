@@ -496,8 +496,8 @@ int oplus_kevent_fb_str(fb_tag tag_id, const char *event_id, unsigned char *str)
 	memset((void*)&bsp_fb_dwork->event_id, 0, sizeof(bsp_fb_dwork->event_id));
 	memset((void*)&bsp_fb_dwork->reason, 0, sizeof(bsp_fb_dwork->reason));
 
-	strlcpy((char*)&bsp_fb_dwork->event_id, event_id, sizeof(bsp_fb_dwork->event_id));
-	strlcpy((char*)&bsp_fb_dwork->reason, str, sizeof(bsp_fb_dwork->reason));
+	strscpy((char*)&bsp_fb_dwork->event_id, event_id, sizeof(bsp_fb_dwork->event_id));
+	strscpy((char*)&bsp_fb_dwork->reason, str, sizeof(bsp_fb_dwork->reason));
 	bsp_fb_dwork->tag_id = tag_id;
 	spin_unlock(&bsp_fb_dwork->lock);
 

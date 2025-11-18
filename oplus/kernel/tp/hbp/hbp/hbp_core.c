@@ -156,6 +156,8 @@ int hbp_register_devices(void *priv,
 		return -ENODEV;
 	}
 
+	hbp->active_id = id;
+
 	if (hbp->devices[id]) {
 		hbp_info("device already registered\n");
 		return 0;
@@ -222,6 +224,31 @@ bool hbp_power_on_in_suspend(int index)
 }
 EXPORT_SYMBOL(hbp_power_on_in_suspend);
 
+void hbp_dev_ctrl_power_reconfig(void)
+{
+	hbp_info("%s is called.\n", __func__);
+
+	if (!g_hbp) {
+		hbp_err("%s: g_hbp is null.\n", __func__);
+	} else {
+		hbp_info("%s active_id is %d.\n", __func__, g_hbp->active_id);
+		hbp_power_ctrl(g_hbp->devices[g_hbp->active_id], power_reconfig);
+	}
+}
+EXPORT_SYMBOL(hbp_dev_ctrl_power_reconfig);
+
+void hbp_dev_ctrl_hw_reset(void)
+{
+	hbp_info("%s is called.\n", __func__);
+
+	if (!g_hbp) {
+		hbp_err("%s: g_hbp is null.\n", __func__);
+	} else {
+		hbp_info("%s active_id is %d.\n", __func__, g_hbp->active_id);
+		hbp_power_ctrl(g_hbp->devices[g_hbp->active_id], hw_reset_config);
+	}
+}
+EXPORT_SYMBOL(hbp_dev_ctrl_hw_reset);
 
 static int hbp_sync_with_daemon(struct hbp_core *hbp, int id, hbp_panel_event event)
 {
@@ -527,8 +554,11 @@ exit:
 	hbp_info("exit %d.\n", ret);
 	return ret;
 }
-
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+static void hbp_core_remove(struct platform_device *pdev)
+#else
 static int hbp_core_remove(struct platform_device *pdev)
+#endif
 {
 	struct hbp_core *hbp = platform_get_drvdata(pdev);
 
@@ -541,7 +571,10 @@ static int hbp_core_remove(struct platform_device *pdev)
 	kfree(hbp);
 
 	hbp_info("exit.\n");
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+#else
 	return 0;
+#endif
 }
 
 static void hbp_core_irq_wake(struct hbp_core *hbp, bool wake)

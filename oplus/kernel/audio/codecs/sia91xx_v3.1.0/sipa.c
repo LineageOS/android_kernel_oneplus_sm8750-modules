@@ -96,7 +96,7 @@ enum {
 #define SIA81XX_DISABLE_LEVEL				(0)
 
 /* 10us > pulse width > 0.75us */
-#define MIN_OWI_PULSE_GAP_TIME_US			(3)
+#define MIN_OWI_PULSE_GAP_TIME_US			(10)
 #define MAX_OWI_PULSE_GAP_TIME_US			(160)
 #define MAX_OWI_RETRY_TIMES					(10)
 #define MIN_OWI_MODE						(1)
@@ -2231,7 +2231,7 @@ static int sipa_spk_mute_ctrl_put(struct snd_kcontrol *kcontrol,
 
 	int val = ucontrol->value.integer.value[0];
 
-	pr_warn("channle %d, Speaker mute set to %s\n", si_pa->channel_num, val == 1 ? "on" : "off");
+	pr_warn("%s: channle %d, Speaker mute set to %s\n", __func__, si_pa->channel_num, val == 1 ? "on" : "off");
 	speaker_mute_control = val;
 
 	if (speaker_mute_control == 1) {
@@ -2246,16 +2246,31 @@ static int sipa_spk_mute_ctrl_put(struct snd_kcontrol *kcontrol,
 
 	if (si_pa) {
 		if (speaker_mute_control) {
-			if (sia91xx_soft_mute(si_pa)) {
-				gpio_set_value(si_pa->rst_pin, 1);
+			if (true == si_pa->sipa_on ) {
+				if (false == sipa_regmap_get_chip_en(si_pa)) {
+					pr_info("[ info][%s] %s: chip_en is false, direct return!\n", LOG_FLAG, __func__);
+					return 0;
+				}
+
+				if (sia91xx_soft_mute(si_pa)) {
+					gpio_set_value(si_pa->rst_pin, 1);
+				}
 			}
-		} else if (si_pa->sipa_on == true) {
-			sipa_reg_init(si_pa);
-			sia91xx_dsp_start(si_pa, SNDRV_PCM_STREAM_PLAYBACK);
-			sipa_regmap_check_trimming(si_pa);
+		} else {
+			if (true == si_pa->sipa_on) {
+
+				if (true == sipa_regmap_get_chip_en(si_pa)) {
+					pr_info("[ info][%s] %s: chip_en is true, direct return!\n", LOG_FLAG, __func__);
+					return 0;
+				}
+
+				sipa_reg_init(si_pa);
+				sia91xx_dsp_start(si_pa, SNDRV_PCM_STREAM_PLAYBACK);
+				sipa_regmap_check_trimming(si_pa);
+			}
 		}
 	}
-
+	pr_info("%s: end\n", __func__);
 	return 0;
 }
 
@@ -2834,7 +2849,7 @@ static ssize_t sipa_dbgfs_range_read(struct file *file,
 		pr_err("%s si_pa is null\n", __func__);
 		return -EINVAL;
 	}
-	str = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	str = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!str) {
 		ret = -ENOMEM;
         pr_err("[0x%x] memory allocation failed\n", si_pa->client->addr);
@@ -2939,7 +2954,7 @@ int sipa_i2c_probe(
 {
 	sipa_dev_t *si_pa = NULL;
 	struct device_node	*sipa_of_node = NULL;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 115)) && (LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 115))
 	char *sipa_fw_name = "sipa.bin";
 #else
 	char *sipa_fw_name = "../../../../odm/firmware/sipa.bin";
@@ -3503,7 +3518,7 @@ static int sipa_probe(struct platform_device *pdev)
 	int ret = 0;
 	sipa_dev_t *si_pa = NULL;
 	char work_name[20];
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 115)) && (LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 115))
 	char *sipa_fw_name = "sipa.bin";
 #else
 	char *sipa_fw_name = "../../odm/firmware/sipa.bin";

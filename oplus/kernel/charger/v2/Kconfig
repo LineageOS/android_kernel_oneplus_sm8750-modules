@@ -67,6 +67,11 @@ config OPLUS_SY6974B_CHARGER
 	help
 	  Say Y here to declare SY6974B support
 
+config OPLUS_SGM41515_CHARGER
+        bool "SGM41515 support"
+        help
+          Say Y here to declare SGM41515 support
+
 config OPLUS_PD_MANAGER_CHARGER
 	bool "PD_MANAGER support"
 	help
@@ -97,10 +102,21 @@ config OPLUS_MT6835_CHARGER
         help
           Say Y here to declare MTK6835 support
 
+config OPLUS_GAUGE_MPC7022
+	bool "GAUGE MPC7022 support"
+	default n
+	help
+	  Say Y here to declare GAUGE MPC7022 support
+
 config OPLUS_GAUGE_BQ27Z561
 	bool "GAUGE BQ27Z561 support"
 	help
 	  Say Y here to declare GAUGE BQ27Z561 support
+
+config OPLUS_GAUGE_SN28Z729
+	bool "GAUGE SN28Z729 support"
+	help
+	  Say Y here to declare GAUGE SN28Z729 support
 
 config OPLUS_GAUGE_NFG8011B
 	bool "GAUGE NFG8011B support"
@@ -198,6 +214,10 @@ config OPLUS_TPS6128XD_CHARGER
 	bool "tps6128xd support"
 	help
 	  Say Y here to declare tps6128xd support
+config OPLUS_HL7603_CHARGER
+	bool "hl7603 support"
+	help
+	  Say Y here to declare hl7603 support
 
 menuconfig OPLUS_CHG_VOOCPHY
 	bool "OPLUS charging voocphy"
@@ -274,6 +294,11 @@ config OPLUS_UFCS_SLAVE_NU2112A
 	depends on OPLUS_UFCS_CLASS && OPLUS_CHG_VOOCPHY_CHGLIB && OPLUS_CHG_AP_VOOCPHY
 	help
 	  Say Y here to declare slave cp nu2112A support
+
+config OPLUS_CHARGER_OPTIGA
+	bool "OPLUS OPTIGA soc node"
+	help
+	  Say Y to include support
 
 config OPLUS_CHARGER_MAXIM
 	bool "encryption ic maxim support"

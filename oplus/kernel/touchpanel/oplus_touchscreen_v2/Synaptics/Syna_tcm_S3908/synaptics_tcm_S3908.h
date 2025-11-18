@@ -85,19 +85,23 @@
 		} \
 	} while (0)
 
-#ifndef MAX
+#ifdef MAX
+#undef MAX
+#endif
+
 #define MAX(a, b) \
 	({__typeof__(a) _a = (a); \
 	__typeof__(b) _b = (b); \
 	_a > _b ? _a : _b; })
+
+#ifdef MIN
+#undef MIN
 #endif
 
-#ifndef MIN
 #define MIN(a, b) \
 	({__typeof__(a) _a = (a); \
 	__typeof__(b) _b = (b); \
 	_a < _b ? _a : _b; })
-#endif
 
 #define STR(x) #x
 
@@ -301,7 +305,6 @@ enum dynamic_config_id {
 	DC_SET_DIFFER_READ = 0xF3,
 	DC_GESTURE_MASK = 0xFE,
 	DC_LOW_TEMP_ENABLE = 0xFD,
-	DC_GLOVE_MODE_ENABLED = 0x0D,
 };
 
 enum command {

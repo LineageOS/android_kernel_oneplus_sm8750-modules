@@ -85,19 +85,19 @@
 		} \
 	} while (0)
 
-#ifndef MAX
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+#undef MAX
+#undef MIN
+#endif
 #define MAX(a, b) \
 	({__typeof__(a) _a = (a); \
 	__typeof__(b) _b = (b); \
 	_a > _b ? _a : _b; })
-#endif
 
-#ifndef MIN
 #define MIN(a, b) \
 	({__typeof__(a) _a = (a); \
 	__typeof__(b) _b = (b); \
 	_a < _b ? _a : _b; })
-#endif
 
 #define STR(x) #x
 
@@ -700,6 +700,7 @@ struct syna_tcm_data {
 	/*normal config for oplus grip*/
 	int normal_config_version;
 	int gesture_state;
+	int finger_state;
 	bool black_gesture_indep;
 	int block_delay_us;
 	int byte_delay_us;

@@ -306,9 +306,13 @@ static int oplus_maxim_guage_exit(struct oplus_chg_ic_dev *ic_dev)
 	return 0;
 }
 
+static DEFINE_MUTEX(init_mutex);
 static struct oplus_maxim_gauge_chip *maxim_chip;
 static int onewire_init_gpio_info(struct oplus_maxim_gauge_chip *maxim_chip)
 {
+	int ret;
+	mutex_lock(&init_mutex);
+
 	maxim_chip->gpio_info.gpio_cfg_out_reg = devm_ioremap(maxim_chip->dev,
 			maxim_chip->gpio_info.onewire_gpio_cfg_addr_out, 0x4);
 	maxim_chip->gpio_info.gpio_cfg_in_reg = devm_ioremap(maxim_chip->dev,
@@ -320,7 +324,9 @@ static int onewire_init_gpio_info(struct oplus_maxim_gauge_chip *maxim_chip)
 	maxim_chip->gpio_info.gpio_in_reg = devm_ioremap(maxim_chip->dev,
 			maxim_chip->gpio_info.onewire_gpio_in_addr, 0x4);
 
-	return onewire_init(&maxim_chip->gpio_info);
+	ret = onewire_init(&maxim_chip->gpio_info);
+	mutex_unlock(&init_mutex);
+	return ret;
 }
 
 static int oplus_maxim_guage_get_batt_auth(struct oplus_chg_ic_dev *ic_dev, bool *pass)

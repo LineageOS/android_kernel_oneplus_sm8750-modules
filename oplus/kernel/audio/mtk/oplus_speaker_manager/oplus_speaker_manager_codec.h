@@ -27,10 +27,13 @@ enum oplus_pa_chipset_def {
 	MFR_COUNT = 0x04,
 };
 
+/* for 4PA L:LEFT TOP R:RIGHT TOP LB:LEFT BOTTOM RB:RIGHT BOTTOM*/
 enum oplus_pa_type {
 	L_SPK = 0x1,
 	R_SPK = 0x2,
-	ALL_SPK = 0x3,
+	LB_SPK = 0x3,
+	RB_SPK = 0x4,
+	ALL_SPK = 0x5,
 };
 
 enum oplus_pa_mode {
@@ -42,8 +45,11 @@ struct oplus_amp_status {
 	uint32_t chipset;
 	int enable;
 	int vdd_need;
+	/* for 4PA l:LEFT TOP r:RIGHT TOP lb:LEFT BOTTOM rb:RIGHT BOTTOM*/
 	int spkl_enable;
 	int spkr_enable;
+	int spklb_enable;
+	int spkrb_enable;
 	int rcv_enable;
 	int rcv_l_enable;
 	int amp_boost_voltage;

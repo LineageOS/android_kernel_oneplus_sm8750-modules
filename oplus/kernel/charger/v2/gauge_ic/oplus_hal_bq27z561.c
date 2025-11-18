@@ -1309,7 +1309,11 @@ RETRY:
 		}
 		/* replace checksum byte by end of string '\0' */
 		batt_sn[OPLUS_BATT_SERIAL_NUM_SIZE - 1] = '\0';
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+		strscpy(chip->battinfo.batt_serial_num, (char*)batt_sn, OPLUS_BATT_SERIAL_NUM_SIZE);
+#else
 		strlcpy(chip->battinfo.batt_serial_num, (char*)batt_sn, OPLUS_BATT_SERIAL_NUM_SIZE);
+#endif
 		chg_info("chip->battinfo.batt_serial_num %s", chip->battinfo.batt_serial_num);
 	} else {
 		chg_err("get sn failed");
@@ -1656,7 +1660,11 @@ static int oplus_get_battinfo_sn(struct oplus_chg_ic_dev *ic_dev, char buf[], in
 		return -EINVAL;
 
 	chg_info("BattSN(%s):%s", ic_dev->name, chip->battinfo.batt_serial_num);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+	bsnlen = strscpy(buf, chip->battinfo.batt_serial_num, OPLUS_BATT_SERIAL_NUM_SIZE);
+#else
 	bsnlen = strlcpy(buf, chip->battinfo.batt_serial_num, OPLUS_BATT_SERIAL_NUM_SIZE);
+#endif
 
 	return bsnlen;
 }

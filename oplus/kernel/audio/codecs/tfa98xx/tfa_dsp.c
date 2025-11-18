@@ -1669,7 +1669,7 @@ enum Tfa98xx_Error dsp_msg(struct tfa_device *tfa, int length24,
 
 			/* (a) send the existing (full) message */
 			// max length is 64k
-			blob = kmalloc(64*1024, GFP_KERNEL);
+			blob = kzalloc(64*1024, GFP_KERNEL);
 			len = tfa_tib_dsp_msgmulti(tfa, -1, (const char *)blob);
 			if (tfa->verbose)
 				pr_debug(
@@ -1707,7 +1707,7 @@ enum Tfa98xx_Error dsp_msg(struct tfa_device *tfa, int length24,
 		if (lastmessage == 1) {
 			/* Get the full multi-msg data */
 			/*max length is 64k*/
-			blob = kmalloc(64*1024, GFP_KERNEL);
+			blob = kzalloc(64*1024, GFP_KERNEL);
 			length = tfa_tib_dsp_msgmulti(tfa, -1,
 				(const char *)blob);
 
@@ -1725,7 +1725,7 @@ enum Tfa98xx_Error dsp_msg(struct tfa_device *tfa, int length24,
 					(const char *)blob);
 			}
 
-			kfree(blob); /* Free the kmalloc blob */
+			kfree(blob); /* Free the blob */
 			lastmessage = 0; /* reset to be able to re-start */
 		}
 	} else {
@@ -4137,7 +4137,7 @@ dsp_msg_for_all_equalizers_old(struct tfa_device *tfa,
 	const int buffer_sz = 3 + sizeof(struct dsp_msg_all_coeff);
 	uint8_t *buffer;
 
-	buffer = kmalloc(buffer_sz, GFP_KERNEL);
+	buffer = kzalloc(buffer_sz, GFP_KERNEL);
 	if (buffer == NULL)
 		return Tfa98xx_Error_Fail;
 
@@ -4172,7 +4172,7 @@ dsp_msg_for_all_equalizers_new(struct tfa_device *tfa,
 			const int msg_sz = 6 + BQ_SIZE * eq_biquads[eq];
 			uint8_t *msg;
 
-			msg = kmalloc(msg_sz, GFP_KERNEL);
+			msg = kzalloc(msg_sz, GFP_KERNEL);
 			if (msg == NULL)
 				return Tfa98xx_Error_Fail;
 

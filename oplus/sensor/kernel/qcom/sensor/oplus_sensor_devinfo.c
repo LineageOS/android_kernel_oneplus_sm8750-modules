@@ -179,7 +179,7 @@ static void parse_magnetic_sensor_dts(struct sensor_hw* hw, struct device_node *
 		return;
 	} else if (rc) {
 		int prj_id = 0;
-		int prj_dir[8];
+		int prj_dir[10];
 		struct device_node *node = ch_node;
 		struct device_node *ch_node_mag = NULL;
 		prj_id = get_project();
@@ -357,7 +357,8 @@ static void parse_light_sensor_dts(struct sensor_hw* hw, struct device_node *ch_
 		"k62",
 		"k63",
 		"lcd_name",
-		"coef_f"
+		"coef_f",
+		"lcd_als_ratio_type"
 	};
 	for (di = 0; di < ARRAY_SIZE(als_feature); di++) {
 		rc = of_property_read_u32(ch_node, als_feature[di], &value);
@@ -864,6 +865,67 @@ static void parse_camera_protect_sensor_dts(struct sensor_algorithm *algo, struc
 		algo->parameter[4], algo->parameter[5]);
 }
 
+static void parse_expand_gpio_sensor_dts(struct sensor_algorithm *algo, struct device_node *ch_node)
+{
+	int rc = 0;
+	int value = 0;
+	rc = of_property_read_u32(ch_node, "aon_rst_input_gpio", &value);
+	if (!rc) {
+		algo->parameter[0] = value;
+	}
+
+	rc = of_property_read_u32(ch_node, "aon_dvdd_input_gpio", &value);
+	if (!rc) {
+		algo->parameter[1] = value;
+	}
+
+	rc = of_property_read_u32(ch_node, "aon_avdd_input_gpio", &value);
+	if (!rc) {
+		algo->parameter[2] = value;
+	}
+
+	rc = of_property_read_u32(ch_node, "bsd_sw_input_gpio", &value);
+	if (!rc) {
+		algo->parameter[3] = value;
+	}
+
+	rc = of_property_read_u32(ch_node, "gnss_en_input_gpio", &value);
+	if (!rc) {
+		algo->parameter[4] = value;
+	}
+
+	rc = of_property_read_u32(ch_node, "aon_rst_aw_output", &value);
+	if (!rc) {
+		algo->parameter[5] = value;
+	}
+
+	rc = of_property_read_u32(ch_node, "aon_dvdd_aw_output", &value);
+	if (!rc) {
+		algo->parameter[6] = value;
+	}
+
+	rc = of_property_read_u32(ch_node, "aon_avdd_aw_output", &value);
+	if (!rc) {
+		algo->parameter[7] = value;
+	}
+
+	rc = of_property_read_u32(ch_node, "bsd_sw_aw_output", &value);
+	if (!rc) {
+		algo->parameter[8] = value;
+	}
+
+	rc = of_property_read_u32(ch_node, "gnss_en_aw_output", &value);
+	if (!rc) {
+		algo->parameter[9] = value;
+	}
+
+	pr_err("aon_rst_input_gpio:%d, aon_dvdd_input_gpio:%d, aon_avdd_input_gpio:%d, bsd_sw_input_gpio:%d, gnss_en_input_gpio:%d\n",
+		algo->parameter[0], algo->parameter[1], algo->parameter[2], algo->parameter[3], algo->parameter[4]);
+
+	pr_err("aon_rst_aw_output:%d, aon_dvdd_aw_output:%d, aon_avdd_aw_output:%d, bsd_sw_aw_output:%d, gnss_en_aw_output:%d\n",
+		algo->parameter[5], algo->parameter[6], algo->parameter[7], algo->parameter[8], algo->parameter[9]);
+}
+
 static void parse_each_virtual_sensor_dts(struct sensor_algorithm *algo, struct device_node * ch_node)
 {
 	if (0 == strncmp(ch_node->name, "pickup", 6)) {
@@ -878,6 +940,8 @@ static void parse_each_virtual_sensor_dts(struct sensor_algorithm *algo, struct 
 		parse_oplus_measurement_sensor_dts(algo, ch_node);
 	} else if (0 == strncmp(ch_node->name, "camera_protect", 10)) {
 		parse_camera_protect_sensor_dts(algo, ch_node);
+	} else if (0 == strncmp(ch_node->name, "expand_gpio", 11)) {
+		parse_expand_gpio_sensor_dts(algo, ch_node);
 	} else {
 		/* do nothing */
 	}
@@ -1665,7 +1729,11 @@ static int oplus_devinfo_probe(struct platform_device *pdev)
 	return 0;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+static void oplus_devinfo_remove(struct platform_device *pdev)
+#else /* KERNEL_VERSION(6, 1, 0) */
 static int oplus_devinfo_remove(struct platform_device *pdev)
+#endif /* KERNEL_VERSION(6, 1, 0) */
 {
 	if (g_chip) {
 		g_chip = NULL;
@@ -1683,7 +1751,9 @@ static int oplus_devinfo_remove(struct platform_device *pdev)
 
 	oplus_press_cali_data_clean();
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	return 0;
+#endif /* KERNEL_VERSION(6, 1, 0) */
 }
 
 static const struct of_device_id of_drv_match[] = {

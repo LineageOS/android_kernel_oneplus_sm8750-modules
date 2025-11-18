@@ -32,7 +32,7 @@
 #define SEND_FASTCHG_ONGOING_NOTIFY_INTERVAL 2000 /* ms */
 #define BTBOVER_5V1A_CHARGE_STD	0x01
 #define VOOC_INIT_WAIT_TIME_MS 100
-#define VOOC_FAST_NOTIFY_ABSENT_DELAY_TIME_MS	150
+#define VOOC_FAST_NOTIFY_ABSENT_DELAY_TIME_MS	170
 
 struct oplus_voocphy_manager *g_voocphy_chip;
 static struct completion vooc_init_check_ack;
@@ -694,7 +694,7 @@ static void oplus_adsp_voocphy_set_vooc_current(struct device *dev, int data, in
 	if (chip->fastchg_notify_status != FAST_NOTIFY_LOW_TEMP_FULL) {
 		cool_down = data >> 1;
 		chg_info("set cool_down %d\n", cool_down);
-		oplus_adsp_voocphy_set_cool_down(cool_down);
+		oplus_adsp_voocphy_set_cool_down(cool_down, curr_ma);
 	} else {
 		/* send the curve soc_range<<4|temp_range to adsp */
 		cool_down = data;

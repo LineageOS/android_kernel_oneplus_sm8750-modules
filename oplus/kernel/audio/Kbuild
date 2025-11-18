@@ -17,6 +17,7 @@ obj-y += codecs/usbc_switch/
 obj-y += oplus_audio_daemon/
 # add for oplus audio netlink kernel
 obj-y += oplus_audio_netlink/
+obj-y += qcom/oplus_typec_switch_i2c/
 
 else
 #MTK Platform

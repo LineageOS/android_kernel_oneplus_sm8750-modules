@@ -214,7 +214,6 @@ static int oplus_chg_ls_fpga_rst(struct oplus_chg_ic_dev *ic_dev, int type)
 				       OPLUS_IC_FUNC_BAL_HW_INIT, type);
 		if (rc < 0)
 			chg_err("child ic[%d] OPLUS_IC_FUNC_GAUGE_FPGA_RST error, rc=%d\n", i, rc);
-		break;
 	}
 
 	return rc;
@@ -490,12 +489,21 @@ child_init_err:
 	return rc;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+static void oplus_virtual_level_shift_remove(struct platform_device *pdev)
+#else
 static int oplus_virtual_level_shift_remove(struct platform_device *pdev)
+#endif
 {
 	struct oplus_virtual_level_shift_ic *chip = platform_get_drvdata(pdev);
 
-	if (chip == NULL)
+	if (chip == NULL) {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 		return -ENODEV;
+#else
+		return;
+#endif
+	}
 
 	if (chip->ic_dev->online)
 		oplus_chg_level_shift_exit(chip->ic_dev);
@@ -504,7 +512,9 @@ static int oplus_virtual_level_shift_remove(struct platform_device *pdev)
 	devm_kfree(&pdev->dev, chip);
 	platform_set_drvdata(pdev, NULL);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	return 0;
+#endif
 }
 
 static void oplus_virtual_level_shift_shutdown(struct platform_device *pdev)

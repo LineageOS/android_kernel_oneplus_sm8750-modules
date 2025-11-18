@@ -392,11 +392,11 @@ static int tps6128xd_push_err(struct oplus_chg_ic_dev *ic_dev,
 
 	if (i2c_error)
 		oplus_chg_ic_creat_err_msg(ic_dev, OPLUS_IC_ERR_I2C, 0,
-			"$$err_scene@@i2c_err$$err_reason@@%d", err_code);
+			"$$err_scene@@i2c_err$$err_reason@@%d$$byb_id@@%d", err_code, ic_dev->index);
 	else
 		oplus_chg_ic_creat_err_msg(ic_dev, OPLUS_IC_ERR_BUCK_BOOST, 0,
-			"$$err_scene@@byb_work_err$$err_reason@@%s$$reg_info@@%s",
-			tsd ? "TSD" : "normal", reg);
+			"$$err_scene@@byb_work_err$$err_reason@@%s$$reg_info@@%s$$byb_id@@%d",
+			tsd ? "TSD" : "normal", reg, ic_dev->index);
 
 	oplus_chg_ic_virq_trigger(ic_dev, OPLUS_IC_VIRQ_ERR);
 	upload_count++;
@@ -535,6 +535,141 @@ static int oplus_fpga_reset_notify(struct oplus_chg_ic_dev *ic_dev, int status)
 	return rc;
 }
 
+static int oplus_get_byb_status(struct oplus_chg_ic_dev *ic_dev, char *buf)
+{
+	struct chip_tps6128xd *chip;
+	int reg_val = 0;
+	int size = 0;
+	int rc = 0;
+	int status = BYB_STATUS_FAULT;
+	int gpio_status = GPIO_STATUS_NOT_SUPPORT;
+
+	if (ic_dev == NULL || buf == NULL) {
+		chg_err("ic_dev or buf is NULL\n");
+		return -EINVAL;
+	}
+	chip = oplus_chg_ic_get_drvdata(ic_dev);
+
+	if (chip == NULL || (chip->probe_gpio_status != chip->id_match_status && !chip->i2c_success))
+		return -ENOTSUPP;
+
+	if (atomic_read(&chip->suspended) == 1) {
+		chg_err("in suspended\n");
+		size += scnprintf(buf + size, PAGE_SIZE - size, "in_suspended|id_%d:in_suspended|", ic_dev->index);
+		return size;
+	}
+
+	gpio_status = tps6128xd_get_id_status(chip);
+	if (gpio_status != chip->id_match_status) {
+		chg_err("id not match %d %d,", gpio_status, chip->id_match_status);
+		size += scnprintf(buf + size, PAGE_SIZE - size,
+			"id_%d:id_not_match_%d_%d|", ic_dev->index, gpio_status, chip->id_match_status);
+	}
+
+	rc = tps6128xd_read(chip, STATUS_REG, &reg_val);
+	if (rc < 0) {
+		chg_err("can't read 0x%02x register, rc=%d", STATUS_REG, rc);
+		size += scnprintf(buf + size, PAGE_SIZE - size,
+				"0x%02x_read_fail_%d|id_%d:0x%02x_read_fail:%d|",
+				STATUS_REG, rc, ic_dev->index, STATUS_REG, rc);
+		return size;
+	}
+
+	if ((reg_val & STATUS_MASK) == BOOST_STATUS_NORMAL)
+		status = BYB_STATUS_BOOST;
+	else if ((reg_val & STATUS_MASK) == BYPASS_STATUS_NORMAL)
+		status = BYB_STATUS_BYPASS;
+
+	size += scnprintf(buf + size, PAGE_SIZE - size,
+			"%s|id_%d:0x%02x:0x%02x", byb_status_name[status], ic_dev->index, STATUS_REG, reg_val);
+
+	rc = tps6128xd_read(chip, VOUTROOFSET_REG, &reg_val);
+	if (rc < 0) {
+		chg_err("can't read 0x%02x register, rc=%d", VOUTROOFSET_REG, rc);
+		size += scnprintf(buf + size, PAGE_SIZE - size, ",0x%02x_read_fail_%d|", VOUTROOFSET_REG, rc);
+		return size;
+	}
+
+	size += scnprintf(buf + size, PAGE_SIZE - size, ",vout:%dmv|", reg_to_vout_mv(reg_val));
+
+	chg_info("byb_status_show in id:%d,%s\n", ic_dev->index, buf);
+	return size;
+}
+
+static int oplus_get_byb_vout(struct oplus_chg_ic_dev *ic_dev, char *buf)
+{
+	struct chip_tps6128xd *chip;
+	int reg_val = 0;
+	int size = 0;
+	int rc = 0;
+	int vout = 0;
+
+	if (ic_dev == NULL || buf == NULL) {
+		chg_err("ic_dev or buf is NULL\n");
+		return -EINVAL;
+	}
+	if (!ic_dev->online)
+		return -ENOTSUPP;
+
+	chip = oplus_chg_ic_get_drvdata(ic_dev);
+	if (chip == NULL) {
+		chg_err("chip is NULL\n");
+		return -EINVAL;
+	}
+
+	if (atomic_read(&chip->suspended) == 1) {
+		chg_err("in suspended\n");
+		size += scnprintf(buf + size, PAGE_SIZE - size, "in_suspended|");
+		return size;
+	}
+
+	rc = tps6128xd_read(chip, VOUTROOFSET_REG, &reg_val);
+	if (rc < 0) {
+		chg_err("can't read 0x%02x register, rc=%d", VOUTROOFSET_REG, rc);
+		size += scnprintf(buf + size, PAGE_SIZE - size, "0x%02x_read_fail:%d|", VOUTROOFSET_REG, rc);
+		return size;
+	}
+
+	vout = reg_to_vout_mv(reg_val);
+	size += scnprintf(buf + size, PAGE_SIZE - size, "%d|", vout);
+	return size;
+}
+
+static int oplus_set_byb_vout(struct oplus_chg_ic_dev *ic_dev, int vout)
+{
+	struct chip_tps6128xd *chip;
+	int rc = 0;
+
+	if (ic_dev == NULL) {
+		chg_err("ic_dev is NULL\n");
+		return -EINVAL;
+	}
+	if (!ic_dev->online)
+		return -ENOTSUPP;
+
+	chip = oplus_chg_ic_get_drvdata(ic_dev);
+	if (chip == NULL) {
+		chg_err("chip is NULL\n");
+		return -EINVAL;
+	}
+
+	if (atomic_read(&chip->suspended) == 1) {
+		chg_err("in suspended\n");
+		return -EAGAIN;
+	}
+
+	if (vout == 1)
+		rc = tps6128xd_write(chip, VOUTROOFSET_REG, vout_mv_to_reg(HIGH_VOUT_MV));
+	else if (vout <= 0)
+		rc = tps6128xd_write(chip, VOUTROOFSET_REG, vout_mv_to_reg(chip->vout_mv));
+	else
+		rc = tps6128xd_write(chip, VOUTROOFSET_REG, vout_mv_to_reg(vout));
+	if (rc < 0)
+		chg_err("write voutroof fail, rc=%d\n", rc);
+
+	return rc;
+}
+
 static void *oplus_chg_get_func(struct oplus_chg_ic_dev *ic_dev,
 				enum oplus_chg_ic_func func_id)
 {
@@ -555,6 +690,18 @@ static void *oplus_chg_get_func(struct oplus_chg_ic_dev *ic_dev,
 		break;
 	case OPLUS_IC_FUNC_REG_DUMP:
 		func = OPLUS_CHG_IC_FUNC_CHECK(OPLUS_IC_FUNC_REG_DUMP, tps6128xd_reg_dump);
+		break;
+	case OPLUS_IC_FUNC_BUCK_GET_BYB_STATUS:
+		func = OPLUS_CHG_IC_FUNC_CHECK(OPLUS_IC_FUNC_BUCK_GET_BYB_STATUS,
+					      oplus_get_byb_status);
+		break;
+	case OPLUS_IC_FUNC_BUCK_GET_BYB_VOUT:
+		func = OPLUS_CHG_IC_FUNC_CHECK(OPLUS_IC_FUNC_BUCK_GET_BYB_VOUT,
+					      oplus_get_byb_vout);
+		break;
+	case OPLUS_IC_FUNC_BUCK_SET_BYB_VOUT:
+		func = OPLUS_CHG_IC_FUNC_CHECK(OPLUS_IC_FUNC_BUCK_SET_BYB_VOUT,
+					      oplus_set_byb_vout);
 		break;
 	case OPLUS_IC_FUNC_BUCK_GET_BYBID_INFO:
 		func = OPLUS_CHG_IC_FUNC_CHECK(OPLUS_IC_FUNC_BUCK_GET_BYBID_INFO, oplus_get_byb_id_info);
@@ -643,6 +790,7 @@ static const struct test_feature_cfg fpga_boost_test_cfg = {
 #endif
 
 #ifdef CONFIG_OPLUS_CHG_IC_DEBUG
+
 static ssize_t byb_status_show(struct device *dev, struct device_attribute *attr,
 				    char *buf)
 {
@@ -659,22 +807,22 @@ static ssize_t byb_status_show(struct device *dev, struct device_attribute *attr
 
 	if (atomic_read(&chip->suspended) == 1) {
 		chg_err("in suspended\n");
-		size += snprintf(buf + size, PAGE_SIZE - size, "in suspended|in suspended\n");
+		size += scnprintf(buf + size, PAGE_SIZE - size, "in_suspended|in_suspended\n");
 		return size;
 	}
 
 	gpio_status = tps6128xd_get_id_status(chip);
 	if (gpio_status != chip->id_match_status) {
 		chg_err("id not match %d %d,", gpio_status, chip->id_match_status);
-		size += snprintf(buf + size, PAGE_SIZE - size,
-			"id not match %d %d,", gpio_status, chip->id_match_status);
+		size += scnprintf(buf + size, PAGE_SIZE - size,
+			"id_not_match_%d_%d,", gpio_status, chip->id_match_status);
 	}
 
 	rc = tps6128xd_read(chip, STATUS_REG, &reg_val);
 	if (rc < 0) {
 		chg_err("can't read 0x%02x register, rc=%d", STATUS_REG, rc);
-		size += snprintf(buf + size, PAGE_SIZE - size,
-				"0x%02x read fail:%d|0x%02x read fail:%d\n",
+		size += scnprintf(buf + size, PAGE_SIZE - size,
+				"0x%02x_read_fail:%d|0x%02x_read_fail:%d\n",
 				STATUS_REG, rc, STATUS_REG, rc);
 		return size;
 	}
@@ -684,17 +832,17 @@ static ssize_t byb_status_show(struct device *dev, struct device_attribute *attr
 	else if ((reg_val & STATUS_MASK) == BYPASS_STATUS_NORMAL)
 		status = BYB_STATUS_BYPASS;
 
-	size += snprintf(buf + size, PAGE_SIZE - size,
+	size += scnprintf(buf + size, PAGE_SIZE - size,
 			"%s|0x%02x:0x%02x", byb_status_name[status], STATUS_REG, reg_val);
 
 	rc = tps6128xd_read(chip, VOUTROOFSET_REG, &reg_val);
 	if (rc < 0) {
 		chg_err("can't read 0x%02x register, rc=%d", VOUTROOFSET_REG, rc);
-		size += snprintf(buf + size, PAGE_SIZE - size, "0x%02x read fail:%d\n", VOUTROOFSET_REG, rc);
+		size += scnprintf(buf + size, PAGE_SIZE - size, "0x%02x_read_fail:%d\n", VOUTROOFSET_REG, rc);
 		return size;
 	}
 
-	size += snprintf(buf + size, PAGE_SIZE - size, ",vout:%dmv\n", reg_to_vout_mv(reg_val));
+	size += scnprintf(buf + size, PAGE_SIZE - size, ",vout:%dmv\n", reg_to_vout_mv(reg_val));
 
 	return size;
 }
@@ -715,19 +863,19 @@ static ssize_t byb_vout_show(struct device *dev, struct device_attribute *attr,
 
 	if (atomic_read(&chip->suspended) == 1) {
 		chg_err("in suspended\n");
-		size += snprintf(buf + size, PAGE_SIZE - size, "in suspended\n");
+		size += scnprintf(buf + size, PAGE_SIZE - size, "in_suspended\n");
 		return size;
 	}
 
 	rc = tps6128xd_read(chip, VOUTROOFSET_REG, &reg_val);
 	if (rc < 0) {
 		chg_err("can't read 0x%02x register, rc=%d", VOUTROOFSET_REG, rc);
-		size += snprintf(buf + size, PAGE_SIZE - size, "0x%02x read fail:%d\n", VOUTROOFSET_REG, rc);
+		size += scnprintf(buf + size, PAGE_SIZE - size, "0x%02x_read_fail:%d\n", VOUTROOFSET_REG, rc);
 		return size;
 	}
 
 	vout = reg_to_vout_mv(reg_val);
-	size += snprintf(buf + size, PAGE_SIZE - size, "%d\n", vout);
+	size += scnprintf(buf + size, PAGE_SIZE - size, "%d\n", vout);
 	return size;
 }
 

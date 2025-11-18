@@ -22,6 +22,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
+#include <linux/jiffies.h>
 
 #include <linux/miscdevice.h>
 #include <linux/kthread.h>
@@ -91,6 +92,10 @@
 #define VALUE_UVP_MAX	5000
 #define VALUE_OVP_MIN	3000
 #define VALUE_OVP_MAX	20000
+
+int wls_pen_log_level = CPS_LOG_ERR;
+module_param(wls_pen_log_level, int, 0644);
+MODULE_PARM_DESC(wls_pen_log_level, "wireless_pen log level");
 
 struct cps_wls_chrg_chip {
 	struct i2c_client *client;
@@ -1566,6 +1571,29 @@ static void cps8601_send_uevent(struct device *dev, bool status, uint64_t mac_ad
 	cps_wls_log(CPS_LOG_DEBG, "send uevent:%s, %s.\n", status_string, addr_string);
 }
 
+#define UEVENT_TRIGGER_COOLDOWN_TIME_MS (300)
+static void cps8601_send_mislocated_uevent(struct device *dev)
+{
+	int ret;
+	char *envp[] = { "pencil_mislocated=1", NULL };
+	static unsigned long last_uevent_time_jiffies = 0;
+	unsigned long current_uevent_time_jiffies = jiffies;
+
+	if (current_uevent_time_jiffies - last_uevent_time_jiffies <=
+		HZ * UEVENT_TRIGGER_COOLDOWN_TIME_MS / 1000) {
+		last_uevent_time_jiffies = current_uevent_time_jiffies;
+		return;
+	}
+
+	last_uevent_time_jiffies = current_uevent_time_jiffies;
+	ret = kobject_uevent_env(&dev->kobj, KOBJ_CHANGE, envp);
+	if (ret)
+		cps_wls_log(CPS_LOG_ERR, "%s: kobject_uevent_fail, ret = %d",
+			__func__, ret);
+	else
+		cps_wls_log(CPS_LOG_ERR, "send mislocated uevent\n");
+}
+
 static uint64_t cps_recv_ble_mac_addr(uint8_t *data)
 {
 	uint64_t ble_addr;
@@ -1890,6 +1918,11 @@ static int cps_wls_tx_irq_handler(struct cps_wls_chrg_chip *chip, int irq_flag)
 		cps_wls_log(CPS_LOG_ERR, "q cali int!\n");
 		cps_notify_q_cali_int(chip);
 	}
+
+	if (irq_flag & TX_INT_MIS_LOC) {
+		cps_wls_log(CPS_LOG_ERR, "mislocated!\n");
+		cps8601_send_mislocated_uevent(chip->wireless_dev);
+	}
 	return rc;
 }
 
@@ -1995,10 +2028,8 @@ static ssize_t q_value_show(struct device *dev,
 		return -EINVAL;
 	}
 
-	if (chip->pen_present) {
-		cnt = cps_wls_get_no_rx_cnt();
-		width = cps_wls_get_no_rx_width();
-	}
+	cnt = cps_wls_get_no_rx_cnt();
+	width = cps_wls_get_no_rx_width();
 
 	return sprintf(buf, "cnt:%d width:%d\n", cnt, width);
 }
@@ -2346,6 +2377,23 @@ static ssize_t gpio_debug_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(gpio_debug);
 
+static ssize_t rx_mislocate_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct cps_wls_chrg_chip *chip = NULL;
+
+	chip = (struct cps_wls_chrg_chip *)dev_get_drvdata(dev);
+	if (!chip) {
+		cps_wls_log(CPS_LOG_ERR, "chip is NULL\n");
+		return -EINVAL;
+	}
+
+	cps8601_send_mislocated_uevent(dev);
+
+	return count;
+}
+static DEVICE_ATTR_WO(rx_mislocate);
+
 static struct device_attribute *pencil_attributes[] = {
 	&dev_attr_ble_mac_addr,
 	&dev_attr_present,
@@ -2361,6 +2409,7 @@ static struct device_attribute *pencil_attributes[] = {
 	&dev_attr_q_cali,
 	&dev_attr_wireless_reg,
 	&dev_attr_gpio_debug,
+	&dev_attr_rx_mislocate,
 	NULL
 };
 
@@ -3410,6 +3459,10 @@ init_fail:
 	cps_wls_free_gpio(chip);
 	cps_wls_lock_destroy(chip);
 	__pm_relax(chip->cps_wls_wake_lock);
+	i2c_set_clientdata(chip->client, NULL);
+	dev_set_drvdata(chip->dev, NULL);
+	dev_set_drvdata(chip->wireless_dev, NULL);
+	g_chip = NULL;
 	devm_kfree(chip->dev, chip);
 }
 
@@ -3491,6 +3544,10 @@ static int cps_wls_chrg_probe(struct i2c_client *client, const struct i2c_device
 free_source:
 	cps_wls_free_gpio(chip);
 	cps_wls_lock_destroy(chip);
+	dev_set_drvdata(chip->wireless_dev, NULL);
+	i2c_set_clientdata(client, NULL);
+	dev_set_drvdata(&client->dev, NULL);
+	g_chip = NULL;
 	devm_kfree(&client->dev, chip);
 	cps_wls_log(CPS_LOG_ERR, "[%s] error: free resource.\n", __func__);
 
@@ -3555,9 +3612,8 @@ static int cps8601_pm_suspend(struct device *dev)
 {
 	struct cps_wls_chrg_chip *chip = dev_get_drvdata(dev);
 
-	if (chip) {
+	if (chip)
 		chip->i2c_ready = false;
-	}
 
 	return 0;
 }

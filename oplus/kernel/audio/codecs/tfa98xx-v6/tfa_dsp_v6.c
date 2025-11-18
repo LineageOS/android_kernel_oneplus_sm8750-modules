@@ -1675,7 +1675,7 @@ enum Tfa98xx_Error dsp_msg(struct tfa_device *tfa, int length24, const char *buf
 			int len;
 
 			/* (a) send the existing (full) message */
-			blob = kmalloc(64*1024, GFP_KERNEL); // max length is 64k
+			blob = kzalloc(64*1024, GFP_KERNEL); // max length is 64k
 			#ifdef OPLUS_ARCH_EXTENDS
 			/*fix coverity issue 215241*/
 			if (blob == NULL) {
@@ -1716,7 +1716,7 @@ enum Tfa98xx_Error dsp_msg(struct tfa_device *tfa, int length24, const char *buf
 		if(lastmessage == 1) {
 
 			/* Get the full multi-msg data */
-			blob = kmalloc(64*1024, GFP_KERNEL); //max length is 64k
+			blob = kzalloc(64*1024, GFP_KERNEL); //max length is 64k
 			#ifdef OPLUS_ARCH_EXTENDS
 			/*fix coverity issue 215241*/
 			if (blob == NULL) {
@@ -1740,7 +1740,7 @@ enum Tfa98xx_Error dsp_msg(struct tfa_device *tfa, int length24, const char *buf
 				error = tfa98xx_write_dsp(tfa, length, (const char*)blob);
 			}
 
-			kfree(blob); /* Free the kmalloc blob */
+			kfree(blob); /* Free the blob */
 			lastmessage = 0; /* reset to be able to re-start */
 		}
 	} else {
@@ -3881,11 +3881,11 @@ enum Tfa98xx_Error tfa_dsp_get_calibration_impedance_v6(struct tfa_device *tfa)
 		}
 
 		nr_bytes = spkr_count * 3;
-		bytes = kmalloc(sizeof(char) * nr_bytes, GFP_KERNEL);
+		bytes = kzalloc(sizeof(char) * nr_bytes, GFP_KERNEL);
 		if (bytes == NULL) {
 			return Tfa98xx_Error_Fail;
 		}
-		data = kmalloc(sizeof(int) * spkr_count, GFP_KERNEL);
+		data = kzalloc(sizeof(int) * spkr_count, GFP_KERNEL);
 		if (data == NULL) {
 			if(bytes)
 				kfree(bytes);
@@ -4092,7 +4092,7 @@ enum Tfa98xx_Error dsp_partial_coefficients(struct tfa_device *tfa, uint8_t *pre
 		const int buffer_sz = 3 + sizeof(struct dsp_msg_all_coeff);
 		uint8_t *buffer;
 
-		buffer = kmalloc(buffer_sz, GFP_KERNEL);
+		buffer = kzalloc(buffer_sz, GFP_KERNEL);
 		if (buffer == NULL)
 			return Tfa98xx_Error_Fail;
 
@@ -4119,7 +4119,7 @@ enum Tfa98xx_Error dsp_partial_coefficients(struct tfa_device *tfa, uint8_t *pre
 				const int msg_sz = 6 + BQ_SIZE * eq_biquads[eq];
 				uint8_t *msg;
 
-				msg = kmalloc(msg_sz, GFP_KERNEL);
+				msg = kzalloc(msg_sz, GFP_KERNEL);
 				if (msg == NULL)
 					return Tfa98xx_Error_Fail;
 

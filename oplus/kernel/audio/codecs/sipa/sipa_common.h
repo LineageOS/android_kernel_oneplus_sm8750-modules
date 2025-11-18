@@ -38,7 +38,7 @@
 #define OPLUS_ARCH_EXTENDS
 #endif /* OPLUS_ARCH_EXTENDS */
 
-#define SIPA_DRIVER_VERSION					("3.1.8-250210")
+#define SIPA_DRIVER_VERSION					("3.1.8-250708")
 #define SIPA_MAX_CHANNEL_SUPPORT			(8)
 
 struct sipa_err {
@@ -179,10 +179,19 @@ enum {
 	CHIP_TYPE_SIA8150,
 	CHIP_TYPE_SIA815T,
 	CHIP_TYPE_SIA9187,
+	CHIP_TYPE_SIA8168,
 	// add compatible chip type here
 	CHIP_TYPE_UNKNOWN,
 	CHIP_TYPE_INVALID
 };
+
+#define IS_ANALOG_PA_HAVE_RST_AND_CHIP_EN(type) \
+			(type == CHIP_TYPE_SIA815T  || \
+			 type == CHIP_TYPE_SIA8159  || \
+			 type == CHIP_TYPE_SIA8159A || \
+			 type == CHIP_TYPE_SIA8168  )  \
+			 ? true \
+			 : false
 
 #define IS_DIGITAL_PA_TYPE(type) \
 			(type == CHIP_TYPE_SIA9195 || \
@@ -209,6 +218,8 @@ enum {
 #define SIA81XX_REG_W_O						(0x00000001 << 1)
 #define SIA81XX_REG_RW						(SIA81XX_REG_R_O | SIA81XX_REG_W_O)
 
+#define SIA8168_REG_ALGE_EN					(0x02)
+#define SIA8168_REG_PAR_CFG2					(0x16)
 
 /* error list */
 /* pulse width time out */

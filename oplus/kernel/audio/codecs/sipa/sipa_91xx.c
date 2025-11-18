@@ -517,7 +517,11 @@ int sia91xx_mute(
 	if (mute) {
 #if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
 /* 2023/04/18, Add for smartpa err feedback. */
+#ifdef OPLUS_FEATURE_SPEAKER_MUTE
+		if (si_pa->need_chk_err && !(si_pa->control_fb & BYPASS_PA_ERR_FB_10041) && !speaker_mute_control) {
+#else
 		if (si_pa->need_chk_err && !(si_pa->control_fb & BYPASS_PA_ERR_FB_10041)) {
+#endif
 			sia91xx_check_status_reg(si_pa);
 			si_pa->need_chk_err = false;
 		}

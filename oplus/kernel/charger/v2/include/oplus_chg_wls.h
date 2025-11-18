@@ -231,9 +231,8 @@
 
 #define WLS_SKIN_TEMP_MAX		500
 
-#define WLS_BCC_STOP_CURR_NUM		5
-
-#define WLS_SOC_NUM_MAX			3
+#define WLS_SOC_NUM_MAX_OLD_VER		3
+#define WLS_SOC_NUM_MAX			6
 
 #define CHARGE_FULL_FAN_THREOD_LO	350
 #define CHARGE_FULL_FAN_THREOD_HI	380
@@ -278,7 +277,7 @@
 
 #define FAN_PWM_PULSE_IN_SILENT_MODE_THR		60
 
-#define ADAPTER_CURVE_GEAR_MAX		5
+#define ADAPTER_CURVE_GEAR_MAX		6
 #define WLS_NON_FFC_FLOAT_VOL		100
 #define MAGCVR_STATUS_FAR		0
 #define MAGCVR_STATUS_NEAR		1
@@ -318,7 +317,8 @@ enum oplus_chg_temp_region {
 	BATT_TEMP_COOL,		/*0-5*/
 	BATT_TEMP_LITTLE_COOL,	/*5-12*/
 	BATT_TEMP_PRE_NORMAL,	/*12-16*/
-	BATT_TEMP_NORMAL,	/*16-37.5*/
+	BATT_TEMP_NORMAL,	/*16-21*/
+	BATT_TEMP_NORMAL_HIGH,	/*21-37.5*/
 	BATT_TEMP_LITTLE_WARM,	/*37.5-44*/
 	BATT_TEMP_WARM,		/*44-53*/
 	BATT_TEMP_HOT,		/*>53*/
@@ -431,15 +431,19 @@ enum {
 	WLS_FAST_TEMP_0_TO_50,
 	WLS_FAST_TEMP_50_TO_120,
 	WLS_FAST_TEMP_120_TO_160,
-	WLS_FAST_TEMP_160_TO_400,
-	WLS_FAST_TEMP_400_TO_440,
+	WLS_FAST_TEMP_160_TO_400, /*16 ~ 21*/
+	WLS_FAST_TEMP_160_TO_400_HIGH, /*21 ~ 35*/
+	WLS_FAST_TEMP_400_TO_440, /*35 ~ 44*/
 	WLS_FAST_TEMP_MAX,
 };
 
 enum {
-	WLS_FAST_SOC_0_TO_30,
-	WLS_FAST_SOC_30_TO_70,
-	WLS_FAST_SOC_70_TO_90,
+	WLS_FAST_SOC_0_TO_30, /* 0-20 */
+	WLS_FAST_SOC_0_TO_30_HIGH, /* 21-35 */
+	WLS_FAST_SOC_30_TO_70, /* 36-55 */
+	WLS_FAST_SOC_30_TO_70_HIGH, /* 56-75 */
+	WLS_FAST_SOC_70_TO_90, /* 76-85 */
+	WLS_FAST_SOC_70_TO_90_HIGH, /* 86-90 */
 	WLS_FAST_SOC_MAX,
 };
 
@@ -454,22 +458,29 @@ enum {
 	WLS_BCC_TEMP_0_TO_50,
 	WLS_BCC_TEMP_50_TO_120,
 	WLS_BCC_TEMP_120_TO_160,
-	WLS_BCC_TEMP_160_TO_400,
-	WLS_BCC_TEMP_400_TO_440,
+	WLS_BCC_TEMP_160_TO_400, /*16 ~ 21*/
+	WLS_BCC_TEMP_160_TO_400_HIGH, /*21 ~ 35*/
+	WLS_BCC_TEMP_400_TO_440, /*35 ~ 44*/
 	WLS_BCC_TEMP_MAX,
 };
 
 enum {
-	WLS_BCC_STOP_0_TO_30,
-	WLS_BCC_STOP_30_TO_70,
-	WLS_BCC_STOP_70_TO_90,
-	WLS_BCC_STOP_MAX,
+	WLS_BCC_STOP_0_TO_30, /* 0-20 */
+	WLS_BCC_STOP_0_TO_30_HIGH, /* 21-35 */
+	WLS_BCC_STOP_30_TO_70, /* 36-55 */
+	WLS_BCC_STOP_30_TO_70_HIGH, /* 56-75 */
+	WLS_BCC_STOP_70_TO_90, /* 76-85 */
+	WLS_BCC_STOP_70_TO_90_HIGH, /* 85-90 */
+	WLS_BCC_STOP_SOC_MAX,
 };
 
 enum {
-	WLS_BCC_SOC_0_TO_30,
-	WLS_BCC_SOC_30_TO_70,
-	WLS_BCC_SOC_70_TO_90,
+	WLS_BCC_SOC_0_TO_30, /* 0-20 */
+	WLS_BCC_SOC_0_TO_30_HIGH, /* 21-35 */
+	WLS_BCC_SOC_30_TO_70, /* 36-55 */
+	WLS_BCC_SOC_30_TO_70_HIGH, /* 56-75 */
+	WLS_BCC_SOC_70_TO_90, /* 76-85 */
+	WLS_BCC_SOC_70_TO_90_HIGH, /* 85-90 */
 	WLS_BCC_SOC_MAX,
 };
 
@@ -509,6 +520,14 @@ enum wls_topic_item {
 	WLS_ITEM_UI_POWER,
 	WLS_ITEM_FW_UPGRADING,
 	WLS_ITEM_ICON_TYPE,
+	WLS_ITEM_TRACK_RECORD_WLS_TYPE,
+	WLS_ITEM_AUDIO_CAM_PMW,
+	WLS_ITEM_QUIET_MODE,
+	WLS_ITEM_TX_MANU_ID,
+	WLS_ITEM_VENDOR_ID,
+	WLS_ITEM_PRODUCT_ID,
+	WLS_ITEM_TRACK_RECORD_FASTCHG,
+	WLS_ITEM_TRACK_BREAK_MANU,
 };
 
 enum {
@@ -516,6 +535,12 @@ enum {
 	WLS_RX_COMU_CAP_A,/*22nF*/
 	WLS_RX_COMU_CAP_B,/*47nF*/
 	WLS_RX_COMU_CAP_AB,/*22+47nF*/
+};
+
+enum {
+	FORCE_UPGRADE_NONE,
+	FORCE_UPGRADE_RX,
+	FORCE_UPGRADE_TX,
 };
 
 #ifdef OPLUS_CHG_DEBUG
@@ -528,4 +553,6 @@ int oplus_chg_wls_get_break_sub_crux_info(struct oplus_mms *mms, char *crux_info
 
 ssize_t oplus_chg_wls_rx_disable_show(struct oplus_mms *mms, char *buf);
 ssize_t oplus_chg_wls_rx_disable_store(struct oplus_mms *mms, const char *buf, size_t count);
+
+ssize_t oplus_chg_wls_bt_info_store(struct oplus_mms *mms, const char *buf, size_t count);
 #endif /* __OPLUS_CHG_WLS_H__ */

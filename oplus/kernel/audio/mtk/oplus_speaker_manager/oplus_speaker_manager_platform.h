@@ -24,6 +24,8 @@
  ******************************************************************************/
 int oplus_ext_amp_l_enable(int enable);
 int oplus_ext_amp_r_enable(int enable);
+int oplus_ext_amp_lb_enable(int enable);
+int oplus_ext_amp_rb_enable(int enable);
 int oplus_ext_amp_recv_enable(int enable);
 int oplus_ext_amp_recv_l_enable(int enable);
 int oplus_add_pa_manager_snd_controls(struct snd_soc_component *cmpnt);

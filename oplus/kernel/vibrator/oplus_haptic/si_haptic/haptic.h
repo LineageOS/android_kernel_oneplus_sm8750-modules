@@ -21,7 +21,7 @@
 #include <linux/version.h>
 #include <sound/control.h>
 #include <sound/soc.h>
-#include <../../../drivers/leds/leds.h>
+#include <linux/leds.h>
 #include "../haptic_common/haptic_common.h"
 
 /*********************************************************
@@ -76,12 +76,12 @@ typedef struct led_classdev cdev_t;
  *
  *********************************************************/
 typedef enum sih_haptic_work_mode {
-	SIH_IDLE_MODE = 0,
-	SIH_RAM_MODE = 1,
-	SIH_RTP_MODE = 2,
-	SIH_TRIG_MODE = 3,
-	SIH_CONT_MODE = 4,
-	SIH_RAM_LOOP_MODE = 5,
+	SIH_RAM_LOOP_MODE = 0,
+	SIH_CONT_MODE = 1,
+	SIH_RAM_MODE = 2,
+	SIH_RTP_MODE = 3,
+	SIH_TRIG_MODE = 4,
+	SIH_IDLE_MODE = 5,
 } sih_haptic_work_mode_e;
 
 typedef enum sih_haptic_state_status {

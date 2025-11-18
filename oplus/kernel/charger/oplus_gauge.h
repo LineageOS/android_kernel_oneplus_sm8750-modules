@@ -8,6 +8,7 @@
 
 #include <linux/i2c.h>
 #include <linux/power_supply.h>
+#include <linux/version.h>
 #include "oplus_chg_symbol.h"
 
 #define OPLUS_BATTINFO_DATE_SIZE 11
@@ -160,6 +161,9 @@ struct oplus_gauge_operations {
  * Returns: 0 - success; -1/errno - failed
  ****************************************/
 void oplus_gauge_init(struct oplus_gauge_chip *chip);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+void oplus_mtk_plat_gauge_init(void);
+#endif
 void oplus_plat_gauge_init(struct oplus_plat_gauge_operations *ops);
 void oplus_external_auth_init(struct oplus_external_auth_chip *chip);
 void oplus_sub_gauge_init(struct oplus_gauge_chip *chip);

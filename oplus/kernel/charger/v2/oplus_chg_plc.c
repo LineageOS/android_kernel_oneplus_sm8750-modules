@@ -2326,7 +2326,11 @@ vote_init_err:
 	return rc;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+static void oplus_chg_plc_remove(struct platform_device *pdev)
+#else
 static int oplus_chg_plc_remove(struct platform_device *pdev)
+#endif
 {
 	struct oplus_chg_plc *chip = platform_get_drvdata(pdev);
 
@@ -2347,7 +2351,9 @@ static int oplus_chg_plc_remove(struct platform_device *pdev)
 
 	devm_kfree(&pdev->dev, chip);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	return 0;
+#endif
 }
 
 static const struct of_device_id oplus_chg_plc_match[] = {

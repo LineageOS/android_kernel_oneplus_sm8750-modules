@@ -252,6 +252,7 @@ int oplus_haptic_track_uvlo(uint32_t track_type, uint32_t reg_value, char *fail_
 	track_event->uvlo_mode_event.reg_value = reg_value;
 	strncpy(track_event->uvlo_mode_event.fail_info, fail_info, MAX_FAIL_INFO_LEN - 1);
 	track_event->uvlo_mode_event.fail_info[MAX_FAIL_INFO_LEN - 1] = '\0';
+	track_event->uvlo_mode_event.uvlo_report_counts++;
 
 	schedule_delayed_work(&track_event->track_uvlo_mode_load_trigger_work, 0);
 
@@ -603,6 +604,16 @@ static ssize_t dev_uvlo_mode_track_store(struct device *dev, struct device_attri
 
 	return len;
 }
+static ssize_t dev_uvlo_updata_counts_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct oplus_haptic_track *chip = g_haptic_track_chip;
+	struct haptic_uvlo_mode_track_event *track_event;
+
+	if (!chip)
+		return TRACK_CMD_ERROR_CHIP_NULL;
+	track_event = &chip->uvlo_mode_track_event;
+	return snprintf(buf, PAGE_SIZE, "%u\n", track_event->uvlo_mode_event.uvlo_report_counts);
+}
 
 static DEVICE_ATTR(event_track, 0664, dev_event_track_show,
 		   dev_event_track_store);
@@ -612,12 +623,15 @@ static DEVICE_ATTR(mem_alloc_track, 0664, dev_mem_alloc_track_show,
 		   dev_mem_alloc_track_store);
 static DEVICE_ATTR(uvlo_mode_track, 0664, dev_uvlo_mode_track_show,
 		   dev_uvlo_mode_track_store);
+static DEVICE_ATTR(uvlo_updata_counts, 0664, dev_uvlo_updata_counts_show,
+		   NULL);
 
 static struct attribute *haptic_fb_attributes[] = {
 	&dev_attr_event_track.attr,
 	&dev_attr_fre_cali_track.attr,
 	&dev_attr_mem_alloc_track.attr,
 	&dev_attr_uvlo_mode_track.attr,
+	&dev_attr_uvlo_updata_counts.attr,
 	NULL,
 };
 

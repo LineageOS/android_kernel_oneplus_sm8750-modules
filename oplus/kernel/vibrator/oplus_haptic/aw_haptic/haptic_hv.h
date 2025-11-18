@@ -348,11 +348,16 @@ struct mmap_buf_format {
 #define AW8693XS_0815_CONT_BRK_TIME					(0x08)
 #define AW8693XS_0815_CONT_TRACK_MARGIN				(0x0F)
 #define AW8693XS_0815_CONT_BRK_GAIN					(0x08)
+
+#define AW8693XS_0816_F0_PRE						(1300)
+#define AW8693XS_0816_CONT_DRV2_TIME					(0x1E)
+#define AW8693XS_0816_LRA_VRMS						(1200)
+#define AW8693XS_0816_CONT_TRACK_MARGIN					(0x0C)
+
 #define AW8693XS_D2S_GAIN_DEFAULT					(0x04)
 #define AW8693XS_BEMF_D2S_GAIN_DEFAULT					(0x04)
 #define AW8693XS_BST_VOL_DEFAULT					(0x11)
 #define AW8693XS_GAIN_BYPASS						(0x01)
-#define AW8693XS_UVLO_VOL_DEFAULT					(0x15)
 #define AW8693XS_LRA_VRMS							(900)
 #define AW8693XS_TRGCFG9							(0x43)
 #endif
@@ -563,6 +568,16 @@ struct mmap_buf_format {
 										 (10 * ((int)f0_pre * (10000 + s * AW8693XS_OSC_CALI_ACCURACY) - \
 											 10000 * (int)f0) / ((int)f0 * AW8693XS_OSC_CALI_ACCURACY))
 
+#define AW8693XS_VBAT_UVLO_ADJ_DEFAULT				(0x04)
+#define AW8693XS_VBAT_PRO0_BST_IPEAK_DEFAUL			(4000)
+#define AW8693XS_VBAT_PRO1_BST_DEFAULT				(7000)
+#define AW8693XS_VBAT_PRO1_BST_IPEAK_DEFAULT			(4000)
+#define AW8693XS_VBAT_PRO2_BST_DEFAULT				(6000)
+#define AW8693XS_VBAT_PRO2_BST_IPEAK_DEFAULT			(2600)
+#define AW8693XS_VBAT_PRO1_UVLO_DEFAULT				(2900)
+#define AW8693XS_VBAT_PRO2_UVLO_DEFAULT				(2600)
+#define AW8693XS_VBAT_PRO3_UVLO_DEFAULT				(2300)
+#define AW8693XS_VBAT_PRO_UVLO_FORMULA(uvlo_vol)		(((uvlo_vol) - 1900) / 100)
 
 #define AW_DRV_WIDTH_FARMULA(f0_pre, brk_gain, track_margain) (240000 / \
 			     (f0_pre) - 8 - (brk_gain) - (track_margain))
@@ -735,6 +750,13 @@ enum d2s_gain_sel {
 	AW8693XS_BEMF_D2S_GAIN,
 };
 
+enum aw8693xs_vbat_pro3_gain {
+	AW8693XS_PRO3_GAIN_1,
+	AW8693XS_PRO3_GAIN_3_4,
+	AW8693XS_PRO3_GAIN_1_2,
+	AW8693XS_PRO3_GAIN_0,
+};
+
 /*********************************************************
  *
  * Struct Define
@@ -826,7 +848,6 @@ struct aw_haptic_dts_info {
 	uint8_t d2s_gain;
 	uint8_t bemf_d2s_gain;
 	uint8_t gain_bypass;
-	uint8_t uvlo_vol_default;
 	uint8_t brk_bst_md;
 	uint8_t bst_vol_ram;
 	uint8_t bst_vol_rtp;
@@ -855,6 +876,16 @@ struct aw_haptic_dts_info {
 	bool is_enabled_auto_bst;
 	bool is_enabled_i2s;
 	bool is_enabled_one_wire;
+	uint32_t vbat_pro1_bst_default;
+	uint32_t vbat_pro1_bst_ipeak_default;
+	uint32_t vbat_pro2_bst_default;
+	uint32_t vbat_pro2_bst_ipeak_default;
+	uint32_t vbat_pro3_gain;
+	uint8_t uvlo_adj_default;
+	uint8_t set_pro1_uvlo;
+	uint8_t set_pro2_uvlo;
+	uint8_t set_pro3_uvlo;
+	uint8_t set_pro0_ipeak;
 };
 
 typedef struct aw_haptic {
@@ -884,6 +915,11 @@ typedef struct aw_haptic {
 	uint8_t loop[AW_SEQUENCER_SIZE];
 	uint8_t trim_lra_boundary;
 
+	/* 0:pro1 bstmax 1:pro1 bst ipeak
+	   2:pro2 bstmax 3:pro2 bst ipeak
+	   4:pro3 gain level
+	*/
+	uint16_t vbat_pro_params[5];
 	int osc_trim_s;
 	int vmax;
 	int gain;

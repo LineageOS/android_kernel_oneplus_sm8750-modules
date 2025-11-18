@@ -50,8 +50,11 @@ static const struct snd_kcontrol_new oplus_pa_manager_snd_controls[] = {
 	SOC_ENUM_EXT("Ext_Amp_Boost_Voltage", (oplus_amp_control_enum)[1], ext_amp_boost_voltage_get, ext_amp_boost_voltage_set),
 	SOC_ENUM_EXT("Ext_Amp_Mode", (oplus_amp_control_enum)[2], ext_amp_mode_get, ext_amp_mode_set),
 	SOC_ENUM_EXT("Ext_Amp_Force_Mute", (oplus_amp_control_enum)[3], ext_amp_force_mute_get, ext_amp_force_mute_set),
+	/* for 4PA L:LEFT TOP R:RIGHT TOP LB:LEFT BOTTOM RB:RIGHT BOTTOM*/
 	SOC_ENUM_EXT("SpeakerL_Amp_Switch", (oplus_amp_control_enum)[4], speaker_l_amp_get, speaker_l_amp_set),
 	SOC_ENUM_EXT("SpeakerR_Amp_Switch", (oplus_amp_control_enum)[4], speaker_r_amp_get, speaker_r_amp_set),
+	SOC_ENUM_EXT("SpeakerLB_Amp_Switch", (oplus_amp_control_enum)[4], speaker_lb_amp_get, speaker_lb_amp_set),
+	SOC_ENUM_EXT("SpeakerRB_Amp_Switch", (oplus_amp_control_enum)[4], speaker_rb_amp_get, speaker_rb_amp_set),
 	SOC_ENUM_EXT("Rcv_Amp_Switch", (oplus_amp_control_enum)[5], rcv_amp_get, rcv_amp_set),
 	SOC_ENUM_EXT("RcvL_Amp_Switch", (oplus_amp_control_enum)[5], rcv_l_amp_get, rcv_l_amp_set),
 };
@@ -294,6 +297,40 @@ int oplus_ext_amp_l_enable(int enable)
 }
 EXPORT_SYMBOL(oplus_ext_amp_l_enable);
 
+int oplus_ext_amp_lb_enable(int enable)
+{
+
+	struct list_head *p;
+	struct oplus_spk_dev_node *entry;
+
+	if (list_empty(&oplus_speaker_list) || (contrl_status == NULL)) {
+		pr_err("%s(),no device regist",__func__);
+		return 1;
+	}
+
+	if (!contrl_status->amp_force_mute_status) {
+		list_for_each(p,&oplus_speaker_list) {
+			entry = list_entry(p,struct oplus_spk_dev_node,list);
+
+			if (entry->device
+				&& entry->device->speaker_enable_set
+				&& (entry->device->type == LB_SPK)) {
+				entry->device->speaker_enable_set(enable,SPK_MODE);
+
+				if (entry->device->speaker_protection_set != NULL) {
+					entry->device->speaker_protection_set(enable, SPK_MODE);
+				}
+			}
+		}
+	}
+
+	contrl_status->enable = enable;
+	pr_debug("%s(),ext amp enable:%d",__func__,enable);
+
+	return 0;
+}
+EXPORT_SYMBOL(oplus_ext_amp_lb_enable);
+
 int oplus_ext_amp_r_enable(int enable)
 {
 
@@ -327,6 +364,40 @@ int oplus_ext_amp_r_enable(int enable)
 	return 0;
 }
 EXPORT_SYMBOL(oplus_ext_amp_r_enable);
+
+int oplus_ext_amp_rb_enable(int enable)
+{
+
+	struct list_head *p;
+	struct oplus_spk_dev_node *entry;
+
+	if (list_empty(&oplus_speaker_list) || (contrl_status == NULL)) {
+		pr_err("%s(),no device regist",__func__);
+		return 1;
+	}
+
+	if (!contrl_status->amp_force_mute_status) {
+		list_for_each(p,&oplus_speaker_list) {
+			entry = list_entry(p,struct oplus_spk_dev_node,list);
+
+			if (entry->device
+				&& entry->device->speaker_enable_set
+				&& (entry->device->type == RB_SPK)) {
+				entry->device->speaker_enable_set(enable,SPK_MODE);
+
+				if (entry->device->speaker_protection_set != NULL) {
+					entry->device->speaker_protection_set(enable, SPK_MODE);
+				}
+			}
+		}
+	}
+
+	contrl_status->enable = enable;
+	pr_debug("%s(),ext amp enable:%d",__func__,enable);
+
+	return 0;
+}
+EXPORT_SYMBOL(oplus_ext_amp_rb_enable);
 
 int oplus_ext_amp_recv_enable(int enable)
 {
@@ -436,6 +507,60 @@ int speaker_r_amp_set(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *
 	}
 
 	ret = oplus_ext_amp_r_enable(value);
+	pr_info("%s, %d, value = %d, ret = %d\n", __func__, __LINE__, value, ret);
+	return 0;
+}
+
+int speaker_lb_amp_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	if (contrl_status) {
+		ucontrol->value.integer.value[0] = contrl_status->spklb_enable;
+		pr_err("%s(), SpeakerLB_Amp_Switch = %d\n", __func__, contrl_status->spklb_enable);
+	} else {
+		ucontrol->value.integer.value[0] = 0;
+	}
+
+	return 0;
+}
+
+int speaker_lb_amp_set(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	int value = ucontrol->value.integer.value[0];
+	int ret = 0;
+
+	if ((value >= ARRAY_SIZE(ext_amp_speaker_switch_function)) || (value < 0)) {
+		pr_err("%s(),return -EINVAL",__func__);
+		return -EINVAL;
+	}
+
+	ret = oplus_ext_amp_lb_enable(value);
+	pr_info("%s, %d, value = %d, ret = %d\n", __func__, __LINE__, value, ret);
+	return 0;
+}
+
+int speaker_rb_amp_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	if (contrl_status) {
+		ucontrol->value.integer.value[0] = contrl_status->spkrb_enable;
+		pr_err("%s(), SpeakerRB_Amp_Switch = %d\n", __func__, contrl_status->spkrb_enable);
+	} else {
+		ucontrol->value.integer.value[0] = 0;
+	}
+
+	return 0;
+}
+
+int speaker_rb_amp_set(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	int value = ucontrol->value.integer.value[0];
+	int ret = 0;
+
+	if ((value >= ARRAY_SIZE(ext_amp_speaker_switch_function)) || (value < 0)) {
+		pr_err("%s(),return -EINVAL",__func__);
+		return -EINVAL;
+	}
+
+	ret = oplus_ext_amp_rb_enable(value);
 	pr_info("%s, %d, value = %d, ret = %d\n", __func__, __LINE__, value, ret);
 	return 0;
 }

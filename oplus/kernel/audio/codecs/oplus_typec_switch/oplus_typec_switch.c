@@ -539,7 +539,7 @@ static int typec_switch_usbc_event_changed(struct notifier_block *nb,
 			container_of(nb, struct typec_switch_priv, pd_nb);
 	struct device *dev;
 	struct tcp_notify *noti = ptr;
-#ifdef OPLUS_FEATURE_CHG_BASIC
+#if IS_ENABLED(CONFIG_SND_SOC_OPLUS_TYPEC_SWITCH)
     int state = 0;
     int rc = 0;
 #endif

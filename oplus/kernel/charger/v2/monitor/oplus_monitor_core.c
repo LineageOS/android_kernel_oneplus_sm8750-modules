@@ -204,7 +204,8 @@ static void oplus_monitor_update_charge_info(struct oplus_monitor *chip)
 			chip->wls_vout_mv = data.intval;
 			oplus_mms_get_item_data(chip->wls_topic, WLS_ITEM_WLS_TYPE, &data, true);
 			chip->wls_charge_type = data.intval;
-			chip->wls_pre_type = chip->wls_charge_type;
+			if (chip->wls_charge_type)
+				chip->wls_pre_type = chip->wls_charge_type;
 			oplus_mms_get_item_data(chip->wls_topic, WLS_ITEM_MAGCVR, &data, true);
 			chip->wls_magcvr_status = data.intval;
 		}
@@ -280,7 +281,7 @@ static void oplus_monitor_charge_info_update_work(struct work_struct *work)
 						  charge_info_update_work);
 	union mms_msg_data data = { 0 };
 	static int dump_count = 0;
-	static long update_reg_jiffies;
+	static int update_reg_soc = -EINVAL;
 	int rc;
 	char sub_batt_info[MAX_SUB_BATT_INFO] = {0};
 	int index = 0;
@@ -309,7 +310,7 @@ static void oplus_monitor_charge_info_update_work(struct work_struct *work)
 			chip->main_ibat, chip->main_soc, chip->sub_ibat, chip->sub_soc);
 
 	printk(KERN_INFO "OPLUS_CHG[oplus_charge_info]: "
-		"BATTERY[%d %d %d %d %d %d %d %d %d %d %d 0x%x], "
+		"BATTERY[%d %d %d %d %d %d %d %d %d %d %d 0x%x %d], "
 		"CHARGE[%d %d %d %d], "
 		"WIRED[%d %d %d %d %d 0x%x %d %d %d %d %d], "
 		"WIRELESS[%d %d %d %d %d 0x%x %d %d %d], "
@@ -319,7 +320,7 @@ static void oplus_monitor_charge_info_update_work(struct work_struct *work)
 		chip->batt_temp, chip->shell_temp, chip->vbat_mv,
 		chip->vbat_min_mv, chip->ibat_ma, chip->batt_soc, chip->ui_soc,
 		chip->smooth_soc, chip->batt_rm, chip->batt_fcc, chip->batt_exist,
-		chip->batt_err_code,
+		chip->batt_err_code, chip->gauge_car_c,
 		chip->fv_mv, chip->fcc_ma, chip->chg_disable, chip->chg_user_disable,
 		chip->wired_online, chip->wired_ibus_ma, chip->wired_vbus_mv,
 		chip->wired_icl_ma, chip->wired_charge_type, chip->wired_err_code,
@@ -337,15 +338,11 @@ static void oplus_monitor_charge_info_update_work(struct work_struct *work)
 		chip->batt_fcc_comp, chip->batt_soh_comp, chip->uisoc_keep_2_err,
 		sub_batt_info);
 
-#ifndef CONFIG_DISABLE_OPLUS_FUNCTION
-	if (get_eng_version() != PREVERSION || chip->wired_online || chip->wls_online) {
-#else
 	if (chip->wired_online || chip->wls_online) {
-#endif
-		update_reg_jiffies = jiffies;
+		update_reg_soc = chip->batt_soc;
 	} else {
-		if (time_is_before_eq_jiffies(update_reg_jiffies + (unsigned long)(300 * HZ))) {
-			update_reg_jiffies = jiffies;
+		if (update_reg_soc != chip->batt_soc) {
+			update_reg_soc = chip->batt_soc;
 			rc = oplus_mms_get_item_data(chip->gauge_topic, GAUGE_ITEM_REG_INFO, &data, true);
 			if (rc == 0 && data.strval && strlen(data.strval))
 				printk(KERN_INFO "OPLUS_CHG [main_gauge_reg_info] %s\n", data.strval);
@@ -633,6 +630,7 @@ static void oplus_monitor_retention_subs_callback(struct mms_subscribe *subs,
 				chip->total_disconnect_count > 0)
 				oplus_chg_track_upload_wired_retention_online_info(chip);
 			chip->pre_retention_state = chip->retention_state;
+			oplus_chg_track_update_break_ui_online();
 			break;
 		case RETENTION_ITEM_TOTAL_DISCONNECT_COUNT:
 			oplus_mms_get_item_data(chip->retention_topic, id, &data, false);
@@ -875,6 +873,18 @@ static void oplus_monitor_wired_plugin_work(struct work_struct *work)
 		container_of(work, struct oplus_monitor, wired_plugin_work);
 	oplus_chg_track_check_wired_charging_break(chip->wired_online);
 	chip->oplus_liquid_intake_check_led_status = false;
+}
+
+static void oplus_monitor_wired_present_work(struct work_struct *work)
+{
+	bool wired_present = false;
+	union mms_msg_data data = { 0 };
+	struct oplus_monitor *chip =
+		container_of(work, struct oplus_monitor, wired_present_work);
+
+	oplus_mms_get_item_data(chip->wired_topic, WIRED_ITEM_PRESENT, &data, false);
+	wired_present = !!data.intval;
+	oplus_chg_track_check_wired_mul_break_stat(wired_present);
 }
 
 #define TIMER_SIZE 10
@@ -1133,9 +1143,13 @@ static void oplus_monitor_wired_subs_callback(struct mms_subscribe *subs,
 			chip->notify_flag = 0;
 			if (!chip->wired_online)
 				oplus_chg_track_record_dual_chan_end(chip);
+			oplus_chg_track_update_break_ui_online();
 			schedule_work(&chip->charge_info_update_work);
 			schedule_work(&chip->wired_plugin_work);
 			schedule_delayed_work(&chip->dischg_profile_check_work, 0);
+			break;
+		case WIRED_ITEM_PRESENT:
+			schedule_work(&chip->wired_present_work);
 			break;
 		case WIRED_ITEM_ERR_CODE:
 			oplus_mms_get_item_data(chip->wired_topic, id, &data,
@@ -1176,6 +1190,10 @@ static void oplus_monitor_wired_subs_callback(struct mms_subscribe *subs,
 			break;
 		case WIRED_ITEM_ONLINE_STATUS_ERR:
 			oplus_chg_track_upload_wired_online_err_info(chip);
+			break;
+		case WIRED_ITEM_VBUS_VOL_TYPE:
+			oplus_mms_get_item_data(chip->wired_topic, id, &data, false);
+			chip->vbus_vol_type = data.intval;
 			break;
 		default:
 			break;
@@ -1224,6 +1242,8 @@ static void oplus_monitor_subscribe_wired_topic(struct oplus_mms *topic,
 	oplus_mms_get_item_data(chip->wired_topic, WIRED_TIME_ABNORMAL_ADAPTER, &data,
 				true);
 	chip->pd_svooc = !!data.intval;
+	oplus_mms_get_item_data(chip->wired_topic, WIRED_ITEM_VBUS_VOL_TYPE, &data, true);
+	chip->vbus_vol_type = data.intval;
 }
 
 static void oplus_monitor_wls_subs_callback(struct mms_subscribe *subs,
@@ -1240,6 +1260,7 @@ static void oplus_monitor_wls_subs_callback(struct mms_subscribe *subs,
 			chip->wls_online = !!data.intval;
 			schedule_work(&chip->charge_info_update_work);
 			oplus_chg_track_check_wls_charging_break(!!data.intval);
+			oplus_chg_track_check_wls_mul_break_stat(!!data.intval);
 			schedule_delayed_work(&chip->dischg_profile_check_work, 0);
 			break;
 		default:
@@ -1574,6 +1595,11 @@ static void oplus_monitor_comm_subs_callback(struct mms_subscribe *subs,
 			chip->rechg_soc_threshold =RECHG_SOC_TO_SOC(data.intval);
 			oplus_chg_track_upload_rechg_info(chip);
 			break;
+		case COMM_ITEM_BOOT_COMPLETED:
+			oplus_mms_get_item_data(chip->comm_topic, COMM_ITEM_BOOT_COMPLETED, &data, false);
+			if (!!data.intval)
+				oplus_chg_track_update_prechg_r_data(chip);
+			break;
 		default:
 			break;
 		}
@@ -1650,6 +1676,10 @@ static void oplus_monitor_subscribe_comm_topic(struct oplus_mms *topic,
 	oplus_mms_get_item_data(chip->comm_topic, COMM_ITEM_RECHG_SOC_EN_STATUS, &data, false);
 	chip->rechg_soc_en = RECHG_SOC_TO_ENABLE(data.intval);
 	chip->rechg_soc_threshold = RECHG_SOC_TO_SOC(data.intval);
+
+	oplus_mms_get_item_data(chip->comm_topic, COMM_ITEM_BOOT_COMPLETED, &data, true);
+	if (!!data.intval)
+		oplus_chg_track_update_prechg_r_data(chip);
 
 	schedule_delayed_work(&chip->dischg_profile_check_work, 0);
 }
@@ -2047,6 +2077,26 @@ static struct mms_item oplus_monitor_item[] = {
 	},
 	{
 		.desc = {
+			.item_id = ERR_ITEM_DEVICE_ID,
+			.str_data = true,
+			.up_thr_enable = false,
+			.down_thr_enable = false,
+			.dead_thr_enable = false,
+			.update = NULL,
+		}
+	},
+	{
+		.desc = {
+			.item_id = ERR_ITEM_ERR_PHY_CP_INFO,
+			.str_data = true,
+			.up_thr_enable = false,
+			.down_thr_enable = false,
+			.dead_thr_enable = false,
+			.update = NULL,
+		}
+	},
+	{
+		.desc = {
 			.item_id = ERR_ITEM_PPS,
 			.str_data = true,
 			.up_thr_enable = false,
@@ -2055,6 +2105,38 @@ static struct mms_item oplus_monitor_item[] = {
 			.update = NULL,
 		}
 	},
+	{
+		.desc = {
+			.item_id = ERR_ITEM_GAUGE_R_INFO,
+			.str_data = true,
+			.up_thr_enable = false,
+			.down_thr_enable = false,
+			.dead_thr_enable = false,
+			.update = NULL,
+		}
+	},
+	{
+		.desc = {
+			.item_id = ERR_ITEM_SOCCP_CRASH,
+		}
+	},
+	{
+		.desc = {
+			.item_id = ERR_ITEM_FCL_INFO,
+			.str_data = true,
+			.up_thr_enable = false,
+			.down_thr_enable = false,
+			.dead_thr_enable = false,
+			.update = NULL,
+		}
+	},
+	{
+		.desc = {
+			.item_id = ERR_ITEM_BS_INFO,
+			.str_data = true,
+		}
+	},
+
 };
 
 static const struct oplus_mms_desc oplus_monitor_desc = {
@@ -2153,6 +2235,7 @@ static int oplus_monitor_probe(struct platform_device *pdev)
 	INIT_WORK(&chip->charge_info_update_work,
 		  oplus_monitor_charge_info_update_work);
 	INIT_WORK(&chip->wired_plugin_work, oplus_monitor_wired_plugin_work);
+	INIT_WORK(&chip->wired_present_work, oplus_monitor_wired_present_work);
 	INIT_WORK(&chip->ffc_step_change_work, oplus_monitor_ffc_step_change_work);
 	INIT_WORK(&chip->ffc_end_work, oplus_monitor_ffc_end_work);
 	INIT_DELAYED_WORK(&chip->water_inlet_detect_work, oplus_mms_water_inlet_detect_work);
@@ -2196,7 +2279,11 @@ topic_init_err:
 	return rc;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+static void oplus_monitor_remove(struct platform_device *pdev)
+#else
 static int oplus_monitor_remove(struct platform_device *pdev)
+#endif
 {
 	struct oplus_monitor *chip = platform_get_drvdata(pdev);
 
@@ -2218,7 +2305,9 @@ static int oplus_monitor_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 	devm_kfree(&pdev->dev, chip);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	return 0;
+#endif
 }
 
 static void oplus_monitor_shutdown(struct platform_device *pdev)

@@ -59,3 +59,12 @@ ifeq ($(call is-board-platform-in-list,parrot), true)
 PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/oplus_audio_aw87xxx.ko
 PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/oplus_audio_pa_manager.ko
 endif
+
+ifeq ($(call is-board-platform-in-list,canoe), true)
+PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/oplus_audio_extend.ko
+PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/oplus_audio_tfa98xx_v6.ko
+PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/oplus_audio_aw882xx.ko
+PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/oplus_audio_daemon.ko
+PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/oplus_audio_netlink.ko
+PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/oplus_typec_switch_i2c.ko
+endif

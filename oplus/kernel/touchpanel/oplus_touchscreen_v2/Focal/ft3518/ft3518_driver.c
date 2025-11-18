@@ -1679,7 +1679,7 @@ static fw_check_state fts_fw_check(void *chip_data,
 
 	if (panel_data->manufacture_info.version) {
 		sprintf(dev_version, "%04x", panel_data->tp_fw);
-		strlcpy(&(panel_data->manufacture_info.version[7]), dev_version, 5);
+		strncpy(&(panel_data->manufacture_info.version[7]), dev_version, 5);
 	}
 
 	return FW_NORMAL;
@@ -2457,6 +2457,20 @@ static int fts_diaphragm_touch_lv_set(void *chip_data, int level)
 	return 0;
 }
 
+static int fts_fp_unlock_status_write(void *chip_data, u8 value)
+{
+	struct chip_data_ft3518 *ts_data = (struct chip_data_ft3518 *)chip_data;
+	int ret = 0;
+
+	TPD_INFO("fts fp_unlock_status write %u", value);
+	if (value) {
+		ret = touch_i2c_write_byte(ts_data->client, FTS_REG_FP_UNLOCK_STATE, 0x01);
+	} else {
+		ret = touch_i2c_write_byte(ts_data->client, FTS_REG_FP_UNLOCK_STATE, 0);
+	}
+	return ret;
+}
+
 static void fts_get_water_mode(void *chip_data)
 {
 	struct chip_data_ft3518 *ts_data = (struct chip_data_ft3518 *)chip_data;
@@ -2732,6 +2746,7 @@ static struct oplus_touchpanel_operations fts_ops = {
 	.set_gesture_state          = fts_set_gesture_state,
 	.send_temperature           = fts_send_temperature,
 	.diaphragm_touch_lv_set     = fts_diaphragm_touch_lv_set,
+	.fp_unlock_status_write     = fts_fp_unlock_status_write,
 	.get_glove_mode             = fts_get_glove_mode,
 	.get_water_mode             = fts_get_water_mode,
 	.force_water_mode           = fts_force_water_mode,

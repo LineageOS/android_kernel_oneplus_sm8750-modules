@@ -315,7 +315,7 @@ static void sc8517_track_i2c_err_load_trigger_work(struct work_struct *work)
 			i2c_err_load_trigger_work);
 
 	if (chip->i2c_err_load_trigger) {
-		oplus_chg_track_upload_trigger_data(*(chip->i2c_err_load_trigger));
+		oplus_chg_track_upload_trigger_data(chip->i2c_err_load_trigger);
 		kfree(chip->i2c_err_load_trigger);
 		chip->i2c_err_load_trigger = NULL;
 	}
@@ -428,7 +428,7 @@ static void sc8517_track_cp_err_load_trigger_work(
 			cp_err_load_trigger_work);
 
 	if (chip->cp_err_load_trigger) {
-		oplus_chg_track_upload_trigger_data(*(chip->cp_err_load_trigger));
+		oplus_chg_track_upload_trigger_data(chip->cp_err_load_trigger);
 		kfree(chip->cp_err_load_trigger);
 		chip->cp_err_load_trigger = NULL;
 	}

@@ -1030,3 +1030,9 @@ int oplus_need_check_calib_values(void)
 {
 	return (tfa_fb.chk_flag == (CHECK_SPEAKER_MASKS + (1 << tfa_fb.pa_cnt) - 1));
 }
+
+void oplus_tfa98xx_clear_check_flag(void)
+{
+	tfa_fb.chk_flag = 0;
+	pr_info("set chk_flag = 0\n");
+}

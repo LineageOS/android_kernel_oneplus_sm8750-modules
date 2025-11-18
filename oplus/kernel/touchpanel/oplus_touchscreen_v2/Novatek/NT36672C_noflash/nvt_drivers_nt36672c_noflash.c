@@ -6898,15 +6898,18 @@ int nvt_tp_probe(struct spi_device *client)
 	chip_info->using_headfile = false;
 
 	/*---prepare for spi parameter---*/
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	if (ts->s_client->master->flags & SPI_MASTER_HALF_DUPLEX) {
 		TPD_INFO("Full duplex not supported by master\n");
 		ret = -EIO;
 		goto err_spi_setup;
 	}
-
+#endif
 	ts->s_client->bits_per_word = 8;
 	ts->s_client->mode = SPI_MODE_0;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	ts->s_client->chip_select = 0; /*modify reg=0 for more tp vendor share same spi interface*/
+#endif
 
 #ifdef CONFIG_TOUCHPANEL_MTK_PLATFORM
 	/* new usage of MTK spi API */

@@ -10,10 +10,46 @@
 
 #define GAUGE_CALIB_TAG_LEN 12
 #define GAUGE_CALIB_OBTAIN_COUNTS 3
+#define FCL_TABLE_MAX 2
+#define FCL_CURVE_MAX 3
+
 struct gauge_calib_info_load {
     char tag_info[GAUGE_CALIB_TAG_LEN];
     struct gauge_calib_info calib_info[GAUGE_IC_NUM_MAX];
 }__attribute__((aligned(4)));
+
+struct gauge_three_level_term_volt_cfg {
+	unsigned short term_volt;
+	unsigned short term_volt_2;
+	unsigned short term_volt_3;
+	unsigned short recover_term_volt;
+	unsigned short recover_term_volt_2;
+	unsigned char hold_time;
+	unsigned char hold_time_2;
+	unsigned char hold_time_3;
+	unsigned char time_to_drop_per1;
+	unsigned char time_to_drop_per1_2;
+	unsigned char time_to_drop_per1_3;
+	unsigned char recover_hold_time_of_term_voltage;
+	unsigned char recover_hold_time_of_term_voltage_2;
+	int term_volt_size;
+};
+
+struct fcl_table {
+	int volt_diff;
+	int curr_dec;
+	int min_curr;
+} __attribute__ ((packed));
+
+struct fcl_curves {
+	struct fcl_table limits[FCL_CURVE_MAX];
+	bool support;
+	int nums;
+	int index;
+};
+#define GAUGE_NVRAM_TEST_MAX_COUNT     40000
+#define GAUGE_TERM_VOLT_TEST_MAX_COUNT 20000
+#define GAUGE_NVRAM_TEST_DEFAULT_INTERVAL_MS   2000
 
 struct oplus_mms_gauge {
 	struct device *dev;
@@ -57,6 +93,7 @@ struct oplus_mms_gauge {
 	struct work_struct update_sili_spare_power_enable_work;
 	struct work_struct update_sili_ic_alg_cfg_work;
 	struct work_struct sub_btb_state_change_handler_work;
+	struct work_struct hmac_update_handler_work;
 
 	struct delayed_work sili_spare_power_effect_check_work;
 	struct delayed_work sili_term_volt_effect_check_work;
@@ -68,6 +105,11 @@ struct oplus_mms_gauge {
 	struct delayed_work sub_deep_track_work;
 	struct delayed_work deep_ratio_work;
 	struct delayed_work deep_temp_work;
+	struct delayed_work gauge_cuv_state_work;
+	struct delayed_work gauge_update_three_level_term_volt_work;
+	struct delayed_work gauge_nvram_stress_test_work;
+	struct delayed_work gauge_stress_read_test_work;
+	struct delayed_work gauge_term_volt_stress_test_work;
 
 	struct votable *gauge_update_votable;
 	struct deep_dischg_spec deep_spec;
@@ -111,13 +153,18 @@ struct oplus_mms_gauge {
 	struct votable *target_shutdown_voltage_votable;
 	struct votable *target_term_voltage_votable;
 	unsigned char *gauge_reg_info[GAUGE_IC_NUM_MAX];
+	unsigned char *gauge_r_info[GAUGE_IC_NUM_MAX];
 	unsigned char calib_time_str[GAUGE_IC_NUM_MAX][CALIB_TIME_STR_LEN];
 	struct oplus_gauge_lifetime lifetime[GAUGE_IC_NUM_MAX];
 	struct gauge_calib_info_load calib_info_load;
 	bool calib_info_init[GAUGE_IC_NUM_MAX];
 	struct deep_track_info deep_info;
 	struct deep_track_info sub_deep_info;
+	struct gauge_three_level_term_volt_cfg three_level_term_volt_cfg;
 	int sub_btb_curr_limit;
+	struct fcl_curves fcl;
+	int fcl_offset;
+	struct oplus_gauge_nvram_stress_test nvram_test;
 };
 
 #endif /* __OPLUS_GAUGE_COMMON_H__ */

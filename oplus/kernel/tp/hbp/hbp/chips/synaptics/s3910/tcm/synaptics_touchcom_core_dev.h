@@ -853,6 +853,8 @@ struct tcm_dev {
 	void *cbdata_gesture;
 	tcm_reset_occurrence_callback_t cb_reset_occurrence;
 	void *cbdata_reset;
+	/* tpException 	*/
+	int tcm_spi_read_err_cnt;
 };
 /* end of structure syna_tcm_dev */
 
