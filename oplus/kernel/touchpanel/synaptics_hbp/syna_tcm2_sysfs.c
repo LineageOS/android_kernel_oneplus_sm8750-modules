@@ -1804,6 +1804,8 @@ static int syna_cdev_ioctl_send_message(struct syna_tcm *tcm,
 	unsigned int delay_ms_resp = RESP_IN_POLLING;
 	struct tcm_buffer resp_data_buf;
 	bool cmd_under_water = false;
+	unsigned short config = 0;
+	int ret = 0;
 
 	if (!tcm->is_connected) {
 		LOGE("Not connected\n");
@@ -1927,6 +1929,32 @@ retry:
 		/* even if resp_code returned is not success
 		 * this ioctl shall return the packet to caller
 		 */
+	}
+
+	if (data[3] == DC_TOUCH_AND_HOLD) {
+		for (retryCnt = 5; retryCnt > 0; retryCnt--) {
+			ret = syna_tcm_get_dynamic_config(tcm->tcm_dev, DC_TOUCH_AND_HOLD, &config, 0);
+			if (ret < 0 || config != tcm->touch_and_hold) {
+				if (ret < 0) {
+					LOGI("TOUCH_AND_HOLD : error, retry again, ret = %d\n",ret);
+				} else {
+					LOGI("TOUCH_AND_HOLD : %d\n", config);
+				}
+				retval = syna_tcm_send_command(tcm->tcm_dev,
+						data[0],
+						&data[3],
+						payload_length,
+						&resp_code,
+						&resp_data_buf,
+						delay_ms_resp);
+				if (retval < 0) {
+					LOGE("Fail to run command 0x%02x with payload len %d\n",
+						data[0], payload_length);
+				}
+			} else {
+				break;
+			}
+		}
 	}
 
 	if (((data[0] == CMD_SET_DYNAMIC_CONFIG) && (payload_length == 3)) || (cmd_under_water == true)) {
@@ -3198,7 +3226,7 @@ static int syna_cdev_open(struct inode *inp, struct file *filp)
 #endif
 	syna_pal_mutex_unlock(&tcm->extif_mutex);
 
-	LOGE("cdev open\n");
+	LOGE("cdev open, char_dev_ref_count:%d\n", tcm->char_dev_ref_count);
 
 	return 0;
 }
@@ -3236,6 +3264,8 @@ static int syna_cdev_release(struct inode *inp, struct file *filp)
 	IF_ARG_NULL_OUT(p_dev);
 	tcm = dev_get_drvdata(p_dev);
 	IF_ARG_NULL_OUT(tcm);
+
+	tcm->proc_pid = 0;
 
 	mutex_lock(&tcm->mutex);
 	syna_pal_mutex_lock(&tcm->extif_mutex);
@@ -3275,7 +3305,7 @@ static int syna_cdev_release(struct inode *inp, struct file *filp)
 
 	g_sysfs_extra_bytes_read = 0;
 
-	LOGE("cdev close\n");
+	LOGE("cdev close, char_dev_ref_count:%d\n", tcm->char_dev_ref_count);
 	return 0;
 }
 

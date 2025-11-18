@@ -1,8 +1,89 @@
 load("//build/kernel/kleaf:kernel.bzl", "ddk_headers")
-load("//build/kernel/oplus:oplus_modules_define.bzl", "define_oplus_ddk_module")
+load("//build/kernel/oplus:oplus_modules_define.bzl", "define_oplus_ddk_module", "oplus_ddk_get_kernel_version", "oplus_ddk_get_target", "oplus_ddk_get_variant", "bazel_support_platform")
 load("//build/kernel/oplus:oplus_modules_dist.bzl", "ddk_copy_to_dist_dir")
 
+def version_compare(v1, v2):
+    v1_parts = [int(x) for x in v1.split(".")]
+    v2_parts = [int(x) for x in v2.split(".")]
+    return v1_parts >= v2_parts
+
 def define_oplus_local_modules():
+    target = oplus_ddk_get_target()
+    variant  = oplus_ddk_get_variant()
+    kernel_build_variant = "{}_{}".format(target, variant)
+    kernel_version = oplus_ddk_get_kernel_version()
+    bazel_support_target = oplus_ddk_get_target()
+
+    if bazel_support_target == "canoe" :
+        oplusboot_ko_deps = [
+            "//vendor/oplus/kernel/boot:oplusboot",
+            "//vendor/oplus/kernel/boot:oplus_bsp_bootmode",
+        ]
+        oplus_bsp_boot_projectinfo_ko_deps = [
+            "//vendor/oplus/kernel/boot:oplus_bsp_boot_projectinfo",
+        ]
+        panel_event_notifier_ko_deps = [
+            "//soc-repo:{}/drivers/soc/qcom/panel_event_notifier".format(kernel_build_variant),
+        ]
+        tp_others_ko_deps = [
+            "//vendor/oplus/kernel/device_info/device_info/bazel:device_info",
+            "//vendor/oplus/kernel/touchpanel/touchpanel_notify/bazel:oplus_bsp_tp_notify",
+            "//vendor/oplus/kernel/touchpanel/kernelFwUpdate/bazel:oplus_bsp_fw_update",
+        ]
+    else :
+        oplusboot_ko_deps = []
+        oplus_bsp_boot_projectinfo_ko_deps = []
+        panel_event_notifier_ko_deps = []
+        tp_others_ko_deps = []
+
+    if bazel_support_platform == "qcom" :
+        tp_custom_ko_deps = []
+        tp_common_ko_deps = [
+            "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_custom",
+        ]
+        oplus_bsp_tp_nt36672c_noflash_ko_deps = [
+            "//vendor/oplus/kernel/touchpanel/touchpanel_notify/bazel:oplus_bsp_tp_notify",
+            "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_custom",
+            "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_common",
+            "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_novatek_common",
+        ]
+        copts = []
+    else :
+        if version_compare(kernel_version, "6.12") :
+            tp_custom_ko_deps = [
+                "//kernel_device_modules-{}/drivers/soc/oplus/boot:oplus_bsp_boot_projectinfo".format(kernel_version),
+            ]
+            tp_common_ko_deps = [
+                "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_custom",
+                "//kernel_device_modules-{}/drivers/gpu/drm/mediatek/mediatek_v2:mtk_disp_notify".format(kernel_version),
+                "//kernel_device_modules-{}/drivers/gpu/drm/mediatek/mediatek_v2:mtk_panel_ext".format(kernel_version),
+                "//kernel_device_modules-{}/drivers/soc/oplus/boot:oplus_bsp_boot_projectinfo".format(kernel_version),
+                "//kernel_device_modules-{}/drivers/misc/mediatek/boot_common:mtk_boot_common".format(kernel_version),
+                "//kernel_device_modules-{}/drivers/soc/oplus/boot:oplusboot".format(kernel_version),
+                "//kernel_device_modules-{}/drivers/soc/oplus/device_info:device_info".format(kernel_version),
+                "//kernel_device_modules-{}/drivers/base/kernelFwUpdate:oplus_bsp_fw_update".format(kernel_version),
+                "//kernel_device_modules-{}/drivers/base/touchpanel_notify:oplus_bsp_tp_notify".format(kernel_version),
+            ]
+            copts = [
+                "-I$(DEVICE_MODULES_PATH)/drivers/misc/mediatek/include/",
+                "-I$(DEVICE_MODULES_PATH)/drivers/gpu/drm/mediatek/mediatek_v2/",
+            ]
+            oplus_bsp_tp_nt36672c_noflash_ko_deps = [
+                "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_custom",
+                "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_common",
+                "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_novatek_common",
+            ]
+        else :
+            tp_custom_ko_deps = []
+            tp_common_ko_deps = [
+                "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_custom",
+            ]
+            oplus_bsp_tp_nt36672c_noflash_ko_deps = [
+                "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_custom",
+                "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_common",
+                "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_novatek_common",
+            ]
+            copts = []
 
     define_oplus_ddk_module(
         name = "oplus_bsp_tp_syna_common",
@@ -12,6 +93,7 @@ def define_oplus_local_modules():
             "Synaptics/synaptics_common.c",
         ]),
         includes = ["."],
+        copts = copts,
         ko_deps = [
             "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_custom",
             "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_common",
@@ -32,6 +114,7 @@ def define_oplus_local_modules():
             "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_syna_common",
         ],
         includes = ["."],
+        copts = copts,
 #        local_defines = ["CONFIG_REMOVE_OPLUS_FUNCTION"],
         conditional_defines = {
             "mtk":  ["CONFIG_TOUCHPANEL_MTK_PLATFORM","CONFIG_TOUCHPANEL_MULTI_NOFLASH"],
@@ -51,6 +134,7 @@ def define_oplus_local_modules():
             "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_syna_common",
         ],
         includes = ["."],
+        copts = copts,
 #        local_defines = ["CONFIG_REMOVE_OPLUS_FUNCTION"],
         conditional_defines = {
             "mtk":  ["CONFIG_TOUCHPANEL_MTK_PLATFORM","CONFIG_TOUCHPANEL_MULTI_NOFLASH"],
@@ -63,6 +147,7 @@ def define_oplus_local_modules():
             "Novatek/novatek_common.c",
         ]),
         includes = ["."],
+        copts = copts,
         ko_deps = [
             "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_custom",
             "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_common",
@@ -76,12 +161,9 @@ def define_oplus_local_modules():
             "**/*.h",
             "Novatek/NT36672C_noflash/nvt_drivers_nt36672c_noflash.c",
         ]),
-        ko_deps = [
-            "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_custom",
-            "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_common",
-            "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_novatek_common",
-        ],
+        ko_deps = oplus_bsp_tp_nt36672c_noflash_ko_deps,
         includes = ["."],
+        copts = copts,
 #        local_defines = ["CONFIG_REMOVE_OPLUS_FUNCTION"],
         conditional_defines = {
             "mtk":  ["CONFIG_TOUCHPANEL_MTK_PLATFORM","CONFIG_TOUCHPANEL_MULTI_NOFLASH"],
@@ -100,6 +182,7 @@ def define_oplus_local_modules():
             "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_novatek_common",
         ],
         includes = ["."],
+        copts = copts,
 #        local_defines = ["CONFIG_REMOVE_OPLUS_FUNCTION"],
         conditional_defines = {
             "mtk":  ["CONFIG_TOUCHPANEL_MTK_PLATFORM","CONFIG_TOUCHPANEL_MULTI_NOFLASH"],
@@ -118,6 +201,7 @@ def define_oplus_local_modules():
             "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_novatek_common",
         ],
         includes = ["."],
+        copts = copts,
 #        local_defines = ["CONFIG_REMOVE_OPLUS_FUNCTION"],
     )
 
@@ -133,6 +217,7 @@ def define_oplus_local_modules():
             "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_novatek_common",
         ],
         includes = ["."],
+        copts = copts,
 #        local_defines = ["CONFIG_REMOVE_OPLUS_FUNCTION"],
     )
 
@@ -143,6 +228,7 @@ def define_oplus_local_modules():
             "ilitek/ilitek_common.c",
         ]),
         includes = ["."],
+        copts = copts,
         ko_deps = [
             "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_custom",
             "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_common",
@@ -166,6 +252,7 @@ def define_oplus_local_modules():
             "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_ilitek_common",
         ],
         includes = ["."],
+        copts = copts,
 #        local_defines = ["CONFIG_REMOVE_OPLUS_FUNCTION"],
         conditional_defines = {
             "mtk":  ["CONFIG_TOUCHPANEL_MTK_PLATFORM","CONFIG_TOUCHPANEL_MULTI_NOFLASH"],
@@ -185,6 +272,7 @@ def define_oplus_local_modules():
             "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_focal_common",
         ],
         includes = ["."],
+        copts = copts,
 #        local_defines = ["CONFIG_REMOVE_OPLUS_FUNCTION"],
     )
 
@@ -195,6 +283,7 @@ def define_oplus_local_modules():
             "Focal/focal_common.c",
         ]),
         includes = ["."],
+        copts = copts,
         ko_deps = [
             "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_custom",
             "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_common",
@@ -214,6 +303,7 @@ def define_oplus_local_modules():
             "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_focal_common",
         ],
         includes = ["."],
+        copts = copts,
 #        local_defines = ["CONFIG_REMOVE_OPLUS_FUNCTION"],
         conditional_defines = {
             "mtk":  ["CONFIG_TOUCHPANEL_MTK_PLATFORM"],
@@ -233,6 +323,7 @@ def define_oplus_local_modules():
             "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_focal_common",
         ],
         includes = ["."],
+        copts = copts,
 #        local_defines = ["CONFIG_REMOVE_OPLUS_FUNCTION"],
         conditional_defines = {
             "mtk":  ["CONFIG_TOUCHPANEL_MTK_PLATFORM"],
@@ -252,22 +343,7 @@ def define_oplus_local_modules():
             "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_focal_common",
         ],
         includes = ["."],
-#        local_defines = ["CONFIG_REMOVE_OPLUS_FUNCTION"],
-    )
-
-    define_oplus_ddk_module(
-        name = "oplus_bsp_tp_ft3419u",
-        srcs = native.glob([
-            "**/*.h",
-            "Focal/ft3419u/ft3419u_driver.c",
-            "Focal/ft3419u/ft3419u_test.c",
-        ]),
-        ko_deps = [
-            "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_custom",
-            "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_common",
-            "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_focal_common",
-        ],
-        includes = ["."],
+        copts = copts,
 #        local_defines = ["CONFIG_REMOVE_OPLUS_FUNCTION"],
     )
 
@@ -284,6 +360,7 @@ def define_oplus_local_modules():
             "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_focal_common",
         ],
         includes = ["."],
+        copts = copts,
 #        local_defines = ["CONFIG_REMOVE_OPLUS_FUNCTION"],
         conditional_defines = {
             "mtk":  ["CONFIG_TOUCHPANEL_MTK_PLATFORM","CONFIG_TOUCHPANEL_MULTI_NOFLASH"],
@@ -303,6 +380,7 @@ def define_oplus_local_modules():
             "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_common",
         ],
         includes = ["."],
+        copts = copts,
 #        local_defines = ["CONFIG_REMOVE_OPLUS_FUNCTION"],
     )
 
@@ -319,6 +397,7 @@ def define_oplus_local_modules():
             "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_goodix_comnon",
         ],
         includes = ["."],
+        copts = copts,
 #        local_defines = ["CONFIG_REMOVE_OPLUS_FUNCTION"],
     )
 
@@ -335,6 +414,7 @@ def define_oplus_local_modules():
             "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_goodix_comnon",
         ],
         includes = ["."],
+        copts = copts,
 #        local_defines = ["CONFIG_REMOVE_OPLUS_FUNCTION"],
     )
 
@@ -353,6 +433,7 @@ def define_oplus_local_modules():
             "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_syna_common",
         ],
         includes = ["."],
+        copts = copts,
 #        local_defines = ["CONFIG_REMOVE_OPLUS_FUNCTION"],
         conditional_defines = {
             "mtk":  ["CONFIG_TOUCHPANEL_MTK_PLATFORM","CONFIG_TOUCHPANEL_MULTI_NOFLASH"],
@@ -365,7 +446,9 @@ def define_oplus_local_modules():
             "**/*.h",
             "touch_custom/touch.c"
         ]),
+        ko_deps = tp_custom_ko_deps + oplus_bsp_boot_projectinfo_ko_deps,
         includes = ["."],
+        copts = copts,
         local_defines = ["CONFIG_OPLUS_FEATURE_OPROJECT"],
     )
 
@@ -387,13 +470,9 @@ def define_oplus_local_modules():
             "touch_pen/touch_pen_core.c",
             "touch_pen/touch_pen_algo.c",
         ]),
-        ko_deps = [
-            "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_custom",
-#            "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_fw_update",	#built in-tree
-#            "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_notify",	#built in-tree
-#            "//vendor/oplus/kernel/device_info/device_info:oplus_bsp_device_info",		#built in-tree
-        ],
+        ko_deps = tp_common_ko_deps + oplusboot_ko_deps + oplus_bsp_boot_projectinfo_ko_deps + panel_event_notifier_ko_deps + tp_others_ko_deps,
         includes = ["."],
+        copts = copts,
         local_defines = ["CONFIG_TOUCHPANEL_NOTIFY", "CONFIG_TOUCHPANEL_OPLUS_MODULE"],
         conditional_defines = {
             "qcom":  ["CONFIG_QCOM_PANEL_EVENT_NOTIFIER"],
@@ -426,7 +505,6 @@ def define_oplus_local_modules():
             "oplus_bsp_tp_ft3681",
             "oplus_bsp_tp_ft3658u_spi",
             "oplus_bsp_tp_ft3518",
-            "oplus_bsp_tp_ft3419u",
             "oplus_bsp_tp_ft8057p",
             "oplus_bsp_tp_goodix_comnon",
             "oplus_bsp_tp_gt9966",

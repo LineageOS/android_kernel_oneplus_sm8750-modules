@@ -2,6 +2,12 @@
 #define __OPLUS_CHG_CORE_H__
 
 #include <linux/version.h>
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+#include <linux/of.h>
+#include <linux/of_platform.h>
+#endif
+#include <linux/platform_device.h>
+#include <linux/power_supply.h>
 #include "oplus_chg_symbol.h"
 #include <linux/rtc.h>
 
@@ -320,6 +326,23 @@ enum oplus_sili_id_match_info {
 	ID_MATCH_IGNORE,
 };
 
+enum oplus_chg_path {
+	CHG_PATH_PH1,
+	CHG_PATH_PH2,
+	CHG_PATH_MAX,
+};
+
+enum oplus_chg_path_status {
+	CHGP_STS_DEFAULT,
+	CHGP_STS_VBUS_LOW,
+	CHGP_STS_PH2_OFF,
+};
+
+enum oplus_chg_factory_test_mode {
+	FTM_MODE_DISABLE,
+	FTM_MODE_ENABLE,
+};
+
 struct oplus_gauge_lifetime {
 	short max_cell_vol;
 	short max_charge_curr;
@@ -347,4 +370,9 @@ int oplus_get_chg_spec_version(void);
 uint8_t oplus_chg_get_region_id(void);
 unsigned int oplus_chg_get_nvid_support_flags(void);
 bool oplus_chg_get_common_charge_icl_support_flags(void);
+bool oplus_chg_get_boot_reset_adapter_support_flags(void);
+
+void oplus_power_supply_changed_gp(struct power_supply *psy, unsigned int grace_period_ms);
+void oplus_power_supply_changed(struct power_supply *psy);
+
 #endif /* __OPLUS_CHG_CORE_H__ */

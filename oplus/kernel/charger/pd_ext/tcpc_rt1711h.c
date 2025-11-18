@@ -270,7 +270,12 @@ static int rt1711_block_read(struct i2c_client *i2c,
 	struct rt1711_chip *chip = i2c_get_clientdata(i2c);
 	int ret = 0;
 #ifdef CONFIG_RT_REGMAP
-	ret = rt_regmap_block_read(chip->m_dev, reg, len, dst);
+#ifdef OPLUS_FEATURE_CHG_BASIC
+	if (chip->chip_pid == CPS8851_PID)
+		ret = rt1711_read_device(chip->client, reg, len, dst);
+	else
+#endif
+		ret = rt_regmap_block_read(chip->m_dev, reg, len, dst);
 #else
 	ret = rt1711_read_device(chip->client, reg, len, dst);
 #endif /* #ifdef CONFIG_RT_REGMAP */
@@ -285,6 +290,11 @@ static int rt1711_block_write(struct i2c_client *i2c,
 	struct rt1711_chip *chip = i2c_get_clientdata(i2c);
 	int ret = 0;
 #ifdef CONFIG_RT_REGMAP
+#ifdef OPLUS_FEATURE_CHG_BASIC
+	if (chip->chip_pid == CPS8851_PID)
+		ret = rt1711_write_device(chip->client, reg, len, src);
+	else
+#endif
 	ret = rt_regmap_block_write(chip->m_dev, reg, len, src);
 #else
 	ret = rt1711_write_device(chip->client, reg, len, src);
@@ -1950,6 +1960,10 @@ static void rt1711_shutdown(struct i2c_client *client)
 			i2c_smbus_write_byte_data(
 				client, RT1711H_REG_BMC_CTRL, 0x00);
 		}
+#ifdef OPLUS_FEATURE_CHG_BASIC
+		if (chip->chip_pid == CPS8851_PID)
+			mdelay(25);
+#endif
 		tcpm_shutdown(chip->tcpc);
 	} else {
 		i2c_smbus_write_byte_data(

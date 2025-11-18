@@ -36,7 +36,7 @@
 #include <linux/version.h>
 
 
-#define SIPA_DRIVER_VERSION					("3.1.0d")
+#define SIPA_DRIVER_VERSION					("3.1.0d-0506")
 #define SIPA_MAX_CHANNEL_SUPPORT			(8)
 
 struct sipa_err {

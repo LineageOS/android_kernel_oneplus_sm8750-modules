@@ -134,7 +134,7 @@ static __inline__ void sy6603_i2c_err_inc(struct chip_sy6603 *chip, u8 addr, boo
 		return;
 
 	atomic_inc(&chip->i2c_err_count);
-	snprintf(buf, sizeof(buf), "$$err_reason@@i2c_err$$info@@addr[0x%x]%s", addr, read ? "read error" : "write error");
+	scnprintf(buf, sizeof(buf), "$$err_reason@@i2c_err$$info@@addr[0x%x]%s", addr, read ? "read error" : "write error");
 	sy6603_upload_track(chip, OPLUS_IC_ERR_I2C, 0, buf);
 }
 
@@ -1337,7 +1337,7 @@ static irqreturn_t sy6603_int_handler(int irq, void *dev_id)
 	if (err_type != BATT_BAL_ERR_UNKNOW) {
 		if (!sy6603_need_handle_handler(chip, err_type))
 			return IRQ_HANDLED;
-		snprintf(buf, sizeof(buf),
+		scnprintf(buf, sizeof(buf),
 			"$$err_reason@@%s$$reg_info@@reg[0x%x]=0x%x, reg[0x%x]=0x%x", batt_bal_ic_exit_reason_str(err_type),
 			SY6603_REG_ADDR_0CH, fault_data[0], SY6603_REG_ADDR_10H, fault_data[1]);
 		sy6603_upload_track(chip, OPLUS_IC_ERR_BATT_BAL, err_type, buf);

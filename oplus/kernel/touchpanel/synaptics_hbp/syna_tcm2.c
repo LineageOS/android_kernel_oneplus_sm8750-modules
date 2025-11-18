@@ -1318,7 +1318,7 @@ static void syna_get_diff_data_record(struct syna_tcm *tcm)
 		return;
 	}
 
-	if (!tcm->differ_read_every_frame || (tp_hbp_debug != LEVEL_DEBUG && tp_hbp_debug != LEVEL_DEBUG_SC_OFF)) {
+	if (!tcm->differ_read_every_frame || tp_hbp_debug == 0) {
 		LOGD("differ_read_every_frame is false or debug_level < 2\n");
 		return;
 	}
@@ -2106,9 +2106,32 @@ static int syna_dev_enter_lowpwr_sensing(struct syna_tcm *tcm)
 }
 #endif
 
+static bool is_touch_daemon(struct task_struct *t)
+{
+	if (!t)
+		return false;
+
+	if (!strcmp(t->comm, "touchDaemon"))
+		return true;
+
+	LOGE("app pid name: %s\n", t->comm);
+	return false;
+}
+
 void syna_send_signal(struct syna_tcm *tcm, int signal_num)
 {
-	if (tcm && tcm->proc_task != NULL && tcm->char_dev_ref_count) {
+	tcm->proc_task = pid_task(find_vpid(tcm->proc_pid), PIDTYPE_PID);
+	if (!tcm->proc_task) {
+		LOGE("Fail to locate task, pid: %d\n", (unsigned int)tcm->proc_pid);
+		return;
+	}
+
+	if (!is_touch_daemon(tcm->proc_task)) {
+		LOGE("app pid: %d is not touchDaemon\n", (unsigned int)tcm->proc_pid);
+		return;
+	}
+
+	if (tcm && tcm->proc_task != NULL && tcm->char_dev_ref_count && tcm->proc_pid != 0) {
 		LOGI("Sending signal[%d] to app pid: %d\n", signal_num, (unsigned int)tcm->proc_pid);
 		if (send_sig(signal_num, tcm->proc_task, 0) < 0) {
 			LOGE("Unable to send signal\n");
@@ -3097,7 +3120,7 @@ static struct device_node* is_support_child_node(struct device *dev, struct syna
 static void init_panel_config(struct device *dev, struct syna_tcm *tcm)
 {
 	int rc = 0;
-	int tx_rx_num[2];
+	int tx_rx_num[2], panel_coords[2];
 	struct device_node *child_node = NULL;
 
 	child_node = is_support_child_node(dev, tcm);
@@ -3118,6 +3141,19 @@ static void init_panel_config(struct device *dev, struct syna_tcm *tcm)
 		tcm->tx_num = tx_rx_num[0];
 		tcm->rx_num = tx_rx_num[1];
 	}
+	rc = of_property_read_u32_array(child_node, "touchpanel,panel-coords", panel_coords, 2);
+
+	if (rc) {
+		TP_INFO(tcm->tp_index, "panel-coords not set\n");
+		tcm->dts_max_x = 0;
+		tcm->dts_max_y = 0;
+
+	} else {
+		tcm->dts_max_x = panel_coords[0];
+		tcm->dts_max_y = panel_coords[1];
+	}
+
+	TP_INFO(tcm->tp_index, "dts_max_x = %d, dts_max_y = %d \n", tcm->dts_max_x, tcm->dts_max_y);
 }
 
 static int init_chip_dts(struct device *dev, void *chip_data)
@@ -3617,7 +3653,7 @@ static int syna_dev_probe(struct platform_device *pdev)
 			LOGI("Success to get panel info\n");
 			break;
 		}
-		msleep(500);
+		msleep(20);
 	}
 
 	if (retry == 10) {
@@ -3790,7 +3826,11 @@ err_allocate_cdev:
  * @return
  *    on success, 0; otherwise, negative value on error.
  */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+static void syna_dev_remove(struct platform_device *pdev)
+#else
 static int syna_dev_remove(struct platform_device *pdev)
+#endif
 {
 	struct syna_tcm *tcm = platform_get_drvdata(pdev);
 #if IS_ENABLED(CONFIG_DRM_OPLUS_PANEL_NOTIFY)|| IS_ENABLED(CONFIG_DRM_MSM)\
@@ -3800,7 +3840,10 @@ static int syna_dev_remove(struct platform_device *pdev)
 
 	if (!tcm) {
 		LOGW("Invalid handle to remove\n");
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+#else
 		return 0;
+#endif
 	}
 
 	syna_send_signal(tcm, SIGKILL);
@@ -3857,7 +3900,10 @@ static int syna_dev_remove(struct platform_device *pdev)
 	}
 
 #endif/*CONFIG_FB*/
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+#else
 	return 0;
+#endif
 }
 
 /**

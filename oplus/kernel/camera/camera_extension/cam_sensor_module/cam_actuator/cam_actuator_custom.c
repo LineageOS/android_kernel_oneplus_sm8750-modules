@@ -294,6 +294,7 @@ void cam_actuator_init(struct cam_actuator_ctrl_t *a_ctrl)
 	a_ctrl->cam_act_last_state = CAM_ACTUATOR_INIT;
 
 	a_ctrl->actuator_parklens_thread = NULL;
+	mutex_init(&(a_ctrl->actuator_power_mutex));
 	init_completion(&(a_ctrl->actuator_parklens_thread_completion));
 	if (a_ctrl->is_need_read_current) {
 		a_ctrl->af_power_down_thread_state = CAM_AF_POWER_DOWN_THREAD_STOPPED;

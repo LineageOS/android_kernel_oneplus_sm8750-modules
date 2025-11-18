@@ -15,6 +15,7 @@ char verified_bootstate[MAX_CMDLINE_PARAM_LEN];
 char prj_name[MAX_CMDLINE_PARAM_LEN];
 char stackup_pcb_absent_status[MAX_CMDLINE_PARAM_LEN];
 int sku;
+int md_buffersize;
 
 EXPORT_SYMBOL(startup_mode);
 EXPORT_SYMBOL(bootmode);
@@ -23,6 +24,7 @@ EXPORT_SYMBOL(verified_bootstate);
 EXPORT_SYMBOL(prj_name);
 EXPORT_SYMBOL(stackup_pcb_absent_status);
 EXPORT_SYMBOL(sku);
+EXPORT_SYMBOL(md_buffersize);
 
 module_param_string(startupmode, startup_mode, MAX_CMDLINE_PARAM_LEN,
 0600);
@@ -58,5 +60,10 @@ module_param(sku,int,
 0600);
 MODULE_PARM_DESC(sku,
 "oplusboot.sku=<sku>");
+
+module_param(md_buffersize,int,
+0600);
+MODULE_PARM_DESC(md_buffersize,
+"oplusboot.md_buffersize=<md_buffersize>");
 
 MODULE_LICENSE("GPL v2");

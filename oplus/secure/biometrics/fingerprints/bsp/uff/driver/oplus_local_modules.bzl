@@ -1,9 +1,34 @@
 load("//build/kernel/kleaf:kernel.bzl", "ddk_headers")
-load("//build/kernel/oplus:oplus_modules_define.bzl", "define_oplus_ddk_module")
+load("//build/kernel/oplus:oplus_modules_define.bzl", "define_oplus_ddk_module", "oplus_ddk_get_kernel_version", "bazel_support_platform")
 load("//build/kernel/oplus:oplus_modules_dist.bzl", "ddk_copy_to_dist_dir")
 
-def define_oplus_local_modules():
+def version_compare(v1, v2):
+    v1_parts = [int(x) for x in v1.split(".")]
+    v2_parts = [int(x) for x in v2.split(".")]
+    return v1_parts >= v2_parts
 
+def define_oplus_local_modules():
+    kernel_version = oplus_ddk_get_kernel_version()
+
+    if bazel_support_platform == "mtk" :
+        if version_compare(kernel_version, "6.12") :
+            oplus_fp_ko_deps = [
+                "//kernel_device_modules-{}/drivers/base/touchpanel_notify:oplus_bsp_tp_notify".format(kernel_version),
+                "//kernel_device_modules-{}/drivers/gpu/drm/mediatek/mediatek_v2:mtk_disp_notify".format(kernel_version),
+                "//kernel_device_modules-{}/drivers/spi:spi-mt65xx".format(kernel_version),
+            ]
+            oplus_fp_copts =[
+                "-I$(DEVICE_MODULES_PATH)/drivers/gpu/drm/mediatek/mediatek_v2/",
+            ]
+        else :
+            oplus_fp_ko_deps =[]
+            oplus_fp_copts =[]
+    else :
+        oplus_fp_ko_deps =select({
+                "//build/kernel/kleaf:socrepo_true": ["//vendor/oplus/kernel/touchpanel/touchpanel_notify/bazel:oplus_bsp_tp_notify"],
+                "//build/kernel/kleaf:socrepo_false": [],
+            })
+        oplus_fp_copts =[]
 
     define_oplus_ddk_module(
         name = "oplus_bsp_uff_fp_driver",
@@ -17,9 +42,8 @@ def define_oplus_local_modules():
             "fp_netlink.c",
             "fp_fault_inject.c",
         ]),
-        ko_deps = [
-#            "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_notify",	#built in-tree
-        ],
+        ko_deps = oplus_fp_ko_deps,
+        copts = oplus_fp_copts,
         includes = ["."],
         conditional_defines = {
             "qcom":  ["QCOM_PLATFORM"],

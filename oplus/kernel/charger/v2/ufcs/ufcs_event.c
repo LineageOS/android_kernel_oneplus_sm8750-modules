@@ -667,6 +667,8 @@ recv:
 		ufcs_err("msg buf size is 0\n");
 		goto done;
 	}
+	if (ufcs->ops->retrieve_flags)
+		ufcs->ops->retrieve_flags(ufcs);
 
 	if (ufcs_log_level >= LOG_LEVEL_DEBUG)
 		print_hex_dump(KERN_INFO, "UFCS[RECV BUF]: ", DUMP_PREFIX_OFFSET, 32, 1, buf, rc, false);

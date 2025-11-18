@@ -41,7 +41,6 @@ static int syna_long_large_zone_handle_func(void *chip_data,
 static int syna_short_large_zone_handle_func(void *chip_data,
 		struct grip_zone_area *grip_zone,
 		bool enable);
-static int syna_tcm_reset(void *chip_data);
 static int syna_set_fw_grip_area(void *chip_data,
 				 struct grip_zone_area *grip_zone,
 				 bool enable);
@@ -1445,6 +1444,14 @@ static void syna_tcm_dispatch_message(struct syna_tcm_data *tcm_info)
 		syna_tcm_resize_chunk_size(tcm_info);
 		TP_INFO(tcm_info->tp_index, "Received identify report (firmware mode = 0x%02x)\n",
 			 tcm_info->id_info.mode);
+
+
+		if ((tcm_info->id_info.mode == MODE_APPLICATION) && (*tcm_info->in_suspend) && ((tcm_info->gesture_state) || (tcm_info->finger_state))) {
+			TP_INFO(tcm_info->tp_index, "%s:set reset boot mode gesture tcm_info->gesture_state :%d , *tcm_info->in_suspend :%d, tcm_info->finger_state:%d\n",
+		        	__func__, tcm_info->gesture_state, *tcm_info->in_suspend, tcm_info->finger_state);
+			 queue_work(tcm_info->helper_workqueue, &tcm_info->helper_work);
+		}
+
 		if (0x0b == tcm_info->id_info.mode) {
 			tcm_info->firmware_mode_count++;
 			if (!tcm_info->upload_flag && tcm_info->firmware_mode_count >= FIRMWARE_MODE_BL_MAX) {
@@ -2547,8 +2554,6 @@ static int syna_tcm_get_dynamic_config(struct syna_tcm_data *tcm_info,
 
 	if (retval < 0 || resp_length < 2) {
 		retval = -EINVAL;
-		syna_tcm_reset(tcm_info); /*ic state err, need to reset the IC*/
-		tp_healthinfo_report(tcm_info->monitor_data, HEALTH_REPORT, "ic state err rest");
 		TP_INFO(tcm_info->tp_index, "Failed to read dynamic config\n");
 		report = tp_kzalloc(30, GFP_KERNEL);
 		if (report) {
@@ -3898,6 +3903,9 @@ static fw_check_state syna_fw_check(void *chip_data,
 	TP_INFO(tcm_info->tp_index, "fw id %d, custom config id 0x%s\n", panel_data->tp_fw,
 		 tcm_info->app_info.customer_config_id);
 
+        tcm_info->app_info.customer_config_id[9] = '\0';
+	TP_INFO(tcm_info->tp_index, "custom config id 0x%s\n", tcm_info->app_info.customer_config_id);
+
 	if (strlen(tcm_info->app_info.customer_config_id) == 0) {
 		tp_healthinfo_report(tcm_info->monitor_data, HEALTH_REPORT, "fw_check_err_cfgid");
 		return FW_ABNORMAL;
@@ -3924,7 +3932,7 @@ static fw_check_state syna_fw_check(void *chip_data,
 			}
 			snprintf(dev_version, MAX_DEVICE_VERSION_LENGTH  - ver_len,
 				 "%s", (char *)tcm_info->app_info.customer_config_id);
-			strlcpy(&panel_data->manufacture_info.version[ver_len],
+			strncpy(&panel_data->manufacture_info.version[ver_len],
 				dev_version, MAX_DEVICE_VERSION_LENGTH - ver_len);
 		}
 	}
@@ -3959,14 +3967,19 @@ static void syna_tcm_helper_work(struct work_struct *work)
 	struct syna_tcm_data *tcm_info = container_of(work, struct syna_tcm_data,
 					 helper_work);
 
-	mutex_lock(&tcm_info->reset_mutex);
-	retval = syna_tcm_run_application_firmware(tcm_info);
+	if (tcm_info->id_info.mode != MODE_APPLICATION) {
+		mutex_lock(&tcm_info->reset_mutex);
+		retval = syna_tcm_run_application_firmware(tcm_info);
 
-	if (retval < 0) {
-		TP_INFO(tcm_info->tp_index, "Failed to switch to app mode\n");
+		if (retval < 0) {
+			TP_INFO(tcm_info->tp_index, "Failed to switch to app mode\n");
+		}
+
+		mutex_unlock(&tcm_info->reset_mutex);
+	} else {
+		syna_mode_switch(tcm_info, MODE_GESTURE, true);
+		TP_INFO(tcm_info->tp_index, "%s:boot mode is 0x01 reset gesture mode\n", __func__);
 	}
-
-	mutex_unlock(&tcm_info->reset_mutex);
 }
 
 static int syna_tcm_async_work(void *chip_data)
@@ -4076,6 +4089,7 @@ static void syna_tcm_enable_fingerprint(void *chip_data, uint32_t enable)
 			return;
 		}*/
 	}
+	tcm_info->finger_state = config;
 
 	while (retry > 0) {
 		retval = syna_tcm_set_dynamic_config(tcm_info, DC_TOUCH_HOLD, config);
@@ -8208,7 +8222,7 @@ static void syna_aiunit_game_info(void *chip_data)
 
 	ret = syna_tcm_set_long_config(tcm_info, cmd);
 	if (ret < 0) {
-		TPD_INFO("fts tp aiunit game write fail");
+		TPD_INFO("syna tp aiunit game write fail");
 	}
 }
 static void syna_set_gesture_state(void *chip_data, int state)
@@ -8499,7 +8513,11 @@ static int syna_tcm_probe(struct spi_device *spi)
 	ts->s_client  = spi;
 	ts->irq = spi->irq;
 	ts->chip_data = tcm_info;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+	ts->s_client->chip_select[0] = 0; /*modify reg=0 for more tp vendor share same spi interface*/
+#else
 	ts->s_client->chip_select = 0; /*modify reg=0 for more tp vendor share same spi interface*/
+#endif
 	spi_set_drvdata(spi, ts);
 
 	ts->ts_ops = &syna_tcm_ops;

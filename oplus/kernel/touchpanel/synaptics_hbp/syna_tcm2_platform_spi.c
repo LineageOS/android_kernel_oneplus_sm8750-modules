@@ -1337,10 +1337,12 @@ static int syna_spi_probe(struct spi_device *spi)
 	struct syna_hw_bus_data *bus = &syna_spi_hw_if.bdata_io;
 	struct syna_hw_rst_data *rst = &syna_spi_hw_if.bdata_rst;
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	if (spi->master->flags & SPI_MASTER_HALF_DUPLEX) {
 		LOGE("Full duplex not supported by host\n");
 		return -EIO;
 	}
+#endif
 
 	/* allocate an spi platform device */
 	syna_spi_device = platform_device_alloc(PLATFORM_DRIVER_NAME, 0);

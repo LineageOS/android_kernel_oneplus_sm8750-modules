@@ -415,6 +415,19 @@ enum battery_property_id {
 	BATT_SET_USED_FLAG,
 	BATT_DEEP_DISCHG_LAST_CC,
 	BATT_GET_UFCS_RUNNING_STATE,
+	BATT_VOLT_MIN,
+	BATT_SET_CHG_PATH,
+	BATT_GET_CHG_PATH_STATUS,
+	BATT_GET_CAR_C,
+	BATT_SET_CAR_C_CLEAR,
+	BATT_GET_VCT,
+	BATT_SET_VCT,
+	BATT_SET_BATT_FULL,
+	BATT_SET_CUV_STATE,
+	BATT_GET_CUV_STATE,
+	BATT_ITERM_CHECK_STAT,
+	BATT_ITERM_TIMEOUT,
+	BATT_SET_TRUE_FCC,
 #endif
 	BATT_PROP_MAX,
 };
@@ -869,6 +882,7 @@ struct battery_chg_dev {
 	bool				ufcs_power_ready;
 	bool				ufcs_handshake_ok;
 	bool				ufcs_pdo_ready;
+	bool				subboard_temp_not_convert;
 	struct delayed_work 	hvdcp_disable_work;
 	struct delayed_work 	pd_only_check_work;
 	pd_msg_data			pdo[PPS_PDO_MAX];

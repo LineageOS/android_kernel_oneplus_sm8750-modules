@@ -50,6 +50,11 @@
 #define GAUGE_DEFAULT_VOLT_MV		3800
 #define DEFAULT_SOC 50
 
+enum fcl_table_type {
+	FCL_EXTERN_GAUGE,
+	FCL_PLATFORM_GAUGE,
+	FCL_GAUGE_MAX,
+};
 
 static struct oplus_mms_gauge *g_mms_gauge;
 static void oplus_mms_gauge_get_reserve_calib_info(struct oplus_mms_gauge *chip);
@@ -67,6 +72,19 @@ MODULE_PARM_DESC(gauge_dbg_vbat, "debug battery voltage");
 static int gauge_dbg_ibat = 0;
 module_param(gauge_dbg_ibat, int, 0644);
 MODULE_PARM_DESC(gauge_dbg_ibat, "debug battery current");
+
+static struct fcl_table gauge_fcl_table[FCL_TABLE_MAX][FCL_CURVE_MAX] = {
+	{
+		{0, 500, 800},
+		{20, 200, 800},
+		{60, 0, 800}
+	},
+	{
+		{0, 500, 800},
+		{20, 200, 800},
+		{40, 0, 800}
+	}
+};
 
 __maybe_unused static bool
 is_err_topic_available(struct oplus_mms_gauge *chip)
@@ -1486,7 +1504,7 @@ int oplus_gauge_get_fg_vct(struct oplus_mms *mms)
 static const char *physical_gauge_name_array[] = {
 	"bq27541", "bq27411", "bq27426", "bq27z561", "bq28z610",
 	"zy0602", "zy0603",
-	"nfg1000a", "nfg8011b",
+	"nfg1000a", "nfg8011b", "sn28z729", "mpc7022",
 };
 
 int oplus_gauge_get_physical_name(struct oplus_mms *mms, char *name, int len)
@@ -2477,6 +2495,110 @@ static bool oplus_mms_gauge_get_batt_hmac(struct oplus_mms_gauge *chip)
 	return result;
 }
 
+int oplus_gauge_get_fcl_support(struct oplus_mms *mms, bool *fcl_support)
+{
+	int rc = 0;
+	struct oplus_mms_gauge *chip;
+
+	if (mms == NULL) {
+		chg_err("mms is NULL\n");
+		return -EINVAL;
+	}
+
+	if (fcl_support == NULL) {
+		chg_err("fcl_support is NULL\n");
+		return -EINVAL;
+	}
+
+	chip = oplus_mms_get_drvdata(mms);
+	if (!chip) {
+		chg_err("chip is NULL.\n");
+		return -EINVAL;
+	}
+
+	*fcl_support = chip->fcl.support;
+
+	return rc;
+}
+
+int oplus_gauge_get_vb_offset(struct oplus_mms *mms, int *vb_offset)
+{
+	int rc = 0;
+	struct oplus_mms_gauge *chip;
+
+	if (mms == NULL) {
+		chg_err("mms is NULL\n");
+		return -EINVAL;
+	}
+
+	if (vb_offset == NULL) {
+		chg_err("vb_offset is NULL\n");
+		return -EINVAL;
+	}
+
+	chip = oplus_mms_get_drvdata(mms);
+	if (!chip) {
+		chg_err("chip is NULL.\n");
+		return -EINVAL;
+	}
+
+	*vb_offset = chip->fcl_offset;
+
+	return rc;
+}
+
+bool oplus_gauge_get_fcl_curr(int hw_vth, int sw_vth, int vbat, int *curr_dec, int *min_curr, bool *hw)
+{
+	int i;
+	int volt_diff;
+	struct oplus_mms_gauge *chip = g_mms_gauge;
+
+	if (!chip || !curr_dec || !min_curr || !hw)
+		return false;
+
+	for (i = 0; i < chip->fcl.nums; i++) {
+		if (i == 0)
+			volt_diff = hw_vth - vbat;
+		else
+			volt_diff = sw_vth - vbat;
+
+		if (chip->fcl.limits[i].volt_diff > volt_diff) {
+			*curr_dec = chip->fcl.limits[i].curr_dec;
+			*min_curr = chip->fcl.limits[i].min_curr;
+			chg_info("i=%d[%d, %d, %d][%d, %d]\n", i, hw_vth, sw_vth, vbat, *curr_dec, *min_curr);
+			if (i == 0)
+				*hw = true;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static int oplus_gauge_fcl_curves_init(struct oplus_mms_gauge *chip)
+{
+	int rc;
+	struct device_node *node;
+
+	if (!chip)
+		return -ENODEV;
+	node = oplus_get_node_by_type(chip->dev->of_node);
+	chip->fcl.support = of_property_read_bool(node, "oplus,fcl_support");
+	rc = of_property_read_u32(node, "oplus,vb_offset", &chip->fcl_offset);
+	rc = of_property_read_u32(node, "oplus,fcl_index", &chip->fcl.index);
+	if (rc)
+		chip->fcl.index = FCL_EXTERN_GAUGE;
+
+	if (chip->fcl.index >= FCL_GAUGE_MAX)
+		chip->fcl.index = FCL_EXTERN_GAUGE;
+
+	memmove(chip->fcl.limits, gauge_fcl_table[chip->fcl.index], sizeof(gauge_fcl_table[FCL_EXTERN_GAUGE]));
+	chip->fcl.nums = ARRAY_SIZE(gauge_fcl_table[FCL_EXTERN_GAUGE]);
+
+	chg_info("[%d, %d, %d]", chip->fcl.support, chip->fcl.index, chip->fcl_offset);
+	return 0;
+}
+
 static int oplus_mms_gauge_virq_register(struct oplus_mms_gauge *chip);
 static int oplus_mms_gauge_topic_init(struct oplus_mms_gauge *chip);
 static void oplus_mms_gauge_init_work(struct work_struct *work)
@@ -2573,7 +2695,11 @@ static void oplus_mms_gauge_init_work(struct work_struct *work)
 				chip->sub_gauge |= BIT(j);
 			}
 		}
-		chg_err(" sub_gauge: %lu\n", __ffs(chip->sub_gauge));
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+		chg_err("sub_gauge: %u\n", __ffs(chip->sub_gauge));
+#else
+		chg_err("sub_gauge: %lu\n", __ffs(chip->sub_gauge));
+#endif
 		chip->gauge_ic_comb[__ffs(chip->sub_gauge)] = chip->child_list[__ffs(chip->sub_gauge)].ic_dev;
 	} else {
 		chip->sub_gauge = 0;
@@ -2607,6 +2733,8 @@ static void oplus_mms_gauge_init_work(struct work_struct *work)
 	chip->check_subboard_ntc_err = false;
 
 	oplus_gauge_parse_deep_spec(chip);
+
+	oplus_gauge_fcl_curves_init(chip);
 
 	oplus_mms_gauge_virq_register(chip);
 	g_mms_gauge = chip;
@@ -2912,6 +3040,75 @@ static void oplus_mms_gauge_sub_btb_state_change_handler(struct oplus_chg_ic_dev
 	schedule_work(&chip->sub_btb_state_change_handler_work);
 }
 
+static void oplus_mms_gauge_hmac_update_handler_work(struct work_struct *work)
+{
+	struct oplus_mms_gauge *chip = container_of(
+	    work, struct oplus_mms_gauge, hmac_update_handler_work);
+	union mms_msg_data data = { 0 };
+	int rc;
+
+	rc = oplus_mms_get_item_data(chip->gauge_topic, GAUGE_ITEM_HMAC, &data, false);
+	if (!rc) {
+		chip->hmac = oplus_mms_gauge_get_batt_hmac(chip);
+		chg_info("update hmac=%d\n", chip->hmac);
+		if (!!data.intval != chip->hmac)
+			oplus_mms_gauge_push_hmac(chip);
+	}
+}
+
+static void oplus_mms_gauge_hmac_update_handler(struct oplus_chg_ic_dev *ic_dev,
+					void *virq_data)
+{
+	struct oplus_mms_gauge *chip = virq_data;
+	schedule_work(&chip->hmac_update_handler_work);
+}
+
+static void oplus_gauge_cuv_state_work(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct oplus_mms_gauge *chip =
+		container_of(dwork, struct oplus_mms_gauge, gauge_cuv_state_work);
+	int state = 0;
+	int rc;
+	int try = 0;
+
+	/* check the cuv state when bootup complete. */
+	rc = oplus_gauge_get_cuv_state(chip->gauge_topic, &state);
+	if (rc == -ENOTSUPP)
+		return;
+
+	chg_info("state = %d", state);
+	if (state > 0)
+		chg_info("the cuv_state = %d writecuv failed when shutdown.\n", state);
+
+	while (try < OPLUS_GAUGE_CUV_STATE_CHECK_TRY_MAX) {
+		msleep(1000);
+		/* set the cuv state to CUV_2 when boot up. */
+		rc = oplus_gauge_set_cuv_state(chip->gauge_topic, OPLUS_GAUGE_CUV_STATE_2);
+		if (rc == -ENOTSUPP)
+			return;
+
+		msleep(1000);  /* wait the cuv statue is set success. */
+		rc = oplus_gauge_get_cuv_state(chip->gauge_topic, &state);
+		if (state != OPLUS_GAUGE_CUV_STATE_2 || rc != 0)
+			chg_info("set cuv_state_2 %d failed rc = 0x%x \n", state, rc);
+		else {
+			chg_info("set cuv_state_2 %d success \n", state);
+			break;
+		}
+		try++;
+	}
+
+	if ((state != OPLUS_GAUGE_CUV_STATE_2) &&
+		(try >= OPLUS_GAUGE_CUV_STATE_CHECK_TRY_MAX)) {
+		chg_info("send cuv_state config err msg!\n");
+		oplus_chg_ic_creat_err_msg(chip->child_list[chip->main_gauge].ic_dev,
+				OPLUS_IC_ERR_GAUGE, 0, "boot_up:cuv_state[%d]", state);
+		oplus_chg_ic_virq_trigger(chip->child_list[chip->main_gauge].ic_dev,
+				OPLUS_IC_VIRQ_ERR);
+	}
+}
+
 static int oplus_mms_gauge_virq_register(struct oplus_mms_gauge *chip)
 {
 	int i, rc;
@@ -2948,6 +3145,11 @@ static int oplus_mms_gauge_virq_register(struct oplus_mms_gauge *chip)
 			oplus_mms_gauge_sub_btb_state_change_handler, chip);
 		if (rc < 0)
 			chg_err("register OPLUS_IC_VIRQ_BTB_STATE_CHANGE error, rc=%d", rc);
+		rc = oplus_chg_ic_virq_register(chip->child_list[i].ic_dev,
+			OPLUS_IC_VIRQ_HMAC_UPDATE,
+			oplus_mms_gauge_hmac_update_handler, chip);
+		if (rc < 0)
+			chg_err("register OPLUS_IC_VIRQ_HMAC_UPDATE error, rc=%d", rc);
 	}
 
 	if (chip->level_shift_ic) {
@@ -2961,6 +3163,53 @@ static int oplus_mms_gauge_virq_register(struct oplus_mms_gauge *chip)
 			chg_err("register level shift OPLUS_IC_VIRQ_FPGA_RST error, rc=%d", rc);
 	}
 
+	return 0;
+}
+
+static int oplus_mms_gauge_update_soc_centi(struct oplus_mms *mms, union mms_msg_data *data)
+{
+	struct oplus_mms_gauge *chip;
+	int soc = -EINVAL, rc = -EINVAL, main_soc, sub_soc;
+
+	if (mms == NULL) {
+		chg_err("mms is NULL");
+		return -EINVAL;
+	}
+	if (data == NULL) {
+		chg_err("data is NULL");
+		return -EINVAL;
+	}
+	chip = oplus_mms_get_drvdata(mms);
+
+	rc = oplus_chg_ic_func(chip->gauge_ic_comb[chip->main_gauge],
+		OPLUS_IC_FUNC_GAUGE_GET_BATT_SOC_CENTI, &main_soc);
+	if (rc < 0)
+		goto rc_err;
+
+	if (main_soc < 0)
+		goto value_err;
+
+	if (chip->sub_gauge) {
+		rc = oplus_chg_ic_func(chip->gauge_ic_comb[__ffs(chip->sub_gauge)],
+			OPLUS_IC_FUNC_GAUGE_GET_BATT_SOC_CENTI, &sub_soc);
+		if (rc < 0)
+			goto rc_err;
+
+		if (sub_soc < 0)
+			goto value_err;
+
+		soc = (main_soc * chip->child_list[chip->main_gauge].capacity_ratio +
+		    sub_soc * chip->child_list[__ffs(chip->sub_gauge)].capacity_ratio) / 100;
+	} else {
+		soc = main_soc;
+	}
+
+value_err:
+	data->intval = soc;
+	return 0;
+
+rc_err:
+	data->intval = rc;
 	return 0;
 }
 
@@ -3161,6 +3410,31 @@ static int oplus_mms_gauge_update_vol_max(struct oplus_mms *mms, union mms_msg_d
 	if (chip->wired_online && is_voocphy_ic_available(chip) &&
 	    !is_support_parallel(chip))	/* parallel project don't use cp vol */
 		vol = oplus_mms_gauge_choice_fit_vol(chip, vol);
+
+	data->intval = vol;
+	return 0;
+}
+
+static int oplus_mms_gauge_update_vol_fcl(struct oplus_mms *mms, union mms_msg_data *data)
+{
+	struct oplus_mms_gauge *chip;
+	int vol = 0;
+	int rc = 0;
+
+	if (mms == NULL) {
+		chg_err("mms is NULL");
+		return -EINVAL;
+	}
+	chip = oplus_mms_get_drvdata(mms);
+	if (!chip || !data)
+		return -EINVAL;
+
+	if (strcmp("gauge", mms->desc->name) != 0)
+		return -ENOTSUPP;
+
+	rc = oplus_chg_ic_func(chip->gauge_ic, OPLUS_IC_FUNC_GAUGE_GET_FCL_VOLT, &vol);
+	if (rc < 0)
+		vol = 0;
 
 	data->intval = vol;
 	return 0;
@@ -3557,6 +3831,40 @@ static int oplus_mms_gauge_get_reg_info(struct oplus_mms *mms, union mms_msg_dat
 	return rc;
 }
 
+static int oplus_mms_gauge_get_r_info(struct oplus_mms *mms, union mms_msg_data *data)
+{
+	struct oplus_mms_gauge *chip;
+	int rc = 0;
+
+	if (mms == NULL) {
+		chg_err("mms is NULL");
+		return -EINVAL;
+	}
+	if (data == NULL) {
+		chg_err("data is NULL");
+		return -EINVAL;
+	}
+
+	chip = oplus_mms_get_drvdata(mms);
+	if (!chip || !chip->gauge_r_info[0]) {
+		chg_err("gauge_r_info[0] is NULL");
+		return -EINVAL;
+	}
+
+	rc = oplus_chg_ic_func(chip->gauge_ic, OPLUS_IC_FUNC_GAUGE_GET_GAUGE_R_INFO,
+				chip->gauge_r_info[0], GAUGE_REG_INFO_SIZE);
+	if (rc == -ENOTSUPP)
+		rc = 0;
+
+	if (rc >= GAUGE_REG_INFO_SIZE)
+		chip->gauge_r_info[0][GAUGE_REG_INFO_SIZE - 1] = '\0';
+	else if (rc > 0 && rc < GAUGE_REG_INFO_SIZE)
+		chip->gauge_r_info[0][rc] = '\0';
+
+	data->strval = chip->gauge_r_info[0];
+	return rc;
+}
+
 static int oplus_mms_sub_gauge_get_reg_info(struct oplus_mms *mms, union mms_msg_data *data)
 {
 	struct oplus_mms_gauge *chip;
@@ -3658,7 +3966,7 @@ static void oplus_mms_gauge_check_calib_time_update(struct oplus_mms *mms,
 			int dod_calib_time, int qmax_calib_time, struct gauge_calib_info *calib_info)
 {
 	int i;
-	bool update;
+	bool update = false;
 	bool calib_info_init = false;
 	struct oplus_mms_gauge *chip;
 
@@ -4299,14 +4607,17 @@ static int oplus_mms_gauge_update_qmax(struct oplus_mms *mms, union mms_msg_data
 	return 0;
 }
 
-static int oplus_mms_gauge_update_car_c(struct oplus_mms *mms, union mms_msg_data *data)
+static int oplus_mms_gauge_update_car_c(struct oplus_mms *topic, union mms_msg_data *data)
 {
 	struct oplus_mms_gauge *chip;
+	struct oplus_chg_ic_dev *ic;
 	int rc = 0;
+	int i;
 	int car_c = 0;
+	int temp_car_c = 0;
 
-	if (mms == NULL) {
-		chg_err("mms is NULL\n");
+	if (topic == NULL) {
+		chg_err("topic is NULL\n");
 		return -EINVAL;
 	}
 
@@ -4314,12 +4625,35 @@ static int oplus_mms_gauge_update_car_c(struct oplus_mms *mms, union mms_msg_dat
 		chg_err("data is NULL\n");
 		return -EINVAL;
 	}
-	chip = oplus_mms_get_drvdata(mms);
-	rc = oplus_chg_ic_func(chip->gauge_ic, OPLUS_IC_FUNC_GAUGE_GET_GAUGE_CAR_C, &car_c);
-	if (rc < 0) {
-		if (rc != -ENOTSUPP)
-			chg_err("get mtk car_c failed, rc = %d", rc);
-		return rc;
+
+	chip = oplus_mms_get_drvdata(topic);
+	if (!chip)
+		return -EINVAL;
+
+	if (topic == chip->gauge_topic) {
+		for (i = 0; i < chip->child_num; i++) {
+			ic = chip->child_list[i].ic_dev;
+			rc = oplus_chg_ic_func(ic, OPLUS_IC_FUNC_GAUGE_GET_GAUGE_CAR_C, &car_c);
+			if (rc == -ENOTSUPP)
+				continue;
+			if (rc < 0)
+				chg_err("gauge[%d](%s): can't get gauge_car_c, rc=%d\n", i, ic->manu_name, rc);
+			break;
+		}
+	} else {
+		for (i = 0; i < chip->child_num; i++) {
+			if (topic != chip->gauge_topic_parallel[i])
+				continue;
+			ic = chip->gauge_ic_comb[i];
+			rc = oplus_chg_ic_func(ic, OPLUS_IC_FUNC_GAUGE_GET_GAUGE_CAR_C, &temp_car_c);
+			if (rc == -ENOTSUPP)
+				continue;
+			if (rc < 0)
+				chg_err("gauge[%d](%s): can't get gauge_car_c, rc=%d\n", i, ic->manu_name, rc);
+			car_c += temp_car_c;
+			temp_car_c = 0;
+			break;
+		}
 	}
 	data->intval = car_c;
 	return 0;
@@ -4627,6 +4961,26 @@ static struct mms_item oplus_mms_gauge_item[] = {
 			.dead_thr_enable = false,
 			.update = oplus_mms_gauge_update_sub_btb_state,
 		}
+	}, {
+		.desc = {
+			.item_id = GAUGE_ITEM_GAUGE_R_INFO,
+			.str_data = true,
+			.update = oplus_mms_gauge_get_r_info,
+		}
+	}, {
+		.desc = {
+			.item_id = GAUGE_ITEM_VOL_FCL,
+			.str_data = false,
+			.up_thr_enable = false,
+			.down_thr_enable = false,
+			.dead_thr_enable = false,
+			.update = oplus_mms_gauge_update_vol_fcl,
+		}
+	}, {
+		.desc = {
+			.item_id = GAUGE_ITEM_SOC_CENTI,
+			.update = oplus_mms_gauge_update_soc_centi,
+		}
 	}
 };
 
@@ -4908,6 +5262,8 @@ static void oplus_mms_gauge_subscribe_comm_topic(struct oplus_mms *topic,
 
 	/* when bootup, check the btb state. */
 	schedule_work(&chip->sub_btb_state_change_handler_work);
+	schedule_delayed_work(&chip->gauge_cuv_state_work, msecs_to_jiffies(20000));
+	schedule_delayed_work(&chip->gauge_update_three_level_term_volt_work, msecs_to_jiffies(22000));
 }
 
 static void oplus_mms_gauge_set_curve_work(struct work_struct *work)
@@ -5512,10 +5868,12 @@ static int oplus_mms_gauge_topic_init(struct oplus_mms_gauge *chip)
 		return rc;
 	}
 	vote(chip->gauge_update_votable, DEF_VOTER, true, oplus_mms_gauge_desc.update_interval, false);
-	for (i = 0; i < chip->child_num; i++)
+	for (i = 0; i < chip->child_num; i++) {
 		chip->gauge_reg_info[i] = devm_kzalloc(chip->dev,
 					sizeof(unsigned char) * GAUGE_REG_INFO_SIZE, GFP_KERNEL);
-
+		chip->gauge_r_info[i] = devm_kzalloc(chip->dev,
+					sizeof(unsigned char) * GAUGE_REG_INFO_SIZE, GFP_KERNEL);
+	}
 	if (is_support_parallel(chip)) {
 		mms_cfg.update_interval = 0;
 		mms_desc = devm_kzalloc(chip->dev, sizeof(struct oplus_mms_desc) * chip->child_num,
@@ -5657,6 +6015,104 @@ static void oplus_mms_gauge_get_reserve_calib_info_work(
 			calib_info->calib_args, sizeof(calib_info->calib_args));
 		if (func_rc == 0 && mutual_rc == CMD_ACK_OK)
 			chip->calib_info_init[i] = true;
+	}
+}
+
+static void oplus_gauge_update_three_level_term_volt_work(struct work_struct *work)
+{
+	int func_rc = -ENOTSUPP;
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct oplus_mms_gauge *chip = container_of(dwork, struct oplus_mms_gauge,
+			gauge_update_three_level_term_volt_work);
+	unsigned char data[32] = {0};
+	struct gauge_three_level_term_volt_cfg *volt_cfg = NULL;
+	int current_volt = INVALID_MIN_VOLTAGE;
+	int reg_term_volt = 0;
+
+	func_rc = oplus_chg_ic_func(chip->gauge_ic, OPLUS_IC_FUNC_GAUGE_GET_THREE_LEVEL_TERM_VOLT,
+			data, OPLUS_GAUGE_THREE_LEVEL_TERM_VOLT_LEN);
+	if (func_rc != 0)
+		return;
+
+	chg_info("term_vol:[%x,%x,%x,%x,%x,%x],holdtime[%x,%x,%x],time_to_drop[%x,%x,%x]," \
+		 "recover_voltage[%x,%x,%x,%x],recover holdtime[%x,%x]\n",
+		 data[0], data[1], data[2], data[3], data[4], data[5],
+		 data[6], data[7], data[8],
+		 data[9], data[10], data[11],
+		 data[12], data[13], data[14], data[15],
+		 data[16], data[17]);
+
+	/* update the param based on the DTS config.*/
+	volt_cfg = &chip->three_level_term_volt_cfg;
+
+	/*
+	 * The 18 bytes three leve term volt param:
+	 * byte[0]: the low 8 bit of Term Voltage
+	 * byte[1]: the high 8 bit of Term voltage
+	 * byte[2]: the low 8 bit of Term Voltage_2
+	 * byte[3]: the high 8 bit of Term voltage_2
+	 * Byte[4]: the low 8 bit of Term Voltage_3
+	 * byte[5]: the high 8 bit of Term voltage_3
+	 * byte[6]: the hold time of Term Voltage
+	 * byte[7]: the hold time of Term voltage_2
+	 * byte[8]: the hold time of Term Voltage_3
+	 * byte[9]: the time_to_drop_per1%
+	 * byte[10]: the time_to_drop_per1%_2
+	 * byte[11]: the time_to_drop_per1%_3
+	 * byte[12]: the recover low 8 bit of Term Voltage
+	 * byte[13]: the recover high 8 bit of Term voltage
+	 * byte[14]: the recover low 8 bit of Term Voltage_2
+	 * byte[15]: the recover high 8 bit of Term voltage_2
+	 * byte[16]: the recover hold time of Term Voltage
+	 * byte[17]: the recover hold time of Term voltage_2
+	 */
+	func_rc = oplus_chg_ic_func(chip->gauge_ic, OPLUS_IC_FUNC_GAUGE_GET_DEEP_TERM_VOLT, &current_volt);
+	if (func_rc < 0)
+		chg_err("get batt deep term volt error, rc=%d\n", func_rc);
+
+	reg_term_volt = (data[1] << 8) + data[0];
+	chg_info("get term_volt = [%d, %d, %d], reg_term_volt[%d]\n", current_volt,
+		 chip->deep_spec.config.term_voltage,
+		 get_effective_result(chip->gauge_term_voltage_votable),
+		 reg_term_volt);
+	if ((volt_cfg->term_volt > current_volt) &&
+	    (reg_term_volt != volt_cfg->term_volt)) {
+		chg_info("set term_volt = %d\n", volt_cfg->term_volt);
+		vote(chip->gauge_term_voltage_votable, READY_VOTER, true, volt_cfg->term_volt, false);
+		return;
+	}
+
+	data[6] = (volt_cfg->hold_time > 0) ? volt_cfg->hold_time : 0;
+	data[7] = (volt_cfg->hold_time_2 > 0) ? volt_cfg->hold_time_2 : 0;
+	data[8] = (volt_cfg->hold_time_3 > 0) ? volt_cfg->hold_time_3 : 0;
+	data[9] = (volt_cfg->time_to_drop_per1 > 0) ? volt_cfg->time_to_drop_per1 : 0;
+	data[10] = (volt_cfg->time_to_drop_per1_2 > 0) ? volt_cfg->time_to_drop_per1_2 : 0;
+	data[11] = (volt_cfg->time_to_drop_per1_3 > 0) ? volt_cfg->time_to_drop_per1_3 : 0;
+
+	if (volt_cfg->recover_term_volt) {
+		data[12] = volt_cfg->recover_term_volt & 0xff;
+		data[13] = ((volt_cfg->recover_term_volt & 0xff00) >> 8);
+	}
+	if (volt_cfg->recover_term_volt_2) {
+		data[14] = volt_cfg->recover_term_volt_2 & 0xff;
+		data[15] = ((volt_cfg->recover_term_volt_2 & 0xff00) >> 8);
+	}
+	data[16] = (volt_cfg->recover_hold_time_of_term_voltage > 0) ?
+			volt_cfg->recover_hold_time_of_term_voltage : 0;
+	data[17] = (volt_cfg->recover_hold_time_of_term_voltage_2 > 0) ?
+			volt_cfg->recover_hold_time_of_term_voltage_2 : 0;
+
+	chg_info("update term_volt[%x,%x,%x,%x,%x,%x], holdtime[%x,%x,%x],time_to_drop[%x,%x,%x]," \
+		 "recover_voltage[%x,%x,%x,%x],recover holdtime[%x,%x]\n",
+		 data[0], data[1], data[2], data[3], data[4], data[5],
+		 data[6], data[7], data[8],
+		 data[9], data[10], data[11],
+		 data[12], data[13], data[14], data[15], data[16], data[17]);
+
+	if (chip->three_level_term_volt_cfg.term_volt) {
+		func_rc = oplus_chg_ic_func(chip->gauge_ic, OPLUS_IC_FUNC_GAUGE_SET_THREE_LEVEL_TERM_VOLT,
+					data, OPLUS_GAUGE_THREE_LEVEL_TERM_VOLT_LEN);
+		chg_info(" func_rc = %d \n", func_rc);
 	}
 }
 
@@ -5826,6 +6282,9 @@ static int oplus_mms_gauge_probe(struct platform_device *pdev)
 		  oplus_mms_gauge_update_super_endurance_mode_status_work);
 	INIT_WORK(&chip->sub_btb_state_change_handler_work,
 		  oplus_mms_gauge_sub_btb_state_change_handler_work);
+	INIT_WORK(&chip->hmac_update_handler_work,
+		  oplus_mms_gauge_hmac_update_handler_work);
+
 	INIT_DELAYED_WORK(&chip->subboard_ntc_err_work, oplus_mms_subboard_ntc_err_work);
 	INIT_DELAYED_WORK(&chip->deep_dischg_work, oplus_gauge_deep_dischg_work);
 	INIT_DELAYED_WORK(&chip->sub_deep_dischg_work, oplus_gauge_sub_deep_dischg_work);
@@ -5842,6 +6301,16 @@ static int oplus_mms_gauge_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&chip->sili_term_volt_effect_check_work,
 		  oplus_mms_gauge_sili_term_volt_effect_check_work);
 	INIT_DELAYED_WORK(&chip->deep_temp_work, oplus_gauge_deep_temp_work);
+	INIT_DELAYED_WORK(&chip->gauge_cuv_state_work,
+		  oplus_gauge_cuv_state_work);
+	INIT_DELAYED_WORK(&chip->gauge_update_three_level_term_volt_work,
+		oplus_gauge_update_three_level_term_volt_work);
+	INIT_DELAYED_WORK(&chip->gauge_nvram_stress_test_work,
+		oplus_gauge_nvram_stress_test_work);
+	INIT_DELAYED_WORK(&chip->gauge_stress_read_test_work,
+		oplus_gauge_read_stress_test_work);
+	INIT_DELAYED_WORK(&chip->gauge_term_volt_stress_test_work,
+		oplus_gauge_term_volt_stress_test_work);
 
 	chip->sec_chip = oplus_sec_init();
 	if (chip->sec_chip == NULL)
@@ -5869,7 +6338,11 @@ create_vote_err:
 	return rc;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+static void oplus_mms_gauge_remove(struct platform_device *pdev)
+#else
 static int oplus_mms_gauge_remove(struct platform_device *pdev)
+#endif
 {
 	struct oplus_mms_gauge *chip = platform_get_drvdata(pdev);
 	int i;
@@ -5898,7 +6371,9 @@ static int oplus_mms_gauge_remove(struct platform_device *pdev)
 	devm_kfree(&pdev->dev, chip);
 	platform_set_drvdata(pdev, NULL);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	return 0;
+#endif
 }
 
 static const struct of_device_id oplus_mms_gauge_match[] = {

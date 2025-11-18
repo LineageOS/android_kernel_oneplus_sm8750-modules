@@ -375,8 +375,8 @@ int syna_tcm_parse_touch_report(struct tcm_dev *tcm_dev,
 	}
 
 	if (tcm_dev->max_objects == 0) {
-		hbp_err("Invalid max_objects supported\n");
-		return _EINVAL;
+		hbp_err("Invalid max_objects supported, set MAX_NUM_OBJECTS\n");
+		tcm_dev->max_objects = MAX_NUM_OBJECTS;
 	}
 
 	object_data = touch_data->object_data;

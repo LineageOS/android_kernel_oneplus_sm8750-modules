@@ -80,7 +80,11 @@
 #include <linux/version.h>
 
 #if defined(CONFIG_DRM_MEDIATEK_V2)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0)
+#include <linux/mtk_disp_notify.h>
+#else
 #include "mtk_disp_notify.h"
+#endif
 #endif
 
 #endif
@@ -113,6 +117,7 @@
 #define WAKELOCK_HOLD_IRQ_TIME 500 /* in ms */
 #define WAKELOCK_HOLD_CMD_TIME 1000 /* in ms */
 #define SHELL_ABNORMAL_TEMPERATURE 1000
+#define DOWN_BEFORE_ENABLE_TP 1
 
 #define OPLUS_FP_DEVICE_NAME "oplus,fp_spi"
 #define FP_DEV_NAME "fingerprint_dev"
@@ -124,6 +129,10 @@
 #define NETLINK_INIT_SUCCESS 0
 
 #if defined(MTK_PLATFORM) && LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+#define VOID_REMOVE
+#endif
+
+#if defined(QCOM_PLATFORM) && LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0)
 #define VOID_REMOVE
 #endif
 
@@ -927,8 +936,24 @@ static int oplus_tp_notifier_call(struct notifier_block *nb, unsigned long val, 
             tp_info->touch_state = tp_event->touch_state;
             tp_info->x = tp_event->x;
             tp_info->y = tp_event->y;
-            pr_info("tp_info->touch_state =%d, tp_info->x =%d, tp_info->y =%d,\n",
-                tp_info->touch_state, tp_info->x, tp_info->y);
+            tp_info->touch_early_down_flag = tp_event->touch_early_down_flag;
+            tp_info->is_touch_fp_area_cnt = tp_event->is_touch_fp_area_cnt;
+            tp_info->touch_fp_area_time = tp_event->touch_fp_area_time;
+            tp_info->fp_down_time = tp_event->fp_down_time;
+            tp_info->tp_firmware_time = tp_event->tp_firmware_time;
+            pr_info("tp_info->touch_state =%d, tp_info->x=%d, tp_info->y=%d, tp_firmware_time=%d\n",
+                tp_info->touch_state, tp_info->x, tp_info->y, tp_info->tp_firmware_time);
+
+            pr_info("touch_early_down_flag = %d, is_touch_fp_area_cnt = %ld, fp_down_time %lld, touch_fp_area_time %lld\n",
+                tp_info->touch_early_down_flag, tp_info->is_touch_fp_area_cnt, tp_info->fp_down_time, tp_info->touch_fp_area_time);
+
+            if (1 == tp_info->touch_state) {
+            // is_touch_fp_area_cnt Record the bright screen with finger pressing
+                if ((tp_info->touch_early_down_flag == DOWN_BEFORE_ENABLE_TP) && tp_info->is_touch_fp_area_cnt > 1) {
+                    pr_info("%s IS_TOUCH_FP_AREA_CNT GREATE THAN ONE, IRQ_HANDLED\n", __func__);
+                    return IRQ_HANDLED;
+                }
+            }
 
             wake_lock_timeout(&fp_wakelock, msecs_to_jiffies(WAKELOCK_HOLD_IRQ_TIME));
             if (1 == tp_info->touch_state) {

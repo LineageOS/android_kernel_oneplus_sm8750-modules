@@ -21,7 +21,8 @@
 
 /*******Part1: Micro && function prototype Declear********************/
 #define MESSAGE_SIZE			  (256)
-
+#define FW_HEALTH_START_INDEX 109
+#define FW_HEALTH_END_INDEX 111
 static int8_t nvt_cmd_store(struct chip_data_nt36523 *chip_info, uint8_t u8Cmd);
 
 static fw_update_state nvt_fw_update_sub(void *chip_data, const struct firmware *fw, bool force);
@@ -216,6 +217,64 @@ static const struct nvt_ts_mem_map NT36523_memory_map = {
 	.DMA_CRC_FLAG_ADDR		= 0x3F134,
 };
 
+static const struct nvt_ts_mem_map NT36523N_memory_map = {
+	.EVENT_BUF_ADDR           = 0x2FD00,
+	.RAW_PIPE0_ADDR           = 0x30FA0,
+	.RAW_PIPE1_ADDR           = 0x30FA0,
+	.BASELINE_ADDR            = 0x36510,
+	.BASELINE_BTN_ADDR        = 0,
+	.DIFF_PIPE0_ADDR          = 0x373E8,
+	.DIFF_PIPE1_ADDR          = 0x38068,
+	.RAW_BTN_PIPE0_ADDR       = 0,
+	.RAW_BTN_PIPE1_ADDR       = 0,
+	.DIFF_BTN_PIPE0_ADDR      = 0,
+	.DIFF_BTN_PIPE1_ADDR      = 0,
+	.PEN_2D_BL_TIP_X_ADDR     = 0x2988A,
+	.PEN_2D_BL_TIP_Y_ADDR     = 0x29A1A,
+	.PEN_2D_BL_RING_X_ADDR    = 0x29BAA,
+	.PEN_2D_BL_RING_Y_ADDR    = 0x29D3A,
+	.PEN_2D_DIFF_TIP_X_ADDR   = 0x29ECA,
+	.PEN_2D_DIFF_TIP_Y_ADDR   = 0x2A05A,
+	.PEN_2D_DIFF_RING_X_ADDR  = 0x2A1EA,
+	.PEN_2D_DIFF_RING_Y_ADDR  = 0x2A37A,
+	.PEN_2D_RAW_TIP_X_ADDR    = 0x2A50A,
+	.PEN_2D_RAW_TIP_Y_ADDR    = 0x2A69A,
+	.PEN_2D_RAW_RING_X_ADDR   = 0x2A82A,
+	.PEN_2D_RAW_RING_Y_ADDR   = 0x2A9BA,
+	.PEN_1D_DIFF_TIP_X_ADDR   = 0x2AB4A,
+	.PEN_1D_DIFF_TIP_Y_ADDR   = 0x2ABAE,
+	.PEN_1D_DIFF_RING_X_ADDR  = 0x2AC12,
+	.PEN_1D_DIFF_RING_Y_ADDR  = 0x2AC76,
+	.ENB_CASC_REG             = {.addr = 0x3F02C, .mask = 0x01},
+	/* FW History */
+	.MMAP_HISTORY_EVENT0      = 0x38D54,
+	.MMAP_HISTORY_EVENT1      = 0x38D94,
+	.MMAP_HISTORY_EVENT2      = 0x39700,
+	.MMAP_HISTORY_EVENT3      = 0x39740,
+	.DOZE_GM_S1D_SCAN_RAW_ADDR = 0x31F40,
+	.DOZE_GM_BTN_SCAN_RAW_ADDR = 0,
+	/* Phase 2 Host Download */
+	.BOOT_RDY_ADDR            = 0x3F10D,
+	.ACI_ERR_CLR_ADDR         = 0x3F705,
+	.TX_AUTO_COPY_EN          = 0x3F7E8,
+	.SPI_DMA_TX_INFO          = 0x3F7F1,
+	/* BLD CRC */
+	.BLD_LENGTH_ADDR          = 0x3F138,	/* 0x3F138 ~ 0x3F13A (3 bytes) */
+	.ILM_LENGTH_ADDR          = 0x3F118,	/* 0x3F118 ~ 0x3F11A (3 bytes) */
+	.DLM_LENGTH_ADDR          = 0x3F130,	/* 0x3F130 ~ 0x3F132 (3 bytes) */
+	.BLD_DES_ADDR             = 0x3F114,	/* 0x3F114 ~ 0x3F116 (3 bytes) */
+	.ILM_DES_ADDR             = 0x3F128,	/* 0x3F128 ~ 0x3F12A (3 bytes) */
+	.DLM_DES_ADDR             = 0x3F12C,	/* 0x3F12C ~ 0x3F12E (3 bytes) */
+	.G_ILM_CHECKSUM_ADDR      = 0x3F100,	/* 0x3F100 ~ 0x3F103 (4 bytes) */
+	.G_DLM_CHECKSUM_ADDR      = 0x3F104,	/* 0x3F104 ~ 0x3F107 (4 bytes) */
+	.R_ILM_CHECKSUM_ADDR      = 0x3F120,	/* 0x3F120 ~ 0x3F123 (4 bytes) */
+	.R_DLM_CHECKSUM_ADDR      = 0x3F124,	/* 0x3F124 ~ 0x3F127 (4 bytes) */
+	.DMA_CRC_EN_ADDR          = 0x3F136,
+	.BLD_ILM_DLM_CRC_ADDR     = 0x3F133,
+	.DMA_CRC_FLAG_ADDR        = 0x3F134,
+	.SPI_DMA_VAL_ADDR         = 0x3F7D0,
+};
+
 static struct nvt_ts_hw_info NT36532_hw_info = {
 	.hw_crc    = HWCRC_LEN_3Bytes,
 	.auto_copy = CHECK_TX_AUTO_COPY_EN,
@@ -258,6 +317,13 @@ static const struct nvt_ts_trim_id_table trim_id_table[] = {
 		.id = {0x0A, 0xFF, 0xFF, 0x23, 0x65, 0x03},
 		.mask = {1, 0, 0, 1, 1, 1},
 		.mmap = &NT36523_memory_map,
+		.hwinfo = &NT36523_hw_info
+	},
+	{
+		.id = {0x17, 0xFF, 0xFF, 0x23, 0x65, 0x03},
+		.mask = {1, 0, 0, 1, 1, 1},
+		.mmap = &NT36523N_memory_map,
+		.mmap_casc = &NT36523N_memory_map,
 		.hwinfo = &NT36523_hw_info
 	},
 	{
@@ -427,6 +493,14 @@ static void nvt_printk_fw_history(void *chip_data, uint32_t NVT_MMAP_HISTORY_ADD
 	}
 }
 
+void nvt_clear_aci_error_flag(struct chip_data_nt36523 *chip_info)
+{
+	if (chip_info->trim_id_table.mmap->ACI_ERR_CLR_ADDR == 0)
+		return;
+	nvt_write_addr(chip_info->s_client, chip_info->trim_id_table.mmap->ACI_ERR_CLR_ADDR, 0xA5);
+
+	nvt_set_page(chip_info, chip_info->trim_id_table.mmap->EVENT_BUF_ADDR);
+}
 
 static uint8_t nvt_wdt_fw_recovery(struct chip_data_nt36523 *chip_info,
 				   uint8_t *point_data)
@@ -450,6 +524,7 @@ static uint8_t nvt_wdt_fw_recovery(struct chip_data_nt36523 *chip_info,
 		chip_info->recovery_cnt = 0;
 		if (point_data[1] == 0xFE) {
 			nvt_sw_reset_idle(chip_info);
+			nvt_clear_aci_error_flag(chip_info);
 		}
 		nvt_ts_read_history_log(chip_info);
 	}
@@ -750,7 +825,7 @@ static int8_t nvt_ts_check_chip_ver_trim(struct chip_data_nt36523 *chip_info,
 				if (trim_id_table[list].mmap->ENB_CASC_REG.addr) {
 					/* check single or cascade */
 					nvt_read_reg(chip_info, trim_id_table[list].mmap->ENB_CASC_REG, &enb_casc);
-					/* TPD_INFO("ENB_CASC=0x%02X\n", enb_casc); */
+					 TPD_INFO("ENB_CASC=0x%02X\n", enb_casc);
 					if (enb_casc & 0x01) {
 						TPD_INFO("Single Chip\n");
 						chip_info->trim_id_table.mmap = trim_id_table[list].mmap;
@@ -986,6 +1061,7 @@ static int32_t nvt_bin_header_parser(struct chip_data_nt36523 *chip_info,
 		}
 
 		info_sec_num = info_sec_num + 1; /*next header section */
+		chip_info->spi_dma_div_cnt_val = fwdata[0x29] & 0x01;
 	} else {
 		pos = 0x30;	/* info section start at 0x30 offset */
 		while (pos < tmp_end) {
@@ -1498,6 +1574,30 @@ static void nvt_read_bld_hw_crc(struct chip_data_nt36523 *chip_info)
 	return;
 }
 
+static void nvt_spi_dma_setup(struct chip_data_nt36523 *chip_info)
+{
+	uint8_t buf[33] = {0};
+
+	if (chip_info->trim_id_table.mmap->SPI_DMA_VAL_ADDR) {
+		nvt_set_page(chip_info, chip_info->bin_map[1].SRAM_addr);
+		buf[0] = chip_info->bin_map[1].SRAM_addr & 0x7F;
+		CTP_SPI_WRITE(chip_info->s_client, buf, 33);
+
+		nvt_set_page(chip_info, chip_info->trim_id_table.mmap->SPI_DMA_VAL_ADDR);
+		buf[0] = chip_info->trim_id_table.mmap->SPI_DMA_VAL_ADDR & 0x7F;
+		buf[1] = 0x35;
+		buf[2] = 0x32;
+		buf[3] = 0xAA;
+		buf[4] = 0x00;
+		CTP_SPI_WRITE(chip_info->s_client, buf, 5);
+
+		TPD_INFO("set spi dma val finish\n");
+	} else {
+		TPD_INFO("spi dma val addr is NULL\n");
+	}
+	return;
+}
+
 #if NVT_TOUCH_ESD_DISP_RECOVERY
 static int32_t nvt_check_crc_done_ilm_err(struct chip_data_nt36523 *chip_info)
 {
@@ -1672,6 +1772,10 @@ static int32_t Download_Firmware_HW_CRC(struct chip_data_nt36523 *chip_info,
 	/* Start Write Firmware Process */
 	if (chip_info->cascade_2nd_header_info) {
 		/* for cascade */
+		if (chip_info->spi_dma_div_cnt_val) {
+			nvt_spi_dma_setup(chip_info);
+		}
+
 		nvt_tx_auto_copy_mode(chip_info);
 
 		ret = Write_Partition(chip_info, fw->data, fw->size);
@@ -1758,7 +1862,7 @@ static int32_t nvt_nf_detect_chip(struct chip_data_nt36523 *chip_info)
 }
 
 
-/********* Start of implementation of oplus_touchpanel_operations callbacks********************/
+/********* Start of implementation of oppo_touchpanel_operations callbacks********************/
 /*extern int tp_util_get_vendor(struct hw_resource *hw_res, struct panel_info *panel_data);*/
 
 static int nvt_ftm_process(void *chip_data)
@@ -1856,6 +1960,11 @@ static unsigned int nvt_trigger_reason(void *chip_data, int gesture_enable, int 
 	int32_t ret = -1;
 	uint32_t irq_reason = IRQ_IGNORE;
 
+	if (IS_ERR_OR_NULL(chip_info) || IS_ERR_OR_NULL(chip_info->point_data)) {
+		TPD_INFO("%s:NULL chip_info", __func__);
+		return IRQ_IGNORE;
+	}
+
 	memset(chip_info->point_data, 0, POINT_DATA_LEN);
 	ret = CTP_SPI_READ(chip_info->s_client, chip_info->point_data, POINT_DATA_LEN + 1);
 	if (ret < 0) {
@@ -1896,6 +2005,12 @@ static unsigned int nvt_trigger_reason(void *chip_data, int gesture_enable, int 
 		} else {
 			irq_reason = irq_reason | IRQ_PEN;
 		}
+	}
+
+	if ((chip_info->point_data[FW_HEALTH_START_INDEX] > 0)
+	|| (chip_info->point_data[FW_HEALTH_START_INDEX + 1] > 0)
+	|| (chip_info->point_data[FW_HEALTH_END_INDEX] > 0)) {
+		irq_reason = irq_reason | IRQ_FW_HEALTH;
 	}
 
 	if ((gesture_enable == 1) && (is_suspended == 1)) {
@@ -2285,6 +2400,131 @@ static void nvt_get_pen_points(void *chip_data, struct pen_info *points)
 		}
 	}
 	return;
+}
+
+static void nvt_health_report(void *chip_data, struct monitor_data *mon_data)
+{
+	uint8_t buf[3] = {0};
+	struct chip_data_nt36523 *chip_info = (struct chip_data_nt36523 *)chip_data;
+
+	if (IS_ERR_OR_NULL(chip_info) || IS_ERR_OR_NULL(chip_info->monitor_data)) {
+		TPD_INFO("%s:NULL Pointer", __func__);
+		return;
+	}
+
+	buf[0] = chip_info->point_data[FW_HEALTH_START_INDEX];
+	buf[1] = chip_info->point_data[FW_HEALTH_START_INDEX + 1];
+	buf[2] = chip_info->point_data[FW_HEALTH_END_INDEX];
+
+	if (buf[0] & 0x10) {
+		if (!chip_info->base_negative_finger) {
+			TPD_INFO("Health register(0x01):base_negative_finger");
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, "base_negative_finger");
+			chip_info->base_negative_finger = true;
+		}
+	} else {
+		chip_info->base_negative_finger = false;
+	}
+
+	if (buf[0] & 0x40) {
+		if (!chip_info->base_rxabs_baseline) {
+			TPD_INFO("Health register(0x01):base_raw_flag");
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, "base_raw_flag");
+			chip_info->base_rxabs_baseline = true;
+		}
+	} else {
+		chip_info->base_rxabs_baseline = false;
+	}
+
+	if (buf[0] & 0x80) {
+		if (!chip_info->baseline_err) {
+			TPD_INFO("Health register(0x01):nt_diff_abnormal");
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, "nt_diff_abnormal");
+			chip_info->baseline_err = true;
+		}
+	} else {
+		chip_info->baseline_err = false;
+	}
+
+	if (buf[1] & 0x01) {
+		if (!chip_info->er_prevent) {
+			TPD_INFO("Health register(0x01):grip er prevent");
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, HEALTH_REPORT_GRIP);
+			chip_info->er_prevent = true;
+		}
+	} else {
+		chip_info->er_prevent = false;
+	}
+
+	if (buf[1] & 0x02) {
+		if (!chip_info->poor_gnd) {
+			TPD_INFO("Health register(0x01):poor gnd report");
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, "nt_tp_poor_gnd");
+			chip_info->poor_gnd = true;
+		}
+	} else {
+		chip_info->poor_gnd = false;
+	}
+
+	if (buf[1] & 0x04) {
+		if (!chip_info->water_mode) {
+			TPD_INFO("Health register(0x01):water_mode");
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, HEALTH_REPORT_SHIELD_WATER);
+			chip_info->water_mode = true;
+		}
+	} else {
+		chip_info->water_mode = false;
+	}
+
+	if (buf[1] & 0x08) {
+		if (!chip_info->bending_mode) {
+			TPD_INFO("Health register(0x01):bending_mode");
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, "nt_tp_bending_mode");
+			chip_info->bending_mode = true;
+		}
+	} else {
+		chip_info->bending_mode = false;
+	}
+
+	if (buf[1] & 0x10) {
+		if (!chip_info->shield_palm) {
+			TPD_INFO("Health register(0x01):shield_palm");
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, HEALTH_REPORT_SHIELD_PALM);
+			chip_info->shield_palm = true;
+		}
+	} else {
+		chip_info->shield_palm = false;
+	}
+
+	if (buf[1] & 0x20) {
+		if (!chip_info->health_esd) {
+			TPD_INFO("Health register(0x01):health_esd");
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, "nt_tp_health_esd");
+			chip_info->health_esd = true;
+		}
+	} else {
+		chip_info->health_esd = false;
+	}
+
+	if (buf[2] & 0x08) {
+		if (!chip_info->frequent_frequency_hopping) {
+			TPD_INFO("Health register(0x01):frequent_frequency_hopping");
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, "nt_tp_frequent_frequency_hopping");
+			chip_info->frequent_frequency_hopping = true;
+		}
+	} else {
+		chip_info->frequent_frequency_hopping = false;
+	}
+
+	if (buf[2] & 0x10) {
+		if (!chip_info->frequency_hopping) {
+			TPD_INFO("Health register(0x01):frequency_hopping");
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, HEALTH_REPORT_HOPPING);
+			chip_info->frequency_hopping = true;
+		}
+	} else {
+		chip_info->frequency_hopping = false;
+	}
 }
 
 static int8_t nvt_extend_cmd2_store(struct chip_data_nt36523 *chip_info,
@@ -2802,7 +3042,6 @@ static int nvt_reset(void *chip_data)
 	mutex_lock(&chip_info->mutex_testing);
 
 	if(!ts->fw_update_app_support || chip_info->probe_done) {
-
 		ret = nvt_fw_update(chip_info, NULL, 0);
 		if(FW_NO_NEED_UPDATE == ret) {
 			TPD_INFO("g_fw_buf update no need!\n");
@@ -3066,6 +3305,29 @@ static int nvt_enable_pen_mode(struct chip_data_nt36523 *chip_info, bool enable)
 	return ret;
 }
 
+static int nvt_notify_keyboard_open(void *chip_data)
+{
+	int8_t ret = -1;
+	struct chip_data_nt36523 *chip_info = (struct chip_data_nt36523 *)chip_data;
+
+	TPD_INFO("%s:hall_status = %d, suspend_state = %d, is_hall_near_resume = %d\n", __func__,
+			chip_info->ts->hall_status, chip_info->ts->suspend_state, chip_info->ts->is_hall_near_resume);
+	ret = nvt_extend_cmd_store(chip_info, EVENTBUFFER_EXT_CMD, EVENTBUFFER_EXT_NOTIFY_KEYBOARD_OPEN);
+
+	return ret;
+}
+
+static int nvt_set_pen_jitter_para(void *chip_data, int level)
+{
+	int8_t ret = -1;
+	struct chip_data_nt36523 *chip_info = (struct chip_data_nt36523 *)chip_data;
+	TPD_DEBUG("%s:level = %d, chip_info->is_sleep_writed = %d\n", __func__,
+			level, chip_info->is_sleep_writed);
+
+	ret = nvt_extend_cmd2_store(chip_info, EVENTBUFFER_EXT_CMD, EVENTBUFFER_EXT_PEN_JITTER_LEVEL, level);
+
+	return ret;
+}
 static int8_t nvt_extend_cmd_store_direct(struct chip_data_nt36523 *chip_info,
 				   uint8_t u8Cmd, uint8_t u8SubCmd)
 {
@@ -5395,6 +5657,110 @@ static void nvt_set_gesture_state(void *chip_data, int state)
 	chip_info->gesture_state = state;
 }
 
+static int8_t nvt_multi_cmd_store(struct chip_data_nt36523 *chip_info, uint8_t *cmdBuf, uint8_t cmdLen)
+{
+	uint8_t buf[16] = {0}; /* max support 16bytes command */
+	uint8_t retry = 0;
+	int8_t ret = 0;
+
+	if (((cmdLen+1) > sizeof(buf)) || (cmdLen == 0)) {
+		TPD_INFO("cmdLen %d error, buffer size %ld\n", cmdLen, sizeof(buf));
+		ret = -1;
+		return ret;
+	}
+
+	memcpy(buf+1, cmdBuf, cmdLen);
+
+	for (retry = 0; retry < 20; retry++) {
+		if ((retry == 0) || (buf[1] != cmdBuf[0])) {
+			buf[0] = EVENT_MAP_HOST_CMD;
+			CTP_SPI_WRITE(chip_info->s_client, buf, cmdLen + 1);
+		}
+		msleep(20);
+		buf[0] = EVENT_MAP_HOST_CMD;
+		buf[1] = 0xFF;
+		CTP_SPI_READ(chip_info->s_client, buf, 2);
+		TPD_INFO("send cmd pass.and callback[0x%2x, 0x%2x]\n", buf[0], buf[1]);
+		if (buf[1] == 0x00)
+			break;
+	}
+	if (retry == 20) {
+		TPD_INFO("send Cmd 0x%02X failed, buf[1]=0x%02X\n", cmdBuf[0], buf[1]);
+		ret = -1;
+	}
+	return ret;
+}
+
+static void game_aiunit_cmd_handle(struct chip_data_nt36523 *chip_info, u16 left, u16 top, u16 right, u16 bottom)
+{
+	uint8_t cmd[MAX_CMD_LEN] = { 0 };
+	int8_t ret = 0;
+
+	if (chip_info == NULL) {
+		return;
+	}
+
+	cmd[0] = GAME_AIUNIT_CMD; /* 0xBD */
+	cmd[1] = (uint8_t)(left) & 0xFF;
+	cmd[2] = (uint8_t)(left >> 8) & 0xFF;
+	cmd[3] = (uint8_t)(top) & 0xFF;
+	cmd[4] = (uint8_t)(top >> 8) & 0xFF;
+	cmd[5] = (uint8_t)(right) & 0xFF;
+	cmd[6] = (uint8_t)(right >> 8) & 0xFF;
+	cmd[7] = (uint8_t)(bottom) & 0xFF;
+	cmd[8] = (uint8_t)(bottom >> 8) & 0xFF;
+	TPD_INFO("set pass [%5d,%5d,%5d,%5d][left:%x,%x top:%x,%x right:%x,%x bottom:%x,%x]",
+				left, top, right, bottom,
+				cmd[1], cmd[2], cmd[3], cmd[4], cmd[5], cmd[6], cmd[7], cmd[8]);
+	ret = nvt_multi_cmd_store(chip_info, cmd, MAX_CMD_LEN);
+}
+
+static void game_para_handle(struct chip_data_nt36523 *chip_info, int i)
+{
+	u16 left = 0;
+	u16 top = 0;
+	u16 right = 0;
+	u16 bottom = 0;
+
+	if (chip_info == NULL) {
+		return;
+	}
+	left = chip_info->ts->tp_ic_aiunit_game_info[i].left;
+	top = chip_info->ts->tp_ic_aiunit_game_info[i].top;
+	right = chip_info->ts->tp_ic_aiunit_game_info[i].right;
+	bottom = chip_info->ts->tp_ic_aiunit_game_info[i].bottom;
+	game_aiunit_cmd_handle(chip_info, left, top, right, bottom);
+}
+
+static void nvt_aiunit_game_info(void *chip_data)
+{
+	struct chip_data_nt36523 *chip_info = NULL;
+	int i = 0;
+
+	if (chip_data == NULL) {
+		return;
+	} else {
+		chip_info = (struct chip_data_nt36523 *)chip_data;
+	}
+
+	if (chip_info->ts->is_suspended) {
+		return;
+	}
+
+	if (!chip_info->ts->aiunit_game_enable) {
+		TPD_INFO("aiunit_game_enable is not ok\n");
+		return;
+	}
+
+	for (i = 0 ; i < MAX_AIUNIT_SET_NUM; i++) {
+		if (chip_info->ts->tp_ic_aiunit_game_info[i].gametype == TENCENT_TMGP) {
+			if (chip_info->ts->tp_ic_aiunit_game_info[i].aiunit_game_type == TENCENT_TMGP_MAP) {
+				game_para_handle(chip_info, i);
+			}
+		}
+	}
+}
+
 static struct oplus_touchpanel_operations nvt_ops = {
 	.ftm_process				= nvt_ftm_process,
 	.reset					  = nvt_reset,
@@ -5402,6 +5768,7 @@ static struct oplus_touchpanel_operations nvt_ops = {
 	.get_chip_info			  = nvt_get_chip_info,
 	.trigger_reason			 = nvt_trigger_reason,
 	.get_touch_points		   = nvt_get_touch_points,
+	.health_report           = nvt_health_report,
 	.get_pen_points			 = nvt_get_pen_points,
 	.get_gesture_info		   = nvt_get_gesture_info,
 	.mode_switch				= nvt_mode_switch,
@@ -5414,7 +5781,10 @@ static struct oplus_touchpanel_operations nvt_ops = {
 	.sensitive_lv_set           = nvt_sensitive_lv_set,
 	.set_gesture_state		  = nvt_set_gesture_state,
 	.notify_pencil_type         = nvt_notify_pencil_type,
+	.notify_keyboard_open     = nvt_notify_keyboard_open,
+	.pen_sensitive_lv_set     = nvt_set_pen_jitter_para,
 	.ftm_process_extra		  = NULL,
+	.aiunit_game_info         = nvt_aiunit_game_info,
 };
 
 static void nvt_data_read(struct seq_file *s,
@@ -5590,7 +5960,7 @@ int32_t nvt_set_pen_normal_mode(struct chip_data_nt36523 *chip_info)
 	}
 }
 
-/*static void nvt_pen_data_read(struct seq_file *s, struct chip_data_nt36523 *chip_info, DEBUG_READ_TYPE read_type)
+static void nvt_pen_data_read(struct seq_file *s, struct chip_data_nt36523 *chip_info, DEBUG_READ_TYPE read_type)
 {
 	int ret = -1;
 	int i, j;
@@ -5769,7 +6139,7 @@ int32_t nvt_set_pen_normal_mode(struct chip_data_nt36523 *chip_info)
 	tp_devm_kfree(&chip_info->s_client->dev, (void **)xdata_pen_tip_y, pen_tx_num * rx_num * sizeof(int32_t));
 	tp_devm_kfree(&chip_info->s_client->dev, (void **)xdata_pen_ring_x, tx_num * pen_rx_num * sizeof(int32_t));
 	tp_devm_kfree(&chip_info->s_client->dev, (void **)xdata_pen_ring_y, pen_tx_num * rx_num * sizeof(int32_t));
-}*/
+}
 
 #ifdef CONFIG_OPLUS_TP_APK
 static void nvt_debug_data_read(struct seq_file *s,
@@ -5857,7 +6227,7 @@ static void nvt_baseline_read(struct seq_file *s, void *chip_data)
 	nvt_data_read(s, chip_info, NVT_RAWDATA);
 }
 
-/*static void nvt_pen_delta_read(struct seq_file *s, void *chip_data)
+static void nvt_pen_delta_read(struct seq_file *s, void *chip_data)
 {
 	struct chip_data_nt36523 *chip_info = (struct chip_data_nt36523 *)chip_data;
 
@@ -5884,7 +6254,7 @@ static void nvt_pen_baseline_read(struct seq_file *s, void *chip_data)
 
 	nvt_pen_data_read(s, chip_info, NVT_BASEDATA);
 	nvt_pen_data_read(s, chip_info, NVT_RAWDATA);
-}*/
+}
 
 #ifdef CONFIG_OPLUS_TP_APK
 static __maybe_unused void nvt_dbg_diff_finger_down_read(struct seq_file *s, void *chip_data)
@@ -5975,11 +6345,11 @@ static void nvt_main_register_read(struct seq_file *s, void *chip_data)
 }
 
 static struct debug_info_proc_operations debug_info_proc_ops = {
-	/*.limit_read		 = nvt_limit_read_std,*/
-	.baseline_read	  = nvt_baseline_read,
-	.delta_read		 = nvt_delta_read,
-	/*.pen_delta_read = nvt_pen_delta_read,*/
-	/*.pen_baseline_read = nvt_pen_baseline_read,*/
+	/*.limit_read       = nvt_limit_read_std,*/
+	.baseline_read      = nvt_baseline_read,
+	.delta_read         = nvt_delta_read,
+	.pen_delta_read     = nvt_pen_delta_read,
+	.pen_baseline_read  = nvt_pen_baseline_read,
 	.main_register_read = nvt_main_register_read,
 };
 
@@ -8798,15 +9168,19 @@ static int nvt_tp_probe(struct spi_device *client)
 	chip_info->is_pen_connected = &ts->is_pen_connected;
 
 	/*---prepare for spi parameter---*/
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	if (ts->s_client->master->flags & SPI_MASTER_HALF_DUPLEX) {
 		TPD_INFO("Full duplex not supported by master\n");
 		ret = -EIO;
 		goto err_spi_setup;
 	}
+#endif
 
 	ts->s_client->bits_per_word = 8;
 	ts->s_client->mode = SPI_MODE_0;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	ts->s_client->chip_select = 0; /*modify reg=0 for more tp vendor share same spi interface*/
+#endif
 
 #ifdef CONFIG_TOUCHPANEL_MTK_PLATFORM
 	/* new usage of MTK spi API */

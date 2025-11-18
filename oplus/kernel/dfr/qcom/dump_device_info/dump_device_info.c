@@ -200,13 +200,14 @@ static void board_hw_info_init(void)
         #endif
 }
 
-static void write_device_info(const char *key, const char *value)
+void write_device_info(const char *key, const char *value)
 {
 	pstore_write_device_info(key, strlen(key));
 	pstore_write_device_info(": ", 2);
 	pstore_write_device_info(value, strlen(value));
 	pstore_write_device_info("\r\n", 2);
 }
+EXPORT_SYMBOL(write_device_info);
 
 static int of_device_info_platform_data(struct device_node *node,
 	struct device_info_platform_data *pdata)
@@ -324,11 +325,6 @@ static void __exit dump_device_info_exit(void)
 	platform_driver_unregister(&dump_device_info_driver);
 }
 module_exit(dump_device_info_exit);
-
-void save_dump_reason_to_device_info(char *reason) {
-		write_device_info("dump reason is ", reason);
-}
-EXPORT_SYMBOL(save_dump_reason_to_device_info);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("leo.liuch");

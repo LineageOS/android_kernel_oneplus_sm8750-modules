@@ -70,6 +70,7 @@
 #define FTS_REG_GLOVE_MODE_SWITCH               0xC0
 #define FTS_REG_GLOVE_MODE_STATE                0x01
 #define FTS_REG_TEMPERATURE                     0x97
+#define FTS_REG_FP_UNLOCK_STATE                 0xCE
 
 #define FTS_MAX_POINTS_SUPPORT                  10
 #define FTS_MAX_ID                              0x0A

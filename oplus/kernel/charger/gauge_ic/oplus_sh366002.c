@@ -6,7 +6,6 @@
 #define pr_fmt(fmt) "[sh366002] %s(%d): " fmt, __func__, __LINE__
 
 #include <linux/version.h>
-#include <asm/unaligned.h>
 #include <linux/acpi.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
@@ -28,6 +27,11 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/workqueue.h>
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+#include <linux/unaligned.h>
+#else
+#include <asm/unaligned.h>
+#endif
 #include <asm/div64.h>
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0))
 #include <stdbool.h>
@@ -2693,7 +2697,7 @@ static void sh366002_track_fix_cadc_load_trigger_work(
 	if (!chip->load_trigger)
 		return;
 
-	oplus_chg_track_upload_trigger_data(*(chip->load_trigger));
+	oplus_chg_track_upload_trigger_data(chip->load_trigger);
 	kfree(chip->load_trigger);
 	chip->load_trigger = NULL;
 	chip->uploading = false;

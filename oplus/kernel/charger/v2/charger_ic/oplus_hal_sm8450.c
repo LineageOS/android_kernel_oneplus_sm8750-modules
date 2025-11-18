@@ -3925,9 +3925,12 @@ static int oplus_get_subboard_temp(struct oplus_chg_ic_dev *ic_dev, int *get_tem
 		goto exit;
 	}
 
-	subboard_temp_volt = 18 * subboard_temp_volt / 10000;
-
-	resistance_convert_temperature_855(subboard_temp_volt, subboard_temp, i, con_temp_volt_855);
+	if (bcdev->subboard_temp_not_convert == true) {
+		subboard_temp = subboard_temp_volt / 100;
+	} else {
+		subboard_temp_volt = 18 * subboard_temp_volt / 10000;
+		resistance_convert_temperature_855(subboard_temp_volt, subboard_temp, i, con_temp_volt_855);
+	}
 
 	subboard_temp_pre = subboard_temp;
 	*get_temp = subboard_temp;
@@ -4136,6 +4139,7 @@ static int battery_chg_parse_dt(struct battery_chg_dev *bcdev)
 	of_property_read_string(node, "qcom,wireless-fw-name",
 				&bcdev->wls_fw_name);
 	bcdev->oem_lcm_check = of_property_read_bool(node, "oplus,oem-lcm-check");
+	bcdev->subboard_temp_not_convert = of_property_read_bool(node, "oplus,subboard_temp_not_convert");
 	rc = of_property_count_elems_of_size(node, "qcom,thermal-mitigation",
 						sizeof(u32));
 	if (rc <= 0)
@@ -8891,7 +8895,11 @@ error:
 	return rc;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+static void battery_chg_remove(struct platform_device *pdev)
+#else
 static int battery_chg_remove(struct platform_device *pdev)
+#endif
 {
 	struct battery_chg_dev *bcdev = platform_get_drvdata(pdev);
 	int rc;
@@ -8901,11 +8909,11 @@ static int battery_chg_remove(struct platform_device *pdev)
 	class_unregister(&bcdev->battery_class);
 	unregister_reboot_notifier(&bcdev->reboot_notifier);
 	rc = pmic_glink_unregister_client(bcdev->client);
-	if (rc < 0) {
+	if (rc < 0)
 		chg_err("Error unregistering from pmic_glink, rc=%d\n", rc);
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 		return rc;
-	}
-	return 0;
+#endif
 }
 
 #ifdef OPLUS_FEATURE_CHG_BASIC

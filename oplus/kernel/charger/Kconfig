@@ -6,6 +6,12 @@ menuconfig OPLUS_CHARGER
 	  Say Y here to enable OPLUS charging system support
 
 if OPLUS_CHARGER
+config OPLUS_CHARGER_DDK_BUILD
+	bool "oplus charger module build by ddk"
+	default n
+	help
+	  Say Y to support ddk build
+
 config OPLUS_CHARGER_MTK
 	bool "OPLUS charger on MTK"
 	help
@@ -129,6 +135,12 @@ config OPLUS_CHARGER_MTK_CHGIC
         help
           Say Yes to use MTK platform charger ic
           Say No to use extern charger ic
+
+config OPLUS_MAGCVR_NOTIFY
+	tristate "OPLUS_MAGCVR_NOTIFY"
+	default n
+	help
+	  define this config to open magcvr notify
 
 menuconfig OPLUS_CHG
 	tristate "OPLUS CHARGER KO module"

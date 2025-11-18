@@ -470,6 +470,15 @@ static int aw_cali_svc_dev_get_re(struct aw_device *aw_dev)
 	int32_t re[AW_CALI_READ_RE_TIMES] = {0};
 	int32_t sum = 0;
 
+#ifdef AW882XX_CALI_DISABLE_CONFIG
+	if (aw_dev->cali_disable) {
+		aw_dev_info(aw_dev->dev, "cali-disable = 1, use default re");
+
+		ret = aw_cali_store_cali_re(aw_dev, aw_dev->cali_desc.cali_re);
+		return ret;
+	}
+#endif
+
 	for (i = 0; i < AW_CALI_READ_RE_TIMES; i++) {
 		ret = aw882xx_dsp_read_r0(aw_dev, &re[i]);
 		if (ret) {
@@ -499,6 +508,13 @@ static int aw_cali_svc_dev_get_f0(struct aw_device *aw_dev)
 	int32_t f0[AW_CALI_READ_F0_Q_TIMES] = {0};
 	int32_t sum = 0;
 
+#ifdef AW882XX_CALI_DISABLE_CONFIG
+	if (aw_dev->cali_disable) {
+		aw_dev_info(aw_dev->dev, "cali-disable = 1, use default f0");
+		return 0;
+	}
+#endif
+
 	for (i = 0; i < AW_CALI_READ_F0_Q_TIMES; i++) {
 		ret = aw882xx_dsp_read_f0(aw_dev, &f0[i]);
 		if (ret) {
@@ -523,6 +539,13 @@ static int aw_cali_svc_dev_get_f0_q(struct aw_device *aw_dev)
 	int32_t f0[AW_CALI_READ_F0_Q_TIMES] = {0};
 	int32_t q[AW_CALI_READ_F0_Q_TIMES] = {0};
 	int32_t sum_f0 = 0, sum_q = 0;
+
+#ifdef AW882XX_CALI_DISABLE_CONFIG
+	if (aw_dev->cali_disable) {
+		aw_dev_info(aw_dev->dev, "cali-disable = 1, use default f0 and q");
+		return 0;
+	}
+#endif
 
 	for (i = 0; i < AW_CALI_READ_F0_Q_TIMES; i++) {
 		ret = aw882xx_dsp_read_f0_q(aw_dev, &f0[i], &q[i]);
@@ -595,6 +618,13 @@ static int aw_cali_svc_dev_cali_re(struct aw_device *aw_dev, unsigned int flag)
 {
 	int ret;
 
+#ifdef AW882XX_CALI_DISABLE_CONFIG
+	if (aw_dev->cali_disable) {
+		aw_dev_info(aw_dev->dev, "cali-disable = 1, skip cali and use default re");
+		return 0;
+	}
+#endif
+
 	aw_cali_svc_run_mute(aw_dev, CALI_RESULT_NORMAL);
 
 	ret = aw_cali_svc_dev_cali_mode_en(aw_dev, CALI_TYPE_RE, true, flag);
@@ -649,13 +679,18 @@ static int aw_cali_svc_devs_cali_mode_enable(struct list_head *dev_list,
 
 	list_for_each(pos, dev_list) {
 		local_dev = container_of(pos, struct aw_device, list_node);
-		if (is_enable)
-			aw_cali_svc_run_mute(local_dev, CALI_RESULT_NORMAL);
-		ret = aw_cali_svc_dev_cali_mode_en(local_dev, type, is_enable, flag);
-		if (ret < 0)
-			return ret;
-		if (!is_enable && (type == CALI_TYPE_F0))
-			aw_cali_svc_run_mute(local_dev, local_dev->cali_desc.cali_result);
+#ifdef AW882XX_CALI_DISABLE_CONFIG
+		if (!local_dev->cali_disable)
+#endif
+		{
+			if (is_enable)
+				aw_cali_svc_run_mute(local_dev, CALI_RESULT_NORMAL);
+			ret = aw_cali_svc_dev_cali_mode_en(local_dev, type, is_enable, flag);
+			if (ret < 0)
+				return ret;
+			if (!is_enable && (type == CALI_TYPE_F0))
+				aw_cali_svc_run_mute(local_dev, local_dev->cali_desc.cali_result);
+		}
 	}
 
 	return ret;
@@ -699,6 +734,12 @@ static int aw_cali_svc_cali_re(struct aw_device *aw_dev, bool is_single, unsigne
 static int aw_cali_svc_dev_cali_f0(struct aw_device *aw_dev, unsigned int flag)
 {
 	int ret;
+#ifdef AW882XX_CALI_DISABLE_CONFIG
+	if (aw_dev->cali_disable) {
+		aw_dev_info(aw_dev->dev, "cali-disable = 1, skip cali and use default f0");
+		return 0;
+	}
+#endif
 
 	aw_cali_svc_run_mute(aw_dev, CALI_RESULT_NORMAL);
 
@@ -753,6 +794,12 @@ static int aw_cali_svc_cali_f0(struct aw_device *aw_dev, bool is_single, unsigne
 static int aw_cali_svc_dev_cali_f0_q(struct aw_device *aw_dev, unsigned int flag)
 {
 	int ret;
+#ifdef AW882XX_CALI_DISABLE_CONFIG
+	if (aw_dev->cali_disable) {
+		aw_dev_info(aw_dev->dev, "cali-disable = 1, skip cali and use default f0 and q");
+		return 0;
+	}
+#endif
 
 	aw_cali_svc_run_mute(aw_dev, CALI_RESULT_NORMAL);
 
@@ -2845,6 +2892,11 @@ int aw_cali_parse_re_dt(struct aw_device *aw_dev)
 		aw_dev_err(aw_dev->dev, "re max must be greater than re min");
 		return -EINVAL;
 	}
+	ret = of_property_read_u32(aw_dev->dev->of_node, "aw-re-default", &aw_dev->cali_desc.cali_re);
+	if (ret < 0) {
+		aw_dev->cali_desc.cali_re = 0;
+		aw_dev_info(aw_dev->dev, "read aw-re-default failed, use default");
+	}
 	ret = of_property_read_u32(aw_dev->dev->of_node, "aw-f0-min", &aw_dev->f0_min);
 	if (ret < 0) {
 		aw_dev->f0_min = AW_CALI_F0_DEFAULT_MIN;
@@ -2861,8 +2913,22 @@ int aw_cali_parse_re_dt(struct aw_device *aw_dev)
 		aw_dev_err(aw_dev->dev, "f0 max must be greater than f0 min");
 		return -EINVAL;
 	}
-	aw_dev_info(aw_dev->dev, "re min: %d, re max: %d, f0 min:%d, f0 max: %d",
-					aw_dev->re_min, aw_dev->re_max, aw_dev->f0_min, aw_dev->f0_max);
+	ret = of_property_read_u32(aw_dev->dev->of_node, "aw-f0-default", &aw_dev->cali_desc.cali_f0);
+	if (ret < 0) {
+		aw_dev->cali_desc.cali_f0 = 0;
+		aw_dev_info(aw_dev->dev, "read aw-f0-default failed, use default");
+	}
+
+#ifdef AW882XX_CALI_DISABLE_CONFIG
+	ret = of_property_read_u32(aw_dev->dev->of_node, "cali-disable", &aw_dev->cali_disable);
+	if (ret < 0) {
+		aw_dev->cali_disable = 0;
+		aw_dev_info(aw_dev->dev, "read cali-disable failed, use default");
+	}
+#endif
+
+	aw_dev_info(aw_dev->dev, "re min: %d, re max: %d,  re default: %d, f0 min:%d, f0 max: %d, f0 default: %d, cali_disable: %d",
+					aw_dev->re_min, aw_dev->re_max, aw_dev->cali_desc.cali_re, aw_dev->f0_min, aw_dev->f0_max, aw_dev->cali_desc.cali_f0, aw_dev->cali_disable);
 	return 0;
 }
 

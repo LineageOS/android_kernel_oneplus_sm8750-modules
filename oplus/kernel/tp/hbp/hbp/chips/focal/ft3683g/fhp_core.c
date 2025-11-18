@@ -1168,16 +1168,24 @@ static int fts_dev_probe(struct platform_device *pdev)
 	return 0;
 
 err_exit:
-	kfree(fts);
 	kfree(fts->bus_rx_buf);
 	kfree(fts->bus_tx_buf);
+	kfree(fts);
 	g_fts = NULL;
 	return ret;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+static void fts_dev_remove(struct platform_device *spi)
+#else
 static int fts_dev_remove(struct platform_device *spi)
+#endif
 {
+	hbp_info("fts_dev_remove.\n");
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+#else
 	return 0;
+#endif
 }
 
 static const struct of_device_id fts_dt_match[] = {

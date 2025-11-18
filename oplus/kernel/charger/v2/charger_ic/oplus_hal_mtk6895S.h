@@ -19,8 +19,9 @@
 #include "mtk_disp_notify.h"
 #endif
 
+#ifndef CONFIG_DISABLE_OPLUS_FUNCTION
 #include "kernelFwUpdate.h"
-
+#endif
 
 #ifdef OPLUS_FEATURE_CHG_BASIC
 #include <oplus_chg_ic.h>

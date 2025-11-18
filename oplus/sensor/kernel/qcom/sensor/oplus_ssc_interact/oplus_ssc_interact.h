@@ -44,6 +44,7 @@ enum {
 	LCM_BLANK_MODE_TYPE,
 	LCM_BLANK_MODE_TYPE_SEC,
 	LCM_SCREENSHOT_INFO_TYPE = 0x10,
+	LCM_PULSE_MODE_TYPE = 0x11,
 	MAX_INFO_TYPE,
 };
 
@@ -64,6 +65,7 @@ struct als_info{
 	uint16_t dc_mode;
 	uint16_t primary_blank_mode;
 	uint16_t secondary_blank_mode;
+	uint16_t pulse_mode;
 };
 
 #if IS_ENABLED(CONFIG_OPLUS_SENSOR_USE_SCREENSHOT_INFO)

@@ -346,6 +346,40 @@
 #define BQ28Z610_TRUE_FCC_OFFSET		8
 #define BQ28Z610_FCC_SYNC_CMD			0x0043
 
+#define BQ28Z610_BATT_INFO_RETRY_MAX		3
+#define BQ28Z610_BATTINFO_EN_ADDR		0x3E
+#define BQ28Z610_BATTINFO_MANUDATE_CMD		0x004D
+#define BQ28Z610_BATT_MANU_DATE_READ_BUF_LEN	4
+
+#define BQ28Z610_BATTINFO_VDMDATA_CMD		0x0070
+#define BQ28Z610_BATT_VDM_DATA_READ_BUF_LEN	34
+#define BQ28Z610_BATTINFO_DEFAULT_CHECKSUM	0xFF
+
+#define BQ28Z610_BATTINFO_NO_CHECKSUM		0x00
+#define BQ28Z610_BATT_USED_FLAG			23
+
+#define BQ28Z610_BATT_FIRST_USAGE_DATE_WLEN	5
+#define BQ28Z610_BATT_FIRST_USAGE_DATE_WADDR	0x404E
+#define BQ28Z610_BATT_FIRST_USAGE_DATE_CHECK	17
+#define BQ28Z610_BATT_FIRST_USAGE_DATE_L	15
+#define BQ28Z610_BATT_FIRST_USAGE_DATE_H	16
+
+#define BQ28Z610_BATT_UI_CYCLE_COUNT_CHECK	22
+#define BQ28Z610_BATT_UI_CYCLE_COUNT_L		20
+#define BQ28Z610_BATT_UI_CYCLE_COUNT_H		21
+
+#define BQ28Z610_BATT_UI_SOH			18
+#define BQ28Z610_BATT_UI_SOH_CHECK		19
+#define BQ28Z610_BATT_WRITE_CHECK_SUM_ADDR	0x60
+#define BQ28Z610_BATT_USED_FLAG_CHECK		24
+
+#define BQ28Z610_BATT_UI_CC_WLEN		5
+#define BQ28Z610_BATT_UI_CC_WADDR		0x4053
+#define BQ28Z610_BATT_UI_SOH_WLEN		4
+#define BQ28Z610_BATT_UI_SOH_WADDR		0x4051
+#define BQ28Z610_BATT_USED_FLAG_WLEN		4
+#define BQ28Z610_BATT_USED_FLAG_WADDR		0x4056
+
 #define U_DELAY_1_MS	1000
 #define U_DELAY_5_MS	5000
 #define M_DELAY_10_S	10000
@@ -408,6 +442,7 @@ struct cmd_address {
 	u8 reg_mli;
 	u8 reg_ap;
 	u8 reg_soc;
+	u8 reg_soc_centi;
 	u8 reg_inttemp;
 	u8 reg_soh;
 	u8 reg_fc; /* add gauge reg print log start */
@@ -542,6 +577,7 @@ struct chip_bq27541 {
 	atomic_t locked;
 
 	int soc_pre;
+	int soc_centi_pre;
 	int temp_pre;
 	int batt_vol_pre;
 	int current_pre;
@@ -571,6 +607,7 @@ struct chip_bq27541 {
 	int qmax_1_pre;
 	int qmax_2_pre;
 	int qmax_passed_q_pre;
+	int car_c_pre;
 	int device_type;
 	int device_type_for_vooc;
 	struct cmd_address cmd_addr;
@@ -685,6 +722,7 @@ struct chip_bq27541 {
 	atomic_t i2c_err_timeout_flag;
 	unsigned long rst_ing;
 	int gauge_type;
+	int bq28z610_seal_flag;
 };
 
 struct gauge_track_info_reg {

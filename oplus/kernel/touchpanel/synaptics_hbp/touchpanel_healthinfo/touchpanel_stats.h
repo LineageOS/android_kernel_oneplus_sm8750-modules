@@ -8,6 +8,8 @@
 #define _TRACE_TOUCH_H
 
 #include <linux/tracepoint.h>
+#include <linux/version.h>
+#include <linux/kernel.h>
 
 /*--- TP 101157-101176 (define in "oplusfault_extension_astoms.proto")---*/
 #define TOUCH_STATS_KERNEL_FAULT            101157
@@ -28,12 +30,21 @@ TRACE_EVENT(stats_report,
 		__string(fw_ver,	fw_ver)
 		__string(detail_info,	detail_info)
 	),
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	TP_fast_assign(
 		__entry->id = id;
 		__assign_str(tp_ic,		tp_ic);
 		__assign_str(fw_ver,	fw_ver);
 		__assign_str(detail_info,	detail_info);
 	),
+#else
+	TP_fast_assign(
+		__entry->id = id;
+		__assign_str(tp_ic);
+		__assign_str(fw_ver);
+		__assign_str(detail_info);
+	),
+#endif
 	TP_printk("id:%d tp_ic:%s fw_ver:%s detail_info:%s",
 		__entry->id, __get_str(tp_ic), __get_str(fw_ver),__get_str(detail_info))
 );

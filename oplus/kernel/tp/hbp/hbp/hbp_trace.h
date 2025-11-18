@@ -5,6 +5,7 @@
 #define __HBP_TRACE_H__
 
 #include <linux/tracepoint.h>
+#include <linux/version.h>
 
 #ifndef __TRACE_EVENT_TOUCH_HELPER__
 #define __TRACE_EVENT_TOUCH_HELPER__
@@ -20,7 +21,33 @@ TRACE_DEFINE_ENUM(TRACE_END);
 TRACE_DEFINE_ENUM(TRACE_REACHED);
 
 #endif
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+TRACE_EVENT(hbp,
+	    TP_PROTO(int id, const char *string, int phase),
 
+	    TP_ARGS(id,	string,	phase),
+
+	    TP_STRUCT__entry(
+		    __field(int, id)
+		    __string(msg, string?string:"<emtpy>")
+		    __field(int, phase)
+	    ),
+
+	    TP_fast_assign(
+		    __entry->id = id;
+		    __assign_str(msg);
+		    __entry->phase = phase;
+	    ),
+
+	    TP_printk("hbp_trace: id-%d %s %s",
+		      __entry->id,
+		      __get_str(msg),
+		      __print_symbolic(__entry->phase,
+{TRACE_START, "in"},
+{TRACE_END, "out"},
+{TRACE_REACHED, "reached"}))
+	   );
+#else
 TRACE_EVENT(hbp,
 	    TP_PROTO(int id, const char *string, int phase),
 
@@ -46,7 +73,7 @@ TRACE_EVENT(hbp,
 {TRACE_END, "out"},
 {TRACE_REACHED, "reached"}))
 	   );
-
+#endif
 
 #endif  /*__HBP_TRACE_H__*/
 

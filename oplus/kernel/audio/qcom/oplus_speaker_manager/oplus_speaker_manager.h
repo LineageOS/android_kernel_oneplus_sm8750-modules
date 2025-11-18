@@ -31,8 +31,6 @@ int speaker_r_amp_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *
 int speaker_r_amp_set(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol);
 int rcv_amp_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol);
 int rcv_amp_set(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol);
-int rcv_l_amp_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol);
-int rcv_l_amp_set(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol);
 int ext_amp_mode_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol);
 int ext_amp_mode_set(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol);
 int ext_amp_vdd_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol);
@@ -48,5 +46,6 @@ int oplus_add_pa_manager_snd_controls(struct snd_soc_component *component);
 int oplus_add_analog_pa_manager_dapm(struct snd_soc_dapm_context *dapm);
 /* 2024/11/28, modify for wcd9378 use damp avoid noise issues */
 int oplus_add_analog_pa_manager_wcd9378_dapm(struct snd_soc_dapm_context *dapm);
+void set_pa_index_order(int m_pa_index_order);
 /*------------------------------------------------------------------------------*/
 #endif /* __OPLUS_SPEAKER_MANAGER_H__ */

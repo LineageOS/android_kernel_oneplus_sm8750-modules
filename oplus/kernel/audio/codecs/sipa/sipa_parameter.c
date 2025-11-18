@@ -86,7 +86,7 @@ static void sipa_container_loaded(
 		sipa_parameters = kzalloc(sizeof(SIPA_PARAM_WRITEABLE) + cont->size, GFP_KERNEL);
 	}
 	if (NULL == sipa_parameters) {
-		pr_err("[  err][%s] %s: kmalloc failed \r\n",
+		pr_err("[  err][%s] %s: kzalloc failed \r\n",
 			LOG_FLAG, __func__);
 		goto load_error;
 	}
@@ -205,7 +205,7 @@ static void sipa_fw_load_work_delay(struct work_struct *work)
 		sipa_parameters = kzalloc(sizeof(SIPA_PARAM_WRITEABLE) + cont->size, GFP_KERNEL);
 	}
 	if (NULL == sipa_parameters) {
-		pr_err("[  err][%s] %s: kmalloc failed \r\n",
+		pr_err("[  err][%s] %s: kzalloc failed \r\n",
 			LOG_FLAG, __func__);
 		goto load_error;
 	}
