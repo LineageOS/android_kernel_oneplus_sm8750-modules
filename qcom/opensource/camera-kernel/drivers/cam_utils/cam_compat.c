@@ -1051,3 +1051,35 @@ void cam_mem_heap_remove_kernel_pool(void *handle)
 #endif
 #endif
 #endif
+
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+// check kernel_platform/msm-kernel/drivers/base/core.c
+// device_links_check_suppliers & fwnode_links_check_suppliers
+void dev_defer_supplier_debug(void *drv_ptr)
+{
+	struct device *match_dev = NULL;
+	match_dev = bus_find_device(&platform_bus_type, NULL, drv_ptr, &camera_platform_compare_dev);
+	if (match_dev) {
+		struct device_link *link;
+		if (match_dev->fwnode) {
+			struct fwnode_link *fw_link;
+			struct fwnode_handle *fwnode = match_dev->fwnode;
+			list_for_each_entry(fw_link, &fwnode->suppliers, c_hook) {
+				CAM_ERR(CAM_CPAS, "supplier %pfwP flags=%x needflag=%x",
+					fw_link->supplier, fw_link->flags, FWLINK_FLAG_CYCLE);
+			}
+		}
+		list_for_each_entry(link, &match_dev->links.suppliers, c_node) {
+			if (!(link->flags & DL_FLAG_MANAGED))
+				continue;
+
+			if (link->status != DL_STATE_AVAILABLE &&
+					!(link->flags & DL_FLAG_SYNC_STATE_ONLY)) {
+				CAM_ERR(CAM_CPAS, "probe deferral - supplier %s not ready\n",
+						dev_name(link->supplier));
+			}
+		}
+	}
+	put_device(match_dev);
+}
+#endif

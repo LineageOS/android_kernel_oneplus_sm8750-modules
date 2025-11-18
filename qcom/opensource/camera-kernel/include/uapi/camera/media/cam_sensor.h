@@ -140,6 +140,7 @@ enum cam_sensor_packet_opcodes {
 	CAM_SENSOR_PACKET_OPCODE_SENSOR_LSC,
 	CAM_SENSOR_PACKET_OPCODE_SENSOR_AWBOTP,
 	CAM_SENSOR_PACKET_OPCODE_SENSOR_SPC,
+	CAM_SENSOR_PACKET_OPCODE_SENSOR_PDC,
 #endif
 };
 
@@ -366,12 +367,13 @@ struct cam_cmd_i2c_info {
 #define CAM_SENSOR_NUM_BATCHED_FRAMES              BIT(1)
 
 /* Below macro definition is the sub definition for CAM_SENSOR_FEATURE_MASK */
-#define CAM_SENSOR_FEATURE_NONE                    0
-#define CAM_SENSOR_FEATURE_AEB_ON                  BIT(0)
-#define CAM_SENSOR_FEATURE_AEB_UPDATE              BIT(1)
-#define CAM_SENSOR_FEATURE_AEB_OFF                 BIT(2)
-#define CAM_SENSOR_FEATURE_INSENSOR_HDR_3EXP_ON    BIT(3)
-#define CAM_SENSOR_FEATURE_INSENSOR_HDR_3EXP_OFF   BIT(4)
+#define CAM_SENSOR_FEATURE_NONE                         0
+#define CAM_SENSOR_FEATURE_AEB_ON                       BIT(0)
+#define CAM_SENSOR_FEATURE_AEB_UPDATE                   BIT(1)
+#define CAM_SENSOR_FEATURE_AEB_OFF                      BIT(2)
+#define CAM_SENSOR_FEATURE_INSENSOR_HDR_3EXP_ON         BIT(3)
+#define CAM_SENSOR_FEATURE_INSENSOR_HDR_3EXP_OFF        BIT(4)
+#define CAM_SENSOR_FEATURE_ALWAYS_APPLY_DEFERRED_META   BIT(5)
 
 #define CAM_CSIPHY_T3_PREPARE_NS_MASK              BIT(0)
 #define CAM_CSIPHY_T3_PREAMBLE_NS_MASK             BIT(1)

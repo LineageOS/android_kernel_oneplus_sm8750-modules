@@ -19,6 +19,7 @@ typedef enum {
 	EXCEP_CRC,
 	EXCEP_ACTUATOR,
 	EXCEP_EEPROM,
+	EXCEP_ACTUATOR_IIC,
 	MAX_EXCEP_TYPE
 } cam_excep_type;
 
@@ -89,5 +90,15 @@ extern const unsigned char *acquire_event_field(int excepId);
 			acquire_event_field(EXCEP_SOF_TIMEOUT), EXCEP_SOF_TIMEOUT, msg, err);\
 			cam_olc_raise_exception(EXCEP_SOF_TIMEOUT, connext);				\
 	} while (0)
+
+#define KEVENT_FB_ACTUATOR_IIC_FAILED(connext, msg, err)                                 \
+	do {                                                                             \
+		snprintf(                                                                \
+			connext, sizeof(connext),                                        \
+			"FBField@@%s$$ExceptId@@0x%x$$detailData@@ErrMsg=%s,ErrCode=%d", \
+			acquire_event_field(EXCEP_ACTUATOR_IIC), EXCEP_ACTUATOR_IIC, msg, err);            \
+		cam_olc_raise_exception(EXCEP_ACTUATOR_IIC, connext);                             \
+	} while (0)
+
 #endif /*__CAM_KEVENT_FB_CUSTOM__*/
 

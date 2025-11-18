@@ -231,6 +231,7 @@ static int cam_sensor_handle_res_info(struct cam_sensor_res_info *res_info,
 	s_ctrl->sensor_res[idx].height = res_info->height;
 	s_ctrl->sensor_res[idx].fps = res_info->fps;
 	s_ctrl->sensor_res[idx].request_id = s_ctrl->last_updated_req;
+	s_ctrl->sensor_res[idx].feature_mask = CAM_SENSOR_FEATURE_NONE;
 
 	if (res_info->num_valid_params > 0) {
 		if (res_info->valid_param_mask & CAM_SENSOR_FEATURE_MASK)
@@ -466,6 +467,12 @@ static int32_t cam_sensor_pkt_parse(struct cam_sensor_ctrl_t *s_ctrl,
 		i2c_reg_settings->is_settings_valid = 1;
 		break;
 	}
+	case CAM_SENSOR_PACKET_OPCODE_SENSOR_PDC: {
+		i2c_reg_settings = &i2c_data->pdc_settings;
+		i2c_reg_settings->request_id = 0;
+		i2c_reg_settings->is_settings_valid = 1;
+		break;
+	}
 #endif
 	case CAM_SENSOR_PACKET_OPCODE_SENSOR_CONFIG: {
 		i2c_reg_settings = &i2c_data->config_settings;
@@ -488,6 +495,7 @@ static int32_t cam_sensor_pkt_parse(struct cam_sensor_ctrl_t *s_ctrl,
 		if (s_ctrl->streamoff_count > 0) {
 			delete_request(&i2c_data->streamoff_settings);
 			s_ctrl->streamoff_count = 0;
+			s_ctrl->is_stream_off_pkt_updated = true;
 		}
 
 		s_ctrl->streamoff_count = s_ctrl->streamoff_count + 1;
@@ -534,49 +542,30 @@ static int32_t cam_sensor_pkt_parse(struct cam_sensor_ctrl_t *s_ctrl,
 		CAM_DBG(CAM_SENSOR, "Received Packet: %lld req: %lld",
 			csl_packet->header.request_id % MAX_PER_FRAME_ARRAY,
 			csl_packet->header.request_id);
- 		if (i2c_reg_settings->is_settings_valid == 1) {
-			//we need to clean the previous i2c settings
-			if (csl_packet->header.request_id >= (i2c_reg_settings->request_id + MAX_PER_FRAME_ARRAY)) {
-				i2c_set_per_req[0] = &i2c_data->per_frame[csl_packet->header.request_id %
-					MAX_PER_FRAME_ARRAY];
-				i2c_set_per_req[1] = &i2c_data->deferred_frame_update[csl_packet->header.request_id %
-					MAX_PER_FRAME_ARRAY];
-				i2c_set_per_req[2] = &i2c_data->frame_skip[csl_packet->header.request_id %
-					MAX_PER_FRAME_ARRAY];
-				i2c_set_per_req[3] = &i2c_data->bubble_update[csl_packet->header.request_id %
-					MAX_PER_FRAME_ARRAY];
+		if (i2c_reg_settings->is_settings_valid == 1) {
+			//Need to clean the previous i2c settings here
+			i2c_set_per_req[0] = &i2c_data->per_frame[csl_packet->header.request_id %
+				MAX_PER_FRAME_ARRAY];
+			i2c_set_per_req[1] = &i2c_data->deferred_frame_update[csl_packet->header.request_id %
+				MAX_PER_FRAME_ARRAY];
+			i2c_set_per_req[2] = &i2c_data->frame_skip[csl_packet->header.request_id %
+				MAX_PER_FRAME_ARRAY];
+			i2c_set_per_req[3] = &i2c_data->bubble_update[csl_packet->header.request_id %
+				MAX_PER_FRAME_ARRAY];
 
-				for (i = 0; i < CAM_SENSOR_MAX_PER_REQ_SETTINGS; i++) {
-					CAM_INFO(CAM_SENSOR, "list type:%d, request_id:%lld, is_settings_valid:%d",
-						i, i2c_set_per_req[i]->request_id, i2c_set_per_req[i]->is_settings_valid);
-					if ((i2c_set_per_req[i]->request_id) &&
-						(i2c_set_per_req[i]->is_settings_valid == 1)) {
-							CAM_INFO(CAM_SENSOR, "Delete request in parse pkt: %lld", i2c_set_per_req[i]->request_id);
-							i2c_set_per_req[i]->request_id = 0;
-							rc = delete_request(i2c_set_per_req[i]);
-							if (rc < 0)
-								CAM_ERR(CAM_SENSOR, "Delete request Failed in parse pkt rc:%d", rc);
-					}
+			for (i = 0; i < CAM_SENSOR_MAX_PER_REQ_SETTINGS; i++) {
+				CAM_DBG(CAM_SENSOR, "setting list idx:%d, request_id:%lld, is_settings_valid:%d",
+					i, i2c_set_per_req[i]->request_id, i2c_set_per_req[i]->is_settings_valid);
+				if ((i2c_set_per_req[i]->request_id) &&
+					(i2c_set_per_req[i]->is_settings_valid == 1)) {
+						i2c_set_per_req[i]->request_id = 0;
+						rc = delete_request(i2c_set_per_req[i]);
+						if (rc < 0)
+							CAM_ERR(CAM_SENSOR, "Delete request Failed during parse pkt rc:%d", rc);
 				}
-
-			} else {
- 				CAM_ERR(CAM_SENSOR,
-					"Already some pkt in offset req : %lld",
-					csl_packet->header.request_id);
-				/*
-				 * Update req mgr even in case of failure.
-				 * This will help not to wait indefinitely
-				 * and freeze. If this log is triggered then
-				 * fix it.
-				 */
-				rc = cam_sensor_update_req_mgr(s_ctrl, csl_packet);
-				if (rc)
-					CAM_ERR(CAM_SENSOR,
-						"Failed in adding request to req_mgr");
-				goto end;
 			}
- 		}
- 		break;
+		}
+		break;
 	}
 	case CAM_SENSOR_PACKET_OPCODE_SENSOR_FRAME_SKIP_UPDATE: {
 		if (s_ctrl->sensor_state < CAM_SENSOR_STANDBY) {
@@ -1340,7 +1329,8 @@ int cam_sensor_stream_off(struct cam_sensor_ctrl_t *s_ctrl)
 		goto end;
 	}
 
-	if (!s_ctrl->stream_off_on_flush &&
+	if ((!s_ctrl->stream_off_on_flush ||
+		s_ctrl->is_stream_off_pkt_updated) &&
 		s_ctrl->i2c_data.streamoff_settings.is_settings_valid &&
 		(s_ctrl->i2c_data.streamoff_settings.request_id == 0)) {
 #ifdef OPLUS_FEATURE_CAMERA_COMMON
@@ -1371,6 +1361,7 @@ int cam_sensor_stream_off(struct cam_sensor_ctrl_t *s_ctrl)
 	s_ctrl->last_flush_req = 0;
 	s_ctrl->sensor_state = CAM_SENSOR_ACQUIRE;
 	s_ctrl->stream_off_on_flush = false;
+	s_ctrl->is_stream_off_pkt_updated = false;
 	memset(s_ctrl->sensor_res, 0, sizeof(s_ctrl->sensor_res));
 
 	CAM_GET_TIMESTAMP(ts);
@@ -1619,6 +1610,7 @@ int32_t cam_sensor_driver_cmd(struct cam_sensor_ctrl_t *s_ctrl,
 		s_ctrl->num_batched_frames = 0;
 		s_ctrl->last_applied_done_timestamp = 0;
 		s_ctrl->stream_off_on_flush = false;
+		s_ctrl->is_stream_off_pkt_updated = false;
 		memset(s_ctrl->sensor_res, 0, sizeof(s_ctrl->sensor_res));
 		CAM_INFO(CAM_SENSOR,
 			"CAM_ACQUIRE_DEV Success for %s sensor_id:0x%x,sensor_slave_addr:0x%x",
@@ -1692,6 +1684,7 @@ int32_t cam_sensor_driver_cmd(struct cam_sensor_ctrl_t *s_ctrl,
 #ifdef OPLUS_FEATURE_CAMERA_COMMON
 		s_ctrl->streamon_num = 0;
 #endif
+		s_ctrl->is_stream_off_pkt_updated = false;
 	}
 		break;
 	case CAM_QUERY_CAP: {
@@ -1828,10 +1821,11 @@ int32_t cam_sensor_driver_cmd(struct cam_sensor_ctrl_t *s_ctrl,
 
 #ifdef OPLUS_FEATURE_CAMERA_COMMON
 			if ((rc == -EAGAIN || rc == -ETIMEDOUT || rc == -EINVAL) &&
+			((s_ctrl->io_master_info.master_type == CCI_MASTER) || (s_ctrl->io_master_info.master_type == I2C_MASTER))) {
 #else
 			if ((rc == -EAGAIN) &&
-#endif
 			(s_ctrl->io_master_info.master_type == CCI_MASTER)) {
+#endif
 				/* If CCI hardware is resetting we need to wait
 				 * for sometime before reapply
 				 */
@@ -2248,7 +2242,6 @@ int cam_sensor_power_down(struct cam_sensor_ctrl_t *s_ctrl)
 #endif
 			rc = ret;
 		}
-
 	}
 
 	if (s_ctrl->aon_camera_id != NOT_AON_CAM) {
@@ -2376,6 +2369,10 @@ int cam_sensor_apply_settings(struct cam_sensor_ctrl_t *s_ctrl,
 		}
 		case CAM_SENSOR_PACKET_OPCODE_SENSOR_SPC: {
 			i2c_set = &s_ctrl->i2c_data.spc_settings;
+			break;
+		}
+		case CAM_SENSOR_PACKET_OPCODE_SENSOR_PDC: {
+			i2c_set = &s_ctrl->i2c_data.pdc_settings;
 			break;
 		}
 #endif
@@ -2539,7 +2536,7 @@ EXPORT_SYMBOL(cam_sensor_apply_settings);
 
 int32_t cam_sensor_apply_request(struct cam_req_mgr_apply_request *apply)
 {
-	int32_t rc = 0;
+	int32_t idx, rc = 0;
 	struct cam_sensor_ctrl_t *s_ctrl = NULL;
 	int32_t curr_idx, last_applied_idx;
 	enum cam_sensor_packet_opcodes opcode =
@@ -2555,13 +2552,18 @@ int32_t cam_sensor_apply_request(struct cam_req_mgr_apply_request *apply)
 		return -EINVAL;
 	}
 
-	if ((s_ctrl->modeswitch_delay == CAM_MODESWITCH_DELAY_1) &&
-		(apply->request_id > s_ctrl->last_flush_req + 1)) {
-		cam_sensor_apply_settings(s_ctrl, apply->request_id - 1,
-			CAM_SENSOR_PACKET_OPCODE_SENSOR_DEFERRED_META);
-		CAM_DBG(CAM_SENSOR, "Sensor[%d] applying deferred settings from req id: %lld",
-			s_ctrl->soc_info.index, apply->request_id);
+	if (apply->request_id > 1) {
+		idx = (apply->request_id - 1) % MAX_PER_FRAME_ARRAY;
+		if (s_ctrl->sensor_res[idx].feature_mask &
+			CAM_SENSOR_FEATURE_ALWAYS_APPLY_DEFERRED_META) {
+			cam_sensor_apply_settings(s_ctrl, apply->request_id - 1,
+				CAM_SENSOR_PACKET_OPCODE_SENSOR_DEFERRED_META);
+			CAM_DBG(CAM_SENSOR,
+				"Sensor[%d] applying deferred settings from req id: %lld",
+				s_ctrl->soc_info.index, apply->request_id);
+		}
 	}
+
 
 	if ((apply->recovery) && (apply->request_id > 0)) {
 		if (apply->request_id <= s_ctrl->last_applied_req) {

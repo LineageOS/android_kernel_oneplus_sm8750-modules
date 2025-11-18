@@ -7,4 +7,5 @@ int32_t oplus_cam_actuator_ignore_init_error(struct cam_actuator_ctrl_t *a_ctrl,
 int32_t oplus_cam_actuator_construct_default_power_setting(struct cam_actuator_ctrl_t *a_ctrl, struct cam_sensor_power_ctrl_t *power_info);
 int32_t oplus_cam_actuator_power_up(struct cam_actuator_ctrl_t *a_ctrl, struct cam_sensor_power_ctrl_t *power_info);
 int oplus_cam_actuator_read_current(void *arg);
+int oplus_cam_actuator_SetNotifyRfiService(struct cam_actuator_ctrl_t *a_ctrl, struct i2c_settings_array *i2c_set);
 #endif /* _OPLUS_CAM_EEPROM_H */

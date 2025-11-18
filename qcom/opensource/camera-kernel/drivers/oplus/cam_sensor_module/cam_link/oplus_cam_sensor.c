@@ -295,6 +295,34 @@ int oplus_cam_sensor_apply_settings(struct cam_sensor_ctrl_t *s_ctrl)
 		else
 			CAM_ERR(CAM_SENSOR, "%s: init setting not readly",s_ctrl->sensor_name);
 	}
+	if (s_ctrl->i2c_data.pdc_settings.is_settings_valid &&
+		(s_ctrl->i2c_data.pdc_settings.request_id == 0)) {
+		if (s_ctrl->sensor_initsetting_state == CAM_SENSOR_SETTING_WRITE_SUCCESS) {
+			trace_int("KMD_PDC1", 1);
+			rc = cam_sensor_apply_settings(s_ctrl, 0, CAM_SENSOR_PACKET_OPCODE_SENSOR_PDC);
+			trace_int("KMD_PDC1", 0);
+			if (rc) {
+				CAM_WARN(CAM_SENSOR, "%s:retry apply pdc settings %d", s_ctrl->sensor_name, rc);
+				trace_int("KMD_PDC2", 1);
+				rc = cam_sensor_apply_settings(s_ctrl, 0, CAM_SENSOR_PACKET_OPCODE_SENSOR_PDC);
+				trace_int("KMD_PDC2", 0);
+				if (rc) {
+					CAM_WARN(CAM_SENSOR, "%s: Failed apply pdc settings %d",
+						s_ctrl->sensor_name, rc);
+					delete_request(&s_ctrl->i2c_data.pdc_settings);
+					return rc;
+				}
+			}
+			rc = delete_request(&s_ctrl->i2c_data.pdc_settings);
+			if (rc < 0) {
+				CAM_ERR(CAM_SENSOR,"%s: Fail in deleting the pdc settings",
+					s_ctrl->sensor_name);
+				return rc;
+			}
+		}
+		else
+			CAM_ERR(CAM_SENSOR,"%s: init setting not readly",s_ctrl->sensor_name);
+	}
 	if (s_ctrl->i2c_data.resolution_settings.is_settings_valid &&
 		(s_ctrl->i2c_data.resolution_settings.request_id == 0)) {
 		if (s_ctrl->sensor_initsetting_state == CAM_SENSOR_SETTING_WRITE_SUCCESS) {
@@ -486,7 +514,7 @@ void oplus_sensor_ov_bypass_framedrop(struct cam_sensor_ctrl_t *s_ctrl,enum cam_
 void oplus_sensor_sony_bypass_vsync(struct cam_sensor_ctrl_t *s_ctrl,struct i2c_settings_list *i2c_list)
 {
 	struct sensor_vsync_info vsync_info = s_ctrl->vsync_info;
-	CAM_INFO(CAM_SENSOR,"is_in_high_level is %d",s_ctrl->is_in_high_level);
+	CAM_DBG(CAM_SENSOR,"is_in_high_level is %d",s_ctrl->is_in_high_level);
 	for (int i = 0; i < i2c_list->i2c_settings.size; i++)
 	{
 		if(i2c_list->i2c_settings.reg_setting[i].reg_addr == vsync_info.vsync_enable_reg_addr)

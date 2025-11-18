@@ -2346,7 +2346,6 @@ static int __cam_isp_handle_deferred_buf_done(
 		}
 
 		if (!bubble_handling) {
-
 #ifdef OPLUS_FEATURE_CAMERA_COMMON
 			CAM_WARN_RATE_LIMIT(CAM_ISP,
 				"Unexpected Buf done for res=0x%x on ctx[%u] link[0x%x] for Req %llu, status=%d, possible bh delays",
@@ -2358,6 +2357,7 @@ static int __cam_isp_handle_deferred_buf_done(
 				req_isp->fence_map_out[j].resource_handle, ctx->ctx_id,
 				ctx->link_hdl, req->request_id, status);
 #endif
+
 			rc = cam_sync_signal(req_isp->fence_map_out[j].sync_id,
 				status, event_cause);
 			if (rc) {
@@ -3564,7 +3564,6 @@ static int __cam_isp_ctx_notify_sof_in_activated_state(
 	uint64_t last_cdm_done_req = 0;
 	struct cam_isp_hw_epoch_event_data *epoch_done_event_data =
 			(struct cam_isp_hw_epoch_event_data *)evt_data;
-
 #ifdef OPLUS_FEATURE_CAMERA_COMMON
 	char trace[64] = {0};
 #endif
@@ -3876,6 +3875,7 @@ static int __cam_isp_ctx_epoch_in_applied(struct cam_isp_context *ctx_isp,
 			__cam_isp_ctx_send_sof_timestamp(ctx_isp, 0,
 				CAM_REQ_MGR_SOF_EVENT_SUCCESS);
 		}
+
 		return 0;
 	}
 

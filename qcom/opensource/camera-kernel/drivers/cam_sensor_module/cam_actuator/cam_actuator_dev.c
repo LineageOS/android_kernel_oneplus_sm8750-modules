@@ -13,6 +13,11 @@
 #include "cam_compat.h"
 #include "cam_mem_mgr_api.h"
 
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+#include "cam_compat.h"
+static bool gProbe_done;
+#endif
+
 static struct cam_i3c_actuator_data {
 	struct cam_actuator_ctrl_t                  *a_ctrl;
 	struct completion                            probe_complete;
@@ -595,6 +600,10 @@ static int32_t cam_actuator_driver_platform_probe(
 	if (rc)
 		CAM_ERR(CAM_ACTUATOR, "failed to add component rc: %d", rc);
 
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+		gProbe_done = true;
+#endif
+
 	return rc;
 }
 
@@ -787,6 +796,11 @@ int cam_actuator_driver_init(void)
 	struct device_node                      *dev;
 	int num_entries = 0;
 
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+		void *drv_ptr = NULL;
+		gProbe_done = false;
+#endif
+
 	rc = platform_driver_register(&cam_actuator_platform_driver);
 	if (rc < 0) {
 		CAM_ERR(CAM_ACTUATOR,
@@ -830,6 +844,14 @@ i3c_register_err:
 	i2c_del_driver(&cam_actuator_i2c_driver);
 i2c_register_err:
 	platform_driver_unregister(&cam_actuator_platform_driver);
+
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+		if (gProbe_done == false) {
+			CAM_ERR(CAM_SENSOR, "%s deferred probe", cam_actuator_platform_driver.driver.name);
+			drv_ptr = (void*)&(cam_actuator_platform_driver.driver);
+			dev_defer_supplier_debug(drv_ptr);
+		}
+#endif
 
 	return rc;
 }

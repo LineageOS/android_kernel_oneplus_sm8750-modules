@@ -3,19 +3,19 @@
  * Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
-#ifndef _CAM_CSIPHY_2_3_0_HWREG_PISTA_FRONT_H_
-#define _CAM_CSIPHY_2_3_0_HWREG_PISTA_FRONT_H_
+#ifndef _CAM_CSIPHY_2_3_0_HWREG_KTM_MAIN_H_
+#define _CAM_CSIPHY_2_3_0_HWREG_KTM_MAIN_H_
 
 #include "../cam_csiphy_dev.h"
 
-struct cam_csiphy_aon_sel_params_t aon_cam_select_params_2_3_0_pista_front = {
+struct cam_csiphy_aon_sel_params_t aon_cam_select_params_2_3_0_ktm_main = {
 	.aon_cam_sel_offset[0] = 0x01E0,
 	.aon_cam_sel_offset[1] = 0x01E4,
 	.cam_sel_mask = BIT(0),
 	.mclk_sel_mask = BIT(8),
 };
 
-struct cam_cphy_dphy_status_reg_params_t status_regs_2_3_0_pista_front = {
+struct cam_cphy_dphy_status_reg_params_t status_regs_2_3_0_ktm_main = {
 	.csiphy_3ph_status0_offset = 0x0340,
 	.csiphy_2ph_status0_offset = 0x00C0,
 	.refgen_status_offset = 0x1184,
@@ -24,28 +24,28 @@ struct cam_cphy_dphy_status_reg_params_t status_regs_2_3_0_pista_front = {
 	.csiphy_2ph_status_size = 20,
 };
 
-struct csiphy_reg_t csiphy_lane_en_reg_2_3_0_pista_front[] = {
+struct csiphy_reg_t csiphy_lane_en_reg_2_3_0_ktm_main[] = {
 	{0x1014, 0x00, 0x00, CSIPHY_LANE_ENABLE},
 };
 
-struct csiphy_reg_t csiphy_common_reg_2_3_0_pista_front[] = {
+struct csiphy_reg_t csiphy_common_reg_2_3_0_ktm_main[] = {
 	{0x1084, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x108C, 0x0E, 0x01, CSIPHY_DEFAULT_PARAMS},
 	{0x101C, 0x7A, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x1018, 0x01, 0x00, CSIPHY_DEFAULT_PARAMS},
 };
 
-struct csiphy_reg_t csiphy_reset_enter_reg_2_3_0_pista_front[] = {
+struct csiphy_reg_t csiphy_reset_enter_reg_2_3_0_ktm_main[] = {
 	{0x1000, 0x01, 0x01, CSIPHY_DEFAULT_PARAMS},
 };
 
-struct csiphy_reg_t csiphy_reset_exit_reg_2_3_0_pista_front[] = {
+struct csiphy_reg_t csiphy_reset_exit_reg_2_3_0_ktm_main[] = {
 	{0x1000, 0x02, 0x00, CSIPHY_2PH_REGS},
 	{0x1000, 0x00, 0x00, CSIPHY_2PH_COMBO_REGS},
 	{0x1000, 0x0E, 0xBE8, CSIPHY_3PH_REGS},
 };
 
-struct csiphy_reg_t csiphy_irq_reg_2_3_0_pista_front[] = {
+struct csiphy_reg_t csiphy_irq_reg_2_3_0_ktm_main[] = {
 	{0x102c, 0xff, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x1030, 0xff, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x1034, 0xfb, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -59,7 +59,7 @@ struct csiphy_reg_t csiphy_irq_reg_2_3_0_pista_front[] = {
 	{0x1054, 0xff, 0x64, CSIPHY_DEFAULT_PARAMS},
 };
 
-struct csiphy_reg_t csiphy_2ph_v2_3_0_reg_pista_front[] = {
+struct csiphy_reg_t csiphy_2ph_v2_3_0_reg_ktm_main[] = {
 	{0x0E94, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0EA0, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0E90, 0x0F, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -93,60 +93,60 @@ struct csiphy_reg_t csiphy_2ph_v2_3_0_reg_pista_front[] = {
 	{0x0E2C, 0x01, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0E34, 0x0F, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0E1C, 0x0A, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0E14, 0x20, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0E14, 0x60, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0E3C, 0xB8, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0E04, 0x2E, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0E04, 0x0C, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0E20, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0E08, 0x19, 0x00, CSIPHY_SETTLE_CNT_LOWER_BYTE},
-	{0x0E10, 0x72, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0E10, 0x52, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0030, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0000, 0x8C, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0038, 0xFE, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x002C, 0x01, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0034, 0x0F, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x001C, 0x0A, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0014, 0x20, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0014, 0x60, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x003C, 0xB8, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0004, 0x2E, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0004, 0x0C, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0020, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0008, 0x19, 0x00, CSIPHY_SETTLE_CNT_LOWER_BYTE},
-	{0x0010, 0x72, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0010, 0x52, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0430, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0400, 0x8C, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0438, 0xFE, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x042C, 0x01, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0434, 0x0F, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x041C, 0x0A, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0414, 0x20, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0414, 0x60, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x043C, 0xB8, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0404, 0x2E, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0404, 0x0C, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0420, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0408, 0x19, 0x00, CSIPHY_SETTLE_CNT_LOWER_BYTE},
-	{0x0410, 0x72, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0410, 0x52, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0830, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0800, 0x8C, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0838, 0xFE, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x082C, 0x01, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0834, 0x0F, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x081C, 0x0A, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0814, 0x20, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0814, 0x60, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x083C, 0xB8, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0804, 0x2E, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0804, 0x0C, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0820, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0808, 0x19, 0x00, CSIPHY_SETTLE_CNT_LOWER_BYTE},
-	{0x0810, 0x72, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0810, 0x52, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0C30, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0C00, 0x8C, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0C38, 0xFE, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0C2C, 0x01, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0C34, 0x0F, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0C1C, 0x0A, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0C14, 0x20, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0C14, 0x60, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0C3C, 0xB8, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0C04, 0x2E, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0C04, 0x0C, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0C20, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0C08, 0x19, 0x00, CSIPHY_SETTLE_CNT_LOWER_BYTE},
-	{0x0C10, 0x72, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0C10, 0x52, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0094, 0xD7, 0x00, CSIPHY_SKEW_CAL},
 	{0x005C, 0x00, 0x00, CSIPHY_SKEW_CAL},
 	{0x0060, 0xFD, 0x00, CSIPHY_SKEW_CAL},
@@ -165,7 +165,7 @@ struct csiphy_reg_t csiphy_2ph_v2_3_0_reg_pista_front[] = {
 	{0x0C64, 0x7F, 0x00, CSIPHY_SKEW_CAL},
 };
 
-struct csiphy_reg_t csiphy_2ph_v2_3_0_combo_mode_reg_pista_front[] = {
+struct csiphy_reg_t csiphy_2ph_v2_3_0_combo_mode_reg_ktm_main[] = {
 	{0x0E94, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0EA0, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0E90, 0x0F, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -199,36 +199,36 @@ struct csiphy_reg_t csiphy_2ph_v2_3_0_combo_mode_reg_pista_front[] = {
 	{0x0E2C, 0x01, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0E34, 0x0F, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0E1C, 0x0A, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0E14, 0x20, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0E14, 0x60, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0E3C, 0xB8, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0E04, 0x2E, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0E04, 0x0C, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0E20, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0E08, 0x19, 0x00, CSIPHY_SETTLE_CNT_LOWER_BYTE},
-	{0x0E10, 0x72, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0E10, 0x52, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0030, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0000, 0x8C, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0038, 0xFE, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x002C, 0x01, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0034, 0x0F, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x001C, 0x0A, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0014, 0x20, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0014, 0x60, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x003C, 0xB8, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0004, 0x2E, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0004, 0x0C, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0020, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0008, 0x19, 0x00, CSIPHY_SETTLE_CNT_LOWER_BYTE},
-	{0x0010, 0x72, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0010, 0x52, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0430, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0400, 0x8C, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0438, 0xFE, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x042C, 0x01, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0434, 0x0F, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x041C, 0x0A, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0414, 0x20, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0414, 0x60, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x043C, 0xB8, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0404, 0x2E, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0404, 0x0C, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0420, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0408, 0x19, 0x00, CSIPHY_SETTLE_CNT_LOWER_BYTE},
-	{0x0410, 0x72, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0410, 0x52, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0830, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0800, 0x8C, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0838, 0xFE, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -236,12 +236,12 @@ struct csiphy_reg_t csiphy_2ph_v2_3_0_combo_mode_reg_pista_front[] = {
 	{0x082C, 0x01, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0834, 0x0F, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x081C, 0x0A, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0814, 0x20, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0814, 0x60, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x083C, 0xB8, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0804, 0x2E, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0804, 0x0C, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0820, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0808, 0x19, 0x00, CSIPHY_SETTLE_CNT_LOWER_BYTE},
-	{0x0810, 0x72, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0810, 0x52, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0C30, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0C28, 0x04, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0C00, 0x80, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -251,12 +251,12 @@ struct csiphy_reg_t csiphy_2ph_v2_3_0_combo_mode_reg_pista_front[] = {
 	{0x0C2C, 0x01, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0C34, 0x0F, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0C1C, 0x0A, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0C14, 0x20, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0C14, 0x60, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0C3C, 0xB8, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0C04, 0x2E, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0C04, 0x0C, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0C20, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0C08, 0x19, 0x00, CSIPHY_SETTLE_CNT_LOWER_BYTE},
-	{0x0C10, 0x72, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0C10, 0x52, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0094, 0xD7, 0x00, CSIPHY_SKEW_CAL},
 	{0x005C, 0x00, 0x00, CSIPHY_SKEW_CAL},
 	{0x0060, 0xFD, 0x00, CSIPHY_SKEW_CAL},
@@ -271,7 +271,7 @@ struct csiphy_reg_t csiphy_2ph_v2_3_0_combo_mode_reg_pista_front[] = {
 	{0x0864, 0x7F, 0x00, CSIPHY_SKEW_CAL},
 };
 
-struct csiphy_reg_t csiphy_3ph_v2_3_0_reg_pista_front[] = {
+struct csiphy_reg_t csiphy_3ph_v2_3_0_reg_ktm_main[] = {
 	{0x0294, 0x0D, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x02F4, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x02F8, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -346,7 +346,7 @@ struct csiphy_reg_t csiphy_3ph_v2_3_0_reg_pista_front[] = {
 	{0x0A90, 0x02, 0x00, CSIPHY_DEFAULT_PARAMS},
 };
 
-struct csiphy_reg_t datarate_230_80Msps_pista_front[] = {
+struct csiphy_reg_t datarate_230_80Msps_ktm_main[] = {
 	/* AFE Settings */
 	{0x0268, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x026C, 0x3F, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -387,7 +387,7 @@ struct csiphy_reg_t datarate_230_80Msps_pista_front[] = {
 	{0x0A14, 0x6B, 0x00, CSIPHY_DEFAULT_PARAMS},
 };
 
-struct csiphy_reg_t datarate_230_100Msps_pista_front[] = {
+struct csiphy_reg_t datarate_230_100Msps_ktm_main[] = {
 	/* AFE Settings */
 	{0x0268, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x026C, 0x3F, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -428,7 +428,7 @@ struct csiphy_reg_t datarate_230_100Msps_pista_front[] = {
 	{0x0A14, 0x6B, 0x00, CSIPHY_DEFAULT_PARAMS},
 };
 
-struct csiphy_reg_t datarate_230_200Msps_pista_front[] = {
+struct csiphy_reg_t datarate_230_200Msps_ktm_main[] = {
 	/* AFE Settings */
 	{0x0268, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x026C, 0x3F, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -469,7 +469,7 @@ struct csiphy_reg_t datarate_230_200Msps_pista_front[] = {
 	{0x0A14, 0x33, 0x00, CSIPHY_DEFAULT_PARAMS},
 };
 
-struct csiphy_reg_t datarate_230_300Msps_pista_front[] = {
+struct csiphy_reg_t datarate_230_300Msps_ktm_main[] = {
 	/* AFE Settings */
 	{0x0268, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x026C, 0x3F, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -510,7 +510,7 @@ struct csiphy_reg_t datarate_230_300Msps_pista_front[] = {
 	{0x0A14, 0x20, 0x00, CSIPHY_DEFAULT_PARAMS},
 };
 
-struct csiphy_reg_t datarate_230_350Msps_pista_front[] = {
+struct csiphy_reg_t datarate_230_350Msps_ktm_main[] = {
 	/* AFE Settings */
 	{0x0268, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x026C, 0x3F, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -551,7 +551,7 @@ struct csiphy_reg_t datarate_230_350Msps_pista_front[] = {
 	{0x0A14, 0x20, 0x00, CSIPHY_DEFAULT_PARAMS},
 };
 
-struct csiphy_reg_t datarate_230_400Msps_pista_front[] = {
+struct csiphy_reg_t datarate_230_400Msps_ktm_main[] = {
 	/* AFE Settings */
 	{0x0268, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x026C, 0x3F, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -592,7 +592,7 @@ struct csiphy_reg_t datarate_230_400Msps_pista_front[] = {
 	{0x0A14, 0x20, 0x00, CSIPHY_DEFAULT_PARAMS},
 };
 
-struct csiphy_reg_t datarate_230_500Msps_pista_front[] = {
+struct csiphy_reg_t datarate_230_500Msps_ktm_main[] = {
 	/* AFE Settings */
 	{0x0268, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x026C, 0x3F, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -633,7 +633,7 @@ struct csiphy_reg_t datarate_230_500Msps_pista_front[] = {
 	{0x0A14, 0x20, 0x00, CSIPHY_DEFAULT_PARAMS},
 };
 
-struct csiphy_reg_t datarate_230_600Msps_pista_front[] = {
+struct csiphy_reg_t datarate_230_600Msps_ktm_main[] = {
 	/* AFE Settings */
 	{0x0268, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x026C, 0x3F, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -674,7 +674,7 @@ struct csiphy_reg_t datarate_230_600Msps_pista_front[] = {
 	{0x0A14, 0x20, 0x00, CSIPHY_DEFAULT_PARAMS},
 };
 
-struct csiphy_reg_t datarate_230_700Msps_pista_front[] = {
+struct csiphy_reg_t datarate_230_700Msps_ktm_main[] = {
 	/* AFE Settings */
 	{0x0268, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x026C, 0x3F, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -715,7 +715,7 @@ struct csiphy_reg_t datarate_230_700Msps_pista_front[] = {
 	{0x0A14, 0x20, 0x00, CSIPHY_DEFAULT_PARAMS},
 };
 
-struct csiphy_reg_t datarate_230_800Msps_pista_front[] = {
+struct csiphy_reg_t datarate_230_800Msps_ktm_main[] = {
 	/* AFE Settings */
 	{0x0268, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x026C, 0x3F, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -756,7 +756,7 @@ struct csiphy_reg_t datarate_230_800Msps_pista_front[] = {
 	{0x0A14, 0x09, 0x00, CSIPHY_DEFAULT_PARAMS},
 };
 
-struct csiphy_reg_t datarate_230_900Msps_pista_front[] = {
+struct csiphy_reg_t datarate_230_900Msps_ktm_main[] = {
 	/* AFE Settings */
 	{0x0268, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x026C, 0x3F, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -797,7 +797,7 @@ struct csiphy_reg_t datarate_230_900Msps_pista_front[] = {
 	{0x0A14, 0x09, 0x00, CSIPHY_DEFAULT_PARAMS},
 };
 
-struct csiphy_reg_t datarate_230_1p0Gsps_pista_front[] = {
+struct csiphy_reg_t datarate_230_1p0Gsps_ktm_main[] = {
 	/* AFE Settings */
 	{0x0268, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x026C, 0x3F, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -838,7 +838,7 @@ struct csiphy_reg_t datarate_230_1p0Gsps_pista_front[] = {
 	{0x0A14, 0x09, 0x00, CSIPHY_DEFAULT_PARAMS},
 };
 
-struct csiphy_reg_t datarate_230_1p2Gsps_pista_front[] = {
+struct csiphy_reg_t datarate_230_1p2Gsps_ktm_main[] = {
 	/* AFE Settings */
 	{0x0268, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x026C, 0x1D, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -879,7 +879,7 @@ struct csiphy_reg_t datarate_230_1p2Gsps_pista_front[] = {
 	{0x0A14, 0x09, 0x00, CSIPHY_DEFAULT_PARAMS},
 };
 
-struct csiphy_reg_t datarate_230_1p5Gsps_pista_front[] = {
+struct csiphy_reg_t datarate_230_1p5Gsps_ktm_main[] = {
 	/* AFE Settings */
 	{0x0268, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x026C, 0x1D, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -920,7 +920,7 @@ struct csiphy_reg_t datarate_230_1p5Gsps_pista_front[] = {
 	{0x0A14, 0x09, 0x00, CSIPHY_DEFAULT_PARAMS},
 };
 
-struct csiphy_reg_t datarate_230_1p7Gsps_pista_front[] = {
+struct csiphy_reg_t datarate_230_1p7Gsps_ktm_main[] = {
 	/* AFE Settings */
 	{0x0268, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x026C, 0x1D, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -961,7 +961,7 @@ struct csiphy_reg_t datarate_230_1p7Gsps_pista_front[] = {
 	{0x0A14, 0x09, 0x00, CSIPHY_DEFAULT_PARAMS},
 };
 
-struct csiphy_reg_t datarate_230_2p0Gsps_pista_front[] = {
+struct csiphy_reg_t datarate_230_2p0Gsps_ktm_main[] = {
 	/* AFE Settings */
 	{0x0268, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x026C, 0x1D, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -1002,7 +1002,7 @@ struct csiphy_reg_t datarate_230_2p0Gsps_pista_front[] = {
 	{0x0A14, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 };
 
-struct csiphy_reg_t datarate_230_2p1Gsps_pista_front[] = {
+struct csiphy_reg_t datarate_230_2p1Gsps_ktm_main[] = {
 	/* AFE Settings */
 	{0x0268, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x026C, 0x1D, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -1043,7 +1043,7 @@ struct csiphy_reg_t datarate_230_2p1Gsps_pista_front[] = {
 	{0x0A14, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 };
 
-struct csiphy_reg_t datarate_230_2p35Gsps_pista_front[] = {
+struct csiphy_reg_t datarate_230_2p35Gsps_ktm_main[] = {
 	/* AFE Settings */
 	{0x0268, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x026C, 0x1D, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -1084,7 +1084,48 @@ struct csiphy_reg_t datarate_230_2p35Gsps_pista_front[] = {
 	{0x0A14, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 };
 
-struct csiphy_reg_t datarate_230_2p5Gsps_pista_front[] = {
+struct csiphy_reg_t datarate_230_2p5Gsps_ktm_main[] = {
+	/* AFE Settings */
+	{0x0268, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x026C, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0270, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0274, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0278, 0x28, 0x00, CSIPHY_CDR_LN_SETTINGS},
+	{0x0288, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x028C, 0x75, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0290, 0x02, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0668, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x066C, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0670, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0674, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0678, 0x28, 0x00, CSIPHY_CDR_LN_SETTINGS},
+	{0x0688, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x068C, 0x75, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0690, 0x02, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0A68, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0A6C, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0A70, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0A74, 0x00, 0x0A, CSIPHY_DEFAULT_PARAMS},
+	{0x0A78, 0x28, 0x00, CSIPHY_CDR_LN_SETTINGS},
+	{0x0A88, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0A8C, 0x75, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0A90, 0x02, 0x00, CSIPHY_DEFAULT_PARAMS},
+	/* Datarate Sensitive */
+	{0x020C, 0x22, 0x00, CSIPHY_SETTLE_CNT_LOWER_BYTE},
+	{0x0208, 0x00, 0x00, CSIPHY_SETTLE_CNT_HIGHER_BYTE},
+	{0x0210, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0214, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x060C, 0x22, 0x00, CSIPHY_SETTLE_CNT_LOWER_BYTE},
+	{0x0608, 0x00, 0x00, CSIPHY_SETTLE_CNT_HIGHER_BYTE},
+	{0x0610, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0614, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0A0C, 0x22, 0x00, CSIPHY_SETTLE_CNT_LOWER_BYTE},
+	{0x0A08, 0x00, 0x00, CSIPHY_SETTLE_CNT_HIGHER_BYTE},
+	{0x0A10, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0A14, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+};
+
+struct csiphy_reg_t datarate_230_2p6Gsps_ktm_main[] = {
 	/* AFE Settings */
 	{0x0268, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x026C, 0x1D, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -1125,48 +1166,7 @@ struct csiphy_reg_t datarate_230_2p5Gsps_pista_front[] = {
 	{0x0A14, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 };
 
-struct csiphy_reg_t datarate_230_2p6Gsps_pista_front[] = {
-	/* AFE Settings */
-	{0x0268, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x026C, 0x1D, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0270, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0274, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0278, 0x12, 0x00, CSIPHY_CDR_LN_SETTINGS},
-	{0x0288, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x028C, 0x75, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0290, 0x02, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0668, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x066C, 0x1D, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0670, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0674, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0678, 0x12, 0x00, CSIPHY_CDR_LN_SETTINGS},
-	{0x0688, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x068C, 0x75, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0690, 0x02, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0A68, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0A6C, 0x1D, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0A70, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0A74, 0x00, 0x0A, CSIPHY_DEFAULT_PARAMS},
-	{0x0A78, 0x12, 0x00, CSIPHY_CDR_LN_SETTINGS},
-	{0x0A88, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0A8C, 0x75, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0A90, 0x02, 0x00, CSIPHY_DEFAULT_PARAMS},
-	/* Datarate Sensitive */
-	{0x020C, 0x22, 0x00, CSIPHY_SETTLE_CNT_LOWER_BYTE},
-	{0x0208, 0x00, 0x00, CSIPHY_SETTLE_CNT_HIGHER_BYTE},
-	{0x0210, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0214, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x060C, 0x22, 0x00, CSIPHY_SETTLE_CNT_LOWER_BYTE},
-	{0x0608, 0x00, 0x00, CSIPHY_SETTLE_CNT_HIGHER_BYTE},
-	{0x0610, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0614, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0A0C, 0x22, 0x00, CSIPHY_SETTLE_CNT_LOWER_BYTE},
-	{0x0A08, 0x00, 0x00, CSIPHY_SETTLE_CNT_HIGHER_BYTE},
-	{0x0A10, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0A14, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
-};
-
-struct csiphy_reg_t datarate_230_2p8Gsps_pista_front[] = {
+struct csiphy_reg_t datarate_230_2p8Gsps_ktm_main[] = {
 	/* AFE Settings */
 	{0x0268, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x026C, 0x1D, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -1207,7 +1207,7 @@ struct csiphy_reg_t datarate_230_2p8Gsps_pista_front[] = {
 	{0x0A14, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 };
 
-struct csiphy_reg_t datarate_230_3p0Gsps_pista_front[] = {
+struct csiphy_reg_t datarate_230_3p0Gsps_ktm_main[] = {
 	/* AFE Settings */
 	{0x0268, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x026C, 0x1D, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -1248,7 +1248,48 @@ struct csiphy_reg_t datarate_230_3p0Gsps_pista_front[] = {
 	{0x0A14, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 };
 
-struct csiphy_reg_t datarate_230_3p3Gsps_pista_front[] = {
+struct csiphy_reg_t datarate_230_3p3Gsps_ktm_main[] = {
+	/* AFE Settings */
+	{0x0268, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x026C, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0270, 0x01, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0274, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0278, 0x18, 0x00, CSIPHY_CDR_LN_SETTINGS},
+	{0x0288, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x028C, 0x75, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0290, 0x02, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0668, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x066C, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0670, 0x01, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0674, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0678, 0x18, 0x00, CSIPHY_CDR_LN_SETTINGS},
+	{0x0688, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x068C, 0x75, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0690, 0x02, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0A68, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0A6C, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0A70, 0x01, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0A74, 0x00, 0x0A, CSIPHY_DEFAULT_PARAMS},
+	{0x0A78, 0x18, 0x00, CSIPHY_CDR_LN_SETTINGS},
+	{0x0A88, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0A8C, 0x75, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0A90, 0x02, 0x00, CSIPHY_DEFAULT_PARAMS},
+	/* Datarate Sensitive */
+	{0x020C, 0x1E, 0x00, CSIPHY_SETTLE_CNT_LOWER_BYTE},
+	{0x0208, 0x00, 0x00, CSIPHY_SETTLE_CNT_HIGHER_BYTE},
+	{0x0210, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0214, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x060C, 0x1E, 0x00, CSIPHY_SETTLE_CNT_LOWER_BYTE},
+	{0x0608, 0x00, 0x00, CSIPHY_SETTLE_CNT_HIGHER_BYTE},
+	{0x0610, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0614, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0A0C, 0x1E, 0x00, CSIPHY_SETTLE_CNT_LOWER_BYTE},
+	{0x0A08, 0x00, 0x00, CSIPHY_SETTLE_CNT_HIGHER_BYTE},
+	{0x0A10, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+	{0x0A14, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
+};
+
+struct csiphy_reg_t datarate_230_3p5Gsps_ktm_main[] = {
 	/* AFE Settings */
 	{0x0268, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x026C, 0x1D, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -1289,48 +1330,7 @@ struct csiphy_reg_t datarate_230_3p3Gsps_pista_front[] = {
 	{0x0A14, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 };
 
-struct csiphy_reg_t datarate_230_3p5Gsps_pista_front[] = {
-	/* AFE Settings */
-	{0x0268, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x026C, 0x1D, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0270, 0x01, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0274, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0278, 0x0F, 0x00, CSIPHY_CDR_LN_SETTINGS},
-	{0x0288, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x028C, 0x75, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0290, 0x02, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0668, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x066C, 0x1D, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0670, 0x01, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0674, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0678, 0x0F, 0x00, CSIPHY_CDR_LN_SETTINGS},
-	{0x0688, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x068C, 0x75, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0690, 0x02, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0A68, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0A6C, 0x1D, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0A70, 0x01, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0A74, 0x00, 0x0A, CSIPHY_DEFAULT_PARAMS},
-	{0x0A78, 0x0F, 0x00, CSIPHY_CDR_LN_SETTINGS},
-	{0x0A88, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0A8C, 0x75, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0A90, 0x02, 0x00, CSIPHY_DEFAULT_PARAMS},
-	/* Datarate Sensitive */
-	{0x020C, 0x1E, 0x00, CSIPHY_SETTLE_CNT_LOWER_BYTE},
-	{0x0208, 0x00, 0x00, CSIPHY_SETTLE_CNT_HIGHER_BYTE},
-	{0x0210, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0214, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x060C, 0x1E, 0x00, CSIPHY_SETTLE_CNT_LOWER_BYTE},
-	{0x0608, 0x00, 0x00, CSIPHY_SETTLE_CNT_HIGHER_BYTE},
-	{0x0610, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0614, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0A0C, 0x1E, 0x00, CSIPHY_SETTLE_CNT_LOWER_BYTE},
-	{0x0A08, 0x00, 0x00, CSIPHY_SETTLE_CNT_HIGHER_BYTE},
-	{0x0A10, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
-	{0x0A14, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
-};
-
-struct csiphy_reg_t datarate_230_4p0Gsps_pista_front[] = {
+struct csiphy_reg_t datarate_230_4p0Gsps_ktm_main[] = {
 	/* AFE Settings */
 	{0x0268, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x026C, 0x3D, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -1371,7 +1371,7 @@ struct csiphy_reg_t datarate_230_4p0Gsps_pista_front[] = {
 	{0x0A14, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 };
 
-struct csiphy_reg_t datarate_230_4p5Gsps_pista_front[] = {
+struct csiphy_reg_t datarate_230_4p5Gsps_ktm_main[] = {
 	/* AFE Settings */
 	{0x0268, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x026C, 0x3D, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -1412,7 +1412,7 @@ struct csiphy_reg_t datarate_230_4p5Gsps_pista_front[] = {
 	{0x0A14, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 };
 
-struct csiphy_reg_t datarate_230_5p0Gsps_pista_front[] = {
+struct csiphy_reg_t datarate_230_5p0Gsps_ktm_main[] = {
 	/* AFE Settings */
 	{0x0268, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x026C, 0x3D, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -1453,7 +1453,7 @@ struct csiphy_reg_t datarate_230_5p0Gsps_pista_front[] = {
 	{0x0A14, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 };
 
-struct csiphy_reg_t datarate_230_5p5Gsps_pista_front[] = {
+struct csiphy_reg_t datarate_230_5p5Gsps_ktm_main[] = {
 	/* AFE Settings */
 	{0x0268, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x026C, 0x1D, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -1494,7 +1494,7 @@ struct csiphy_reg_t datarate_230_5p5Gsps_pista_front[] = {
 	{0x0A14, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 };
 
-struct csiphy_reg_t datarate_230_6p0Gsps_pista_front[] = {
+struct csiphy_reg_t datarate_230_6p0Gsps_ktm_main[] = {
 	/* AFE Settings */
 	{0x0268, 0xF1, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x026C, 0x1B, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -1535,387 +1535,387 @@ struct csiphy_reg_t datarate_230_6p0Gsps_pista_front[] = {
 	{0x0A14, 0x00, 0x00, CSIPHY_DEFAULT_PARAMS},
 };
 
-static struct data_rate_reg_info_t data_rate_settings_2_3_0_pista_front[] = {
+static struct data_rate_reg_info_t data_rate_settings_2_3_0_ktm_main[] = {
 	{
 		/* ((80 MSpS) * (10^6) * (2.28 bits/symbol)) rounded value */
 		.bandwidth = 182400000,
-		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_80Msps_pista_front),
-		.data_rate_reg_array[0][0] = datarate_230_80Msps_pista_front,
-		.data_rate_reg_array[1][0] = datarate_230_80Msps_pista_front,
-		.data_rate_reg_array[2][0] = datarate_230_80Msps_pista_front,
-		.data_rate_reg_array[3][0] = datarate_230_80Msps_pista_front,
-		.data_rate_reg_array[4][0] = datarate_230_80Msps_pista_front,
-		.data_rate_reg_array[5][0] = datarate_230_80Msps_pista_front,
-		.data_rate_reg_array[6][0] = datarate_230_80Msps_pista_front,
-		.data_rate_reg_array[7][0] = datarate_230_80Msps_pista_front,
+		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_80Msps_ktm_main),
+		.data_rate_reg_array[0][0] = datarate_230_80Msps_ktm_main,
+		.data_rate_reg_array[1][0] = datarate_230_80Msps_ktm_main,
+		.data_rate_reg_array[2][0] = datarate_230_80Msps_ktm_main,
+		.data_rate_reg_array[3][0] = datarate_230_80Msps_ktm_main,
+		.data_rate_reg_array[4][0] = datarate_230_80Msps_ktm_main,
+		.data_rate_reg_array[5][0] = datarate_230_80Msps_ktm_main,
+		.data_rate_reg_array[6][0] = datarate_230_80Msps_ktm_main,
+		.data_rate_reg_array[7][0] = datarate_230_80Msps_ktm_main,
 	},
 	{
 		/* ((100 MSpS) * (10^6) * (2.28 bits/symbol)) rounded value */
 		.bandwidth = 228000000,
-		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_100Msps_pista_front),
-		.data_rate_reg_array[0][0] = datarate_230_100Msps_pista_front,
-		.data_rate_reg_array[1][0] = datarate_230_100Msps_pista_front,
-		.data_rate_reg_array[2][0] = datarate_230_100Msps_pista_front,
-		.data_rate_reg_array[3][0] = datarate_230_100Msps_pista_front,
-		.data_rate_reg_array[4][0] = datarate_230_100Msps_pista_front,
-		.data_rate_reg_array[5][0] = datarate_230_100Msps_pista_front,
-		.data_rate_reg_array[6][0] = datarate_230_100Msps_pista_front,
-		.data_rate_reg_array[7][0] = datarate_230_100Msps_pista_front,
+		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_100Msps_ktm_main),
+		.data_rate_reg_array[0][0] = datarate_230_100Msps_ktm_main,
+		.data_rate_reg_array[1][0] = datarate_230_100Msps_ktm_main,
+		.data_rate_reg_array[2][0] = datarate_230_100Msps_ktm_main,
+		.data_rate_reg_array[3][0] = datarate_230_100Msps_ktm_main,
+		.data_rate_reg_array[4][0] = datarate_230_100Msps_ktm_main,
+		.data_rate_reg_array[5][0] = datarate_230_100Msps_ktm_main,
+		.data_rate_reg_array[6][0] = datarate_230_100Msps_ktm_main,
+		.data_rate_reg_array[7][0] = datarate_230_100Msps_ktm_main,
 	},
 	{
 		/* ((200 MSpS) * (10^6) * (2.28 bits/symbol)) rounded value */
 		.bandwidth = 456000000,
-		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_200Msps_pista_front),
-		.data_rate_reg_array[0][0] = datarate_230_200Msps_pista_front,
-		.data_rate_reg_array[1][0] = datarate_230_200Msps_pista_front,
-		.data_rate_reg_array[2][0] = datarate_230_200Msps_pista_front,
-		.data_rate_reg_array[3][0] = datarate_230_200Msps_pista_front,
-		.data_rate_reg_array[4][0] = datarate_230_200Msps_pista_front,
-		.data_rate_reg_array[5][0] = datarate_230_200Msps_pista_front,
-		.data_rate_reg_array[6][0] = datarate_230_200Msps_pista_front,
-		.data_rate_reg_array[7][0] = datarate_230_200Msps_pista_front,
+		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_200Msps_ktm_main),
+		.data_rate_reg_array[0][0] = datarate_230_200Msps_ktm_main,
+		.data_rate_reg_array[1][0] = datarate_230_200Msps_ktm_main,
+		.data_rate_reg_array[2][0] = datarate_230_200Msps_ktm_main,
+		.data_rate_reg_array[3][0] = datarate_230_200Msps_ktm_main,
+		.data_rate_reg_array[4][0] = datarate_230_200Msps_ktm_main,
+		.data_rate_reg_array[5][0] = datarate_230_200Msps_ktm_main,
+		.data_rate_reg_array[6][0] = datarate_230_200Msps_ktm_main,
+		.data_rate_reg_array[7][0] = datarate_230_200Msps_ktm_main,
 	},
 	{
 		/* ((300 MSpS) * (10^6) * (2.28 bits/symbol)) rounded value */
 		.bandwidth = 684000000,
 		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_300Msps),
-		.data_rate_reg_array[0][0] = datarate_230_300Msps_pista_front,
-		.data_rate_reg_array[1][0] = datarate_230_300Msps_pista_front,
-		.data_rate_reg_array[2][0] = datarate_230_300Msps_pista_front,
-		.data_rate_reg_array[3][0] = datarate_230_300Msps_pista_front,
-		.data_rate_reg_array[4][0] = datarate_230_300Msps_pista_front,
-		.data_rate_reg_array[5][0] = datarate_230_300Msps_pista_front,
-		.data_rate_reg_array[6][0] = datarate_230_300Msps_pista_front,
-		.data_rate_reg_array[7][0] = datarate_230_300Msps_pista_front,
+		.data_rate_reg_array[0][0] = datarate_230_300Msps_ktm_main,
+		.data_rate_reg_array[1][0] = datarate_230_300Msps_ktm_main,
+		.data_rate_reg_array[2][0] = datarate_230_300Msps_ktm_main,
+		.data_rate_reg_array[3][0] = datarate_230_300Msps_ktm_main,
+		.data_rate_reg_array[4][0] = datarate_230_300Msps_ktm_main,
+		.data_rate_reg_array[5][0] = datarate_230_300Msps_ktm_main,
+		.data_rate_reg_array[6][0] = datarate_230_300Msps_ktm_main,
+		.data_rate_reg_array[7][0] = datarate_230_300Msps_ktm_main,
 	},
 	{
 		/* ((350 MSpS) * (10^6) * (2.28 bits/symbol)) rounded value */
 		.bandwidth = 798000000,
-		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_350Msps_pista_front),
-		.data_rate_reg_array[0][0] = datarate_230_350Msps_pista_front,
-		.data_rate_reg_array[1][0] = datarate_230_350Msps_pista_front,
-		.data_rate_reg_array[2][0] = datarate_230_350Msps_pista_front,
-		.data_rate_reg_array[3][0] = datarate_230_350Msps_pista_front,
-		.data_rate_reg_array[4][0] = datarate_230_350Msps_pista_front,
-		.data_rate_reg_array[5][0] = datarate_230_350Msps_pista_front,
-		.data_rate_reg_array[6][0] = datarate_230_350Msps_pista_front,
-		.data_rate_reg_array[7][0] = datarate_230_350Msps_pista_front,
+		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_350Msps_ktm_main),
+		.data_rate_reg_array[0][0] = datarate_230_350Msps_ktm_main,
+		.data_rate_reg_array[1][0] = datarate_230_350Msps_ktm_main,
+		.data_rate_reg_array[2][0] = datarate_230_350Msps_ktm_main,
+		.data_rate_reg_array[3][0] = datarate_230_350Msps_ktm_main,
+		.data_rate_reg_array[4][0] = datarate_230_350Msps_ktm_main,
+		.data_rate_reg_array[5][0] = datarate_230_350Msps_ktm_main,
+		.data_rate_reg_array[6][0] = datarate_230_350Msps_ktm_main,
+		.data_rate_reg_array[7][0] = datarate_230_350Msps_ktm_main,
 	},
 	{
 		/* ((400 MSpS) * (10^6) * (2.28 bits/symbol)) rounded value */
 		.bandwidth = 912000000,
-		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_400Msps_pista_front),
-		.data_rate_reg_array[0][0] = datarate_230_400Msps_pista_front,
-		.data_rate_reg_array[1][0] = datarate_230_400Msps_pista_front,
-		.data_rate_reg_array[2][0] = datarate_230_400Msps_pista_front,
-		.data_rate_reg_array[3][0] = datarate_230_400Msps_pista_front,
-		.data_rate_reg_array[4][0] = datarate_230_400Msps_pista_front,
-		.data_rate_reg_array[5][0] = datarate_230_400Msps_pista_front,
-		.data_rate_reg_array[6][0] = datarate_230_400Msps_pista_front,
-		.data_rate_reg_array[7][0] = datarate_230_400Msps_pista_front,
+		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_400Msps_ktm_main),
+		.data_rate_reg_array[0][0] = datarate_230_400Msps_ktm_main,
+		.data_rate_reg_array[1][0] = datarate_230_400Msps_ktm_main,
+		.data_rate_reg_array[2][0] = datarate_230_400Msps_ktm_main,
+		.data_rate_reg_array[3][0] = datarate_230_400Msps_ktm_main,
+		.data_rate_reg_array[4][0] = datarate_230_400Msps_ktm_main,
+		.data_rate_reg_array[5][0] = datarate_230_400Msps_ktm_main,
+		.data_rate_reg_array[6][0] = datarate_230_400Msps_ktm_main,
+		.data_rate_reg_array[7][0] = datarate_230_400Msps_ktm_main,
 	},
 	{
 		/* ((500 MSpS) * (10^6) * (2.28 bits/symbol)) rounded value */
 		.bandwidth = 1140000000,
-		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_500Msps_pista_front),
-		.data_rate_reg_array[0][0] = datarate_230_500Msps_pista_front,
-		.data_rate_reg_array[1][0] = datarate_230_500Msps_pista_front,
-		.data_rate_reg_array[2][0] = datarate_230_500Msps_pista_front,
-		.data_rate_reg_array[3][0] = datarate_230_500Msps_pista_front,
-		.data_rate_reg_array[4][0] = datarate_230_500Msps_pista_front,
-		.data_rate_reg_array[5][0] = datarate_230_500Msps_pista_front,
-		.data_rate_reg_array[6][0] = datarate_230_500Msps_pista_front,
-		.data_rate_reg_array[7][0] = datarate_230_500Msps_pista_front,
+		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_500Msps_ktm_main),
+		.data_rate_reg_array[0][0] = datarate_230_500Msps_ktm_main,
+		.data_rate_reg_array[1][0] = datarate_230_500Msps_ktm_main,
+		.data_rate_reg_array[2][0] = datarate_230_500Msps_ktm_main,
+		.data_rate_reg_array[3][0] = datarate_230_500Msps_ktm_main,
+		.data_rate_reg_array[4][0] = datarate_230_500Msps_ktm_main,
+		.data_rate_reg_array[5][0] = datarate_230_500Msps_ktm_main,
+		.data_rate_reg_array[6][0] = datarate_230_500Msps_ktm_main,
+		.data_rate_reg_array[7][0] = datarate_230_500Msps_ktm_main,
 	},
 	{
 		/* ((600 MSpS) * (10^6) * (2.28 bits/symbol)) rounded value */
 		.bandwidth = 1368000000,
-		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_600Msps_pista_front),
-		.data_rate_reg_array[0][0] = datarate_230_600Msps_pista_front,
-		.data_rate_reg_array[1][0] = datarate_230_600Msps_pista_front,
-		.data_rate_reg_array[2][0] = datarate_230_600Msps_pista_front,
-		.data_rate_reg_array[3][0] = datarate_230_600Msps_pista_front,
-		.data_rate_reg_array[4][0] = datarate_230_600Msps_pista_front,
-		.data_rate_reg_array[5][0] = datarate_230_600Msps_pista_front,
-		.data_rate_reg_array[6][0] = datarate_230_600Msps_pista_front,
-		.data_rate_reg_array[7][0] = datarate_230_600Msps_pista_front,
+		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_600Msps_ktm_main),
+		.data_rate_reg_array[0][0] = datarate_230_600Msps_ktm_main,
+		.data_rate_reg_array[1][0] = datarate_230_600Msps_ktm_main,
+		.data_rate_reg_array[2][0] = datarate_230_600Msps_ktm_main,
+		.data_rate_reg_array[3][0] = datarate_230_600Msps_ktm_main,
+		.data_rate_reg_array[4][0] = datarate_230_600Msps_ktm_main,
+		.data_rate_reg_array[5][0] = datarate_230_600Msps_ktm_main,
+		.data_rate_reg_array[6][0] = datarate_230_600Msps_ktm_main,
+		.data_rate_reg_array[7][0] = datarate_230_600Msps_ktm_main,
 	},
 	{
 		/* ((700 MSpS) * (10^6) * (2.28 bits/symbol)) rounded value */
 		.bandwidth = 1596000000,
-		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_700Msps_pista_front),
-		.data_rate_reg_array[0][0] = datarate_230_700Msps_pista_front,
-		.data_rate_reg_array[1][0] = datarate_230_700Msps_pista_front,
-		.data_rate_reg_array[2][0] = datarate_230_700Msps_pista_front,
-		.data_rate_reg_array[3][0] = datarate_230_700Msps_pista_front,
-		.data_rate_reg_array[4][0] = datarate_230_700Msps_pista_front,
-		.data_rate_reg_array[5][0] = datarate_230_700Msps_pista_front,
-		.data_rate_reg_array[6][0] = datarate_230_700Msps_pista_front,
-		.data_rate_reg_array[7][0] = datarate_230_700Msps_pista_front,
+		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_700Msps_ktm_main),
+		.data_rate_reg_array[0][0] = datarate_230_700Msps_ktm_main,
+		.data_rate_reg_array[1][0] = datarate_230_700Msps_ktm_main,
+		.data_rate_reg_array[2][0] = datarate_230_700Msps_ktm_main,
+		.data_rate_reg_array[3][0] = datarate_230_700Msps_ktm_main,
+		.data_rate_reg_array[4][0] = datarate_230_700Msps_ktm_main,
+		.data_rate_reg_array[5][0] = datarate_230_700Msps_ktm_main,
+		.data_rate_reg_array[6][0] = datarate_230_700Msps_ktm_main,
+		.data_rate_reg_array[7][0] = datarate_230_700Msps_ktm_main,
 	},
 	{
 		/* ((800 MSpS) * (10^6) * (2.28 bits/symbol)) rounded value */
 		.bandwidth = 1824000000,
-		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_800Msps_pista_front),
-		.data_rate_reg_array[0][0] = datarate_230_800Msps_pista_front,
-		.data_rate_reg_array[1][0] = datarate_230_800Msps_pista_front,
-		.data_rate_reg_array[2][0] = datarate_230_800Msps_pista_front,
-		.data_rate_reg_array[3][0] = datarate_230_800Msps_pista_front,
-		.data_rate_reg_array[4][0] = datarate_230_800Msps_pista_front,
-		.data_rate_reg_array[5][0] = datarate_230_800Msps_pista_front,
-		.data_rate_reg_array[6][0] = datarate_230_800Msps_pista_front,
-		.data_rate_reg_array[7][0] = datarate_230_800Msps_pista_front,
+		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_800Msps_ktm_main),
+		.data_rate_reg_array[0][0] = datarate_230_800Msps_ktm_main,
+		.data_rate_reg_array[1][0] = datarate_230_800Msps_ktm_main,
+		.data_rate_reg_array[2][0] = datarate_230_800Msps_ktm_main,
+		.data_rate_reg_array[3][0] = datarate_230_800Msps_ktm_main,
+		.data_rate_reg_array[4][0] = datarate_230_800Msps_ktm_main,
+		.data_rate_reg_array[5][0] = datarate_230_800Msps_ktm_main,
+		.data_rate_reg_array[6][0] = datarate_230_800Msps_ktm_main,
+		.data_rate_reg_array[7][0] = datarate_230_800Msps_ktm_main,
 	},
 	{
 		/* ((900 MSpS) * (10^6) * (2.28 bits/symbol)) rounded value */
 		.bandwidth = 2052000000,
-		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_900Msps_pista_front),
-		.data_rate_reg_array[0][0] = datarate_230_900Msps_pista_front,
-		.data_rate_reg_array[1][0] = datarate_230_900Msps_pista_front,
-		.data_rate_reg_array[2][0] = datarate_230_900Msps_pista_front,
-		.data_rate_reg_array[3][0] = datarate_230_900Msps_pista_front,
-		.data_rate_reg_array[4][0] = datarate_230_900Msps_pista_front,
-		.data_rate_reg_array[5][0] = datarate_230_900Msps_pista_front,
-		.data_rate_reg_array[6][0] = datarate_230_900Msps_pista_front,
-		.data_rate_reg_array[7][0] = datarate_230_900Msps_pista_front,
+		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_900Msps_ktm_main),
+		.data_rate_reg_array[0][0] = datarate_230_900Msps_ktm_main,
+		.data_rate_reg_array[1][0] = datarate_230_900Msps_ktm_main,
+		.data_rate_reg_array[2][0] = datarate_230_900Msps_ktm_main,
+		.data_rate_reg_array[3][0] = datarate_230_900Msps_ktm_main,
+		.data_rate_reg_array[4][0] = datarate_230_900Msps_ktm_main,
+		.data_rate_reg_array[5][0] = datarate_230_900Msps_ktm_main,
+		.data_rate_reg_array[6][0] = datarate_230_900Msps_ktm_main,
+		.data_rate_reg_array[7][0] = datarate_230_900Msps_ktm_main,
 	},
 	{
 		/* ((1000 MSpS) * (10^6) * (2.28 bits/symbol)) rounded value */
 		.bandwidth = 2280000000,
-		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_1p0Gsps_pista_front),
-		.data_rate_reg_array[0][0] = datarate_230_1p0Gsps_pista_front,
-		.data_rate_reg_array[1][0] = datarate_230_1p0Gsps_pista_front,
-		.data_rate_reg_array[2][0] = datarate_230_1p0Gsps_pista_front,
-		.data_rate_reg_array[3][0] = datarate_230_1p0Gsps_pista_front,
-		.data_rate_reg_array[4][0] = datarate_230_1p0Gsps_pista_front,
-		.data_rate_reg_array[5][0] = datarate_230_1p0Gsps_pista_front,
-		.data_rate_reg_array[6][0] = datarate_230_1p0Gsps_pista_front,
-		.data_rate_reg_array[7][0] = datarate_230_1p0Gsps_pista_front,
+		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_1p0Gsps_ktm_main),
+		.data_rate_reg_array[0][0] = datarate_230_1p0Gsps_ktm_main,
+		.data_rate_reg_array[1][0] = datarate_230_1p0Gsps_ktm_main,
+		.data_rate_reg_array[2][0] = datarate_230_1p0Gsps_ktm_main,
+		.data_rate_reg_array[3][0] = datarate_230_1p0Gsps_ktm_main,
+		.data_rate_reg_array[4][0] = datarate_230_1p0Gsps_ktm_main,
+		.data_rate_reg_array[5][0] = datarate_230_1p0Gsps_ktm_main,
+		.data_rate_reg_array[6][0] = datarate_230_1p0Gsps_ktm_main,
+		.data_rate_reg_array[7][0] = datarate_230_1p0Gsps_ktm_main,
 	},
 	{
 		/* ((1.2 GSpS) * (10^9) * (2.28 bits/symbol)) rounded value */
 		.bandwidth = 2736000000,
-		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_1p2Gsps_pista_front),
-		.data_rate_reg_array[0][0] = datarate_230_1p2Gsps_pista_front,
-		.data_rate_reg_array[1][0] = datarate_230_1p2Gsps_pista_front,
-		.data_rate_reg_array[2][0] = datarate_230_1p2Gsps_pista_front,
-		.data_rate_reg_array[3][0] = datarate_230_1p2Gsps_pista_front,
-		.data_rate_reg_array[4][0] = datarate_230_1p2Gsps_pista_front,
-		.data_rate_reg_array[5][0] = datarate_230_1p2Gsps_pista_front,
-		.data_rate_reg_array[6][0] = datarate_230_1p2Gsps_pista_front,
-		.data_rate_reg_array[7][0] = datarate_230_1p2Gsps_pista_front,
+		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_1p2Gsps_ktm_main),
+		.data_rate_reg_array[0][0] = datarate_230_1p2Gsps_ktm_main,
+		.data_rate_reg_array[1][0] = datarate_230_1p2Gsps_ktm_main,
+		.data_rate_reg_array[2][0] = datarate_230_1p2Gsps_ktm_main,
+		.data_rate_reg_array[3][0] = datarate_230_1p2Gsps_ktm_main,
+		.data_rate_reg_array[4][0] = datarate_230_1p2Gsps_ktm_main,
+		.data_rate_reg_array[5][0] = datarate_230_1p2Gsps_ktm_main,
+		.data_rate_reg_array[6][0] = datarate_230_1p2Gsps_ktm_main,
+		.data_rate_reg_array[7][0] = datarate_230_1p2Gsps_ktm_main,
 	},
 	{
 		/* ((1.5 GSpS) * (10^9) * (2.28 bits/symbol)) rounded value */
 		.bandwidth = 3420000000,
-		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_1p5Gsps_pista_front),
-		.data_rate_reg_array[0][0] = datarate_230_1p5Gsps_pista_front,
-		.data_rate_reg_array[1][0] = datarate_230_1p5Gsps_pista_front,
-		.data_rate_reg_array[2][0] = datarate_230_1p5Gsps_pista_front,
-		.data_rate_reg_array[3][0] = datarate_230_1p5Gsps_pista_front,
-		.data_rate_reg_array[4][0] = datarate_230_1p5Gsps_pista_front,
-		.data_rate_reg_array[5][0] = datarate_230_1p5Gsps_pista_front,
-		.data_rate_reg_array[6][0] = datarate_230_1p5Gsps_pista_front,
-		.data_rate_reg_array[7][0] = datarate_230_1p5Gsps_pista_front,
+		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_1p5Gsps_ktm_main),
+		.data_rate_reg_array[0][0] = datarate_230_1p5Gsps_ktm_main,
+		.data_rate_reg_array[1][0] = datarate_230_1p5Gsps_ktm_main,
+		.data_rate_reg_array[2][0] = datarate_230_1p5Gsps_ktm_main,
+		.data_rate_reg_array[3][0] = datarate_230_1p5Gsps_ktm_main,
+		.data_rate_reg_array[4][0] = datarate_230_1p5Gsps_ktm_main,
+		.data_rate_reg_array[5][0] = datarate_230_1p5Gsps_ktm_main,
+		.data_rate_reg_array[6][0] = datarate_230_1p5Gsps_ktm_main,
+		.data_rate_reg_array[7][0] = datarate_230_1p5Gsps_ktm_main,
 	},
 	{
 		/* ((1.7 GSpS) * (10^9) * (2.28 bits/symbol)) rounded value */
 		.bandwidth = 3876000000,
-		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_1p7Gsps_pista_front),
-		.data_rate_reg_array[0][0] = datarate_230_1p7Gsps_pista_front,
-		.data_rate_reg_array[1][0] = datarate_230_1p7Gsps_pista_front,
-		.data_rate_reg_array[2][0] = datarate_230_1p7Gsps_pista_front,
-		.data_rate_reg_array[3][0] = datarate_230_1p7Gsps_pista_front,
-		.data_rate_reg_array[4][0] = datarate_230_1p7Gsps_pista_front,
-		.data_rate_reg_array[5][0] = datarate_230_1p7Gsps_pista_front,
-		.data_rate_reg_array[6][0] = datarate_230_1p7Gsps_pista_front,
-		.data_rate_reg_array[7][0] = datarate_230_1p7Gsps_pista_front,
+		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_1p7Gsps_ktm_main),
+		.data_rate_reg_array[0][0] = datarate_230_1p7Gsps_ktm_main,
+		.data_rate_reg_array[1][0] = datarate_230_1p7Gsps_ktm_main,
+		.data_rate_reg_array[2][0] = datarate_230_1p7Gsps_ktm_main,
+		.data_rate_reg_array[3][0] = datarate_230_1p7Gsps_ktm_main,
+		.data_rate_reg_array[4][0] = datarate_230_1p7Gsps_ktm_main,
+		.data_rate_reg_array[5][0] = datarate_230_1p7Gsps_ktm_main,
+		.data_rate_reg_array[6][0] = datarate_230_1p7Gsps_ktm_main,
+		.data_rate_reg_array[7][0] = datarate_230_1p7Gsps_ktm_main,
 	},
 	{
 		/* ((2.0 GSpS) * (10^9) * (2.28 bits/symbol)) rounded value */
 		.bandwidth = 4560000000,
-		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_2p0Gsps_pista_front),
-		.data_rate_reg_array[0][0] = datarate_230_2p0Gsps_pista_front,
-		.data_rate_reg_array[1][0] = datarate_230_2p0Gsps_pista_front,
-		.data_rate_reg_array[2][0] = datarate_230_2p0Gsps_pista_front,
-		.data_rate_reg_array[3][0] = datarate_230_2p0Gsps_pista_front,
-		.data_rate_reg_array[4][0] = datarate_230_2p0Gsps_pista_front,
-		.data_rate_reg_array[5][0] = datarate_230_2p0Gsps_pista_front,
-		.data_rate_reg_array[6][0] = datarate_230_2p0Gsps_pista_front,
-		.data_rate_reg_array[7][0] = datarate_230_2p0Gsps_pista_front,
+		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_2p0Gsps_ktm_main),
+		.data_rate_reg_array[0][0] = datarate_230_2p0Gsps_ktm_main,
+		.data_rate_reg_array[1][0] = datarate_230_2p0Gsps_ktm_main,
+		.data_rate_reg_array[2][0] = datarate_230_2p0Gsps_ktm_main,
+		.data_rate_reg_array[3][0] = datarate_230_2p0Gsps_ktm_main,
+		.data_rate_reg_array[4][0] = datarate_230_2p0Gsps_ktm_main,
+		.data_rate_reg_array[5][0] = datarate_230_2p0Gsps_ktm_main,
+		.data_rate_reg_array[6][0] = datarate_230_2p0Gsps_ktm_main,
+		.data_rate_reg_array[7][0] = datarate_230_2p0Gsps_ktm_main,
 	},
 	{
 		/* ((2.1 GSpS) * (10^9) * (2.28 bits/symbol)) rounded value */
 		.bandwidth = 4788000000,
-		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_2p1Gsps_pista_front),
-		.data_rate_reg_array[0][0] = datarate_230_2p1Gsps_pista_front,
-		.data_rate_reg_array[1][0] = datarate_230_2p1Gsps_pista_front,
-		.data_rate_reg_array[2][0] = datarate_230_2p1Gsps_pista_front,
-		.data_rate_reg_array[3][0] = datarate_230_2p1Gsps_pista_front,
-		.data_rate_reg_array[4][0] = datarate_230_2p1Gsps_pista_front,
-		.data_rate_reg_array[5][0] = datarate_230_2p1Gsps_pista_front,
-		.data_rate_reg_array[6][0] = datarate_230_2p1Gsps_pista_front,
-		.data_rate_reg_array[7][0] = datarate_230_2p1Gsps_pista_front,
+		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_2p1Gsps_ktm_main),
+		.data_rate_reg_array[0][0] = datarate_230_2p1Gsps_ktm_main,
+		.data_rate_reg_array[1][0] = datarate_230_2p1Gsps_ktm_main,
+		.data_rate_reg_array[2][0] = datarate_230_2p1Gsps_ktm_main,
+		.data_rate_reg_array[3][0] = datarate_230_2p1Gsps_ktm_main,
+		.data_rate_reg_array[4][0] = datarate_230_2p1Gsps_ktm_main,
+		.data_rate_reg_array[5][0] = datarate_230_2p1Gsps_ktm_main,
+		.data_rate_reg_array[6][0] = datarate_230_2p1Gsps_ktm_main,
+		.data_rate_reg_array[7][0] = datarate_230_2p1Gsps_ktm_main,
 	},
 	{
 		/* ((2.35 GSpS) * (10^9) * (2.28 bits/symbol)) rounded value */
 		.bandwidth = 5358000000,
-		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_2p35Gsps_pista_front),
-		.data_rate_reg_array[0][0] = datarate_230_2p35Gsps_pista_front,
-		.data_rate_reg_array[1][0] = datarate_230_2p35Gsps_pista_front,
-		.data_rate_reg_array[2][0] = datarate_230_2p35Gsps_pista_front,
-		.data_rate_reg_array[3][0] = datarate_230_2p35Gsps_pista_front,
-		.data_rate_reg_array[4][0] = datarate_230_2p35Gsps_pista_front,
-		.data_rate_reg_array[5][0] = datarate_230_2p35Gsps_pista_front,
-		.data_rate_reg_array[6][0] = datarate_230_2p35Gsps_pista_front,
-		.data_rate_reg_array[7][0] = datarate_230_2p35Gsps_pista_front,
+		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_2p35Gsps_ktm_main),
+		.data_rate_reg_array[0][0] = datarate_230_2p35Gsps_ktm_main,
+		.data_rate_reg_array[1][0] = datarate_230_2p35Gsps_ktm_main,
+		.data_rate_reg_array[2][0] = datarate_230_2p35Gsps_ktm_main,
+		.data_rate_reg_array[3][0] = datarate_230_2p35Gsps_ktm_main,
+		.data_rate_reg_array[4][0] = datarate_230_2p35Gsps_ktm_main,
+		.data_rate_reg_array[5][0] = datarate_230_2p35Gsps_ktm_main,
+		.data_rate_reg_array[6][0] = datarate_230_2p35Gsps_ktm_main,
+		.data_rate_reg_array[7][0] = datarate_230_2p35Gsps_ktm_main,
 	},
 	{
 		/* ((2.5 GSpS) * (10^9) * (2.28 bits/symbol)) rounded value */
 		.bandwidth = 5700000000,
-		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_2p5Gsps_pista_front),
-		.data_rate_reg_array[0][0] = datarate_230_2p5Gsps_pista_front,
-		.data_rate_reg_array[1][0] = datarate_230_2p5Gsps_pista_front,
-		.data_rate_reg_array[2][0] = datarate_230_2p5Gsps_pista_front,
-		.data_rate_reg_array[3][0] = datarate_230_2p5Gsps_pista_front,
-		.data_rate_reg_array[4][0] = datarate_230_2p5Gsps_pista_front,
-		.data_rate_reg_array[5][0] = datarate_230_2p5Gsps_pista_front,
-		.data_rate_reg_array[6][0] = datarate_230_2p5Gsps_pista_front,
-		.data_rate_reg_array[7][0] = datarate_230_2p5Gsps_pista_front,
+		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_2p5Gsps_ktm_main),
+		.data_rate_reg_array[0][0] = datarate_230_2p5Gsps_ktm_main,
+		.data_rate_reg_array[1][0] = datarate_230_2p5Gsps_ktm_main,
+		.data_rate_reg_array[2][0] = datarate_230_2p5Gsps_ktm_main,
+		.data_rate_reg_array[3][0] = datarate_230_2p5Gsps_ktm_main,
+		.data_rate_reg_array[4][0] = datarate_230_2p5Gsps_ktm_main,
+		.data_rate_reg_array[5][0] = datarate_230_2p5Gsps_ktm_main,
+		.data_rate_reg_array[6][0] = datarate_230_2p5Gsps_ktm_main,
+		.data_rate_reg_array[7][0] = datarate_230_2p5Gsps_ktm_main,
 	},
 	{
 		/* ((2.6 GSpS) * (10^9) * (2.28 bits/symbol)) rounded value */
 		.bandwidth = 5928000000,
-		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_2p6Gsps_pista_front),
-		.data_rate_reg_array[0][0] = datarate_230_2p6Gsps_pista_front,
-		.data_rate_reg_array[1][0] = datarate_230_2p6Gsps_pista_front,
-		.data_rate_reg_array[2][0] = datarate_230_2p6Gsps_pista_front,
-		.data_rate_reg_array[3][0] = datarate_230_2p6Gsps_pista_front,
-		.data_rate_reg_array[4][0] = datarate_230_2p6Gsps_pista_front,
-		.data_rate_reg_array[5][0] = datarate_230_2p6Gsps_pista_front,
-		.data_rate_reg_array[6][0] = datarate_230_2p6Gsps_pista_front,
-		.data_rate_reg_array[7][0] = datarate_230_2p6Gsps_pista_front,
+		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_2p6Gsps_ktm_main),
+		.data_rate_reg_array[0][0] = datarate_230_2p6Gsps_ktm_main,
+		.data_rate_reg_array[1][0] = datarate_230_2p6Gsps_ktm_main,
+		.data_rate_reg_array[2][0] = datarate_230_2p6Gsps_ktm_main,
+		.data_rate_reg_array[3][0] = datarate_230_2p6Gsps_ktm_main,
+		.data_rate_reg_array[4][0] = datarate_230_2p6Gsps_ktm_main,
+		.data_rate_reg_array[5][0] = datarate_230_2p6Gsps_ktm_main,
+		.data_rate_reg_array[6][0] = datarate_230_2p6Gsps_ktm_main,
+		.data_rate_reg_array[7][0] = datarate_230_2p6Gsps_ktm_main,
 	},
 	{
 		/* ((2.8 GSpS) * (10^9) * (2.28 bits/symbol)) rounded value */
 		.bandwidth = 6384000000,
-		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_2p8Gsps_pista_front),
-		.data_rate_reg_array[0][0] = datarate_230_2p8Gsps_pista_front,
-		.data_rate_reg_array[1][0] = datarate_230_2p8Gsps_pista_front,
-		.data_rate_reg_array[2][0] = datarate_230_2p8Gsps_pista_front,
-		.data_rate_reg_array[3][0] = datarate_230_2p8Gsps_pista_front,
-		.data_rate_reg_array[4][0] = datarate_230_2p8Gsps_pista_front,
-		.data_rate_reg_array[5][0] = datarate_230_2p8Gsps_pista_front,
-		.data_rate_reg_array[6][0] = datarate_230_2p8Gsps_pista_front,
-		.data_rate_reg_array[7][0] = datarate_230_2p8Gsps_pista_front,
+		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_2p8Gsps_ktm_main),
+		.data_rate_reg_array[0][0] = datarate_230_2p8Gsps_ktm_main,
+		.data_rate_reg_array[1][0] = datarate_230_2p8Gsps_ktm_main,
+		.data_rate_reg_array[2][0] = datarate_230_2p8Gsps_ktm_main,
+		.data_rate_reg_array[3][0] = datarate_230_2p8Gsps_ktm_main,
+		.data_rate_reg_array[4][0] = datarate_230_2p8Gsps_ktm_main,
+		.data_rate_reg_array[5][0] = datarate_230_2p8Gsps_ktm_main,
+		.data_rate_reg_array[6][0] = datarate_230_2p8Gsps_ktm_main,
+		.data_rate_reg_array[7][0] = datarate_230_2p8Gsps_ktm_main,
 	},
 	{
 		/* ((3.0 GSpS) * (10^9) * (2.28 bits/symbol)) rounded value */
 		.bandwidth = 6840000000,
-		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_3p0Gsps_pista_front),
-		.data_rate_reg_array[0][0] = datarate_230_3p0Gsps_pista_front,
-		.data_rate_reg_array[1][0] = datarate_230_3p0Gsps_pista_front,
-		.data_rate_reg_array[2][0] = datarate_230_3p0Gsps_pista_front,
-		.data_rate_reg_array[3][0] = datarate_230_3p0Gsps_pista_front,
-		.data_rate_reg_array[4][0] = datarate_230_3p0Gsps_pista_front,
-		.data_rate_reg_array[5][0] = datarate_230_3p0Gsps_pista_front,
-		.data_rate_reg_array[6][0] = datarate_230_3p0Gsps_pista_front,
-		.data_rate_reg_array[7][0] = datarate_230_3p0Gsps_pista_front,
+		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_3p0Gsps_ktm_main),
+		.data_rate_reg_array[0][0] = datarate_230_3p0Gsps_ktm_main,
+		.data_rate_reg_array[1][0] = datarate_230_3p0Gsps_ktm_main,
+		.data_rate_reg_array[2][0] = datarate_230_3p0Gsps_ktm_main,
+		.data_rate_reg_array[3][0] = datarate_230_3p0Gsps_ktm_main,
+		.data_rate_reg_array[4][0] = datarate_230_3p0Gsps_ktm_main,
+		.data_rate_reg_array[5][0] = datarate_230_3p0Gsps_ktm_main,
+		.data_rate_reg_array[6][0] = datarate_230_3p0Gsps_ktm_main,
+		.data_rate_reg_array[7][0] = datarate_230_3p0Gsps_ktm_main,
 	},
 	{
 		/* ((3.3 GSpS) * (10^9) * (2.28 bits/symbol)) rounded value */
 		.bandwidth = 7524000000,
-		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_3p3Gsps_pista_front),
-		.data_rate_reg_array[0][0] = datarate_230_3p3Gsps_pista_front,
-		.data_rate_reg_array[1][0] = datarate_230_3p3Gsps_pista_front,
-		.data_rate_reg_array[2][0] = datarate_230_3p3Gsps_pista_front,
-		.data_rate_reg_array[3][0] = datarate_230_3p3Gsps_pista_front,
-		.data_rate_reg_array[4][0] = datarate_230_3p3Gsps_pista_front,
-		.data_rate_reg_array[5][0] = datarate_230_3p3Gsps_pista_front,
-		.data_rate_reg_array[6][0] = datarate_230_3p3Gsps_pista_front,
-		.data_rate_reg_array[7][0] = datarate_230_3p3Gsps_pista_front,
+		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_3p3Gsps_ktm_main),
+		.data_rate_reg_array[0][0] = datarate_230_3p3Gsps_ktm_main,
+		.data_rate_reg_array[1][0] = datarate_230_3p3Gsps_ktm_main,
+		.data_rate_reg_array[2][0] = datarate_230_3p3Gsps_ktm_main,
+		.data_rate_reg_array[3][0] = datarate_230_3p3Gsps_ktm_main,
+		.data_rate_reg_array[4][0] = datarate_230_3p3Gsps_ktm_main,
+		.data_rate_reg_array[5][0] = datarate_230_3p3Gsps_ktm_main,
+		.data_rate_reg_array[6][0] = datarate_230_3p3Gsps_ktm_main,
+		.data_rate_reg_array[7][0] = datarate_230_3p3Gsps_ktm_main,
 	},
 	{
 		/* ((3.5 GSpS) * (10^9) * (2.28 bits/symbol)) rounded value */
 		.bandwidth = 7980000000,
-		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_3p5Gsps_pista_front),
-		.data_rate_reg_array[0][0] = datarate_230_3p5Gsps_pista_front,
-		.data_rate_reg_array[1][0] = datarate_230_3p5Gsps_pista_front,
-		.data_rate_reg_array[2][0] = datarate_230_3p5Gsps_pista_front,
-		.data_rate_reg_array[3][0] = datarate_230_3p5Gsps_pista_front,
-		.data_rate_reg_array[4][0] = datarate_230_3p5Gsps_pista_front,
-		.data_rate_reg_array[5][0] = datarate_230_3p5Gsps_pista_front,
-		.data_rate_reg_array[6][0] = datarate_230_3p5Gsps_pista_front,
-		.data_rate_reg_array[7][0] = datarate_230_3p5Gsps_pista_front,
+		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_3p5Gsps_ktm_main),
+		.data_rate_reg_array[0][0] = datarate_230_3p5Gsps_ktm_main,
+		.data_rate_reg_array[1][0] = datarate_230_3p5Gsps_ktm_main,
+		.data_rate_reg_array[2][0] = datarate_230_3p5Gsps_ktm_main,
+		.data_rate_reg_array[3][0] = datarate_230_3p5Gsps_ktm_main,
+		.data_rate_reg_array[4][0] = datarate_230_3p5Gsps_ktm_main,
+		.data_rate_reg_array[5][0] = datarate_230_3p5Gsps_ktm_main,
+		.data_rate_reg_array[6][0] = datarate_230_3p5Gsps_ktm_main,
+		.data_rate_reg_array[7][0] = datarate_230_3p5Gsps_ktm_main,
 	},
 	{
 		/* ((4.0 GSpS) * (10^9) * (2.28 bits/symbol)) rounded value */
 		.bandwidth = 9120000000,
-		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_4p0Gsps_pista_front),
-		.data_rate_reg_array[0][0] = datarate_230_4p0Gsps_pista_front,
-		.data_rate_reg_array[1][0] = datarate_230_4p0Gsps_pista_front,
-		.data_rate_reg_array[2][0] = datarate_230_4p0Gsps_pista_front,
-		.data_rate_reg_array[3][0] = datarate_230_4p0Gsps_pista_front,
-		.data_rate_reg_array[4][0] = datarate_230_4p0Gsps_pista_front,
-		.data_rate_reg_array[5][0] = datarate_230_4p0Gsps_pista_front,
-		.data_rate_reg_array[6][0] = datarate_230_4p0Gsps_pista_front,
-		.data_rate_reg_array[7][0] = datarate_230_4p0Gsps_pista_front,
+		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_4p0Gsps_ktm_main),
+		.data_rate_reg_array[0][0] = datarate_230_4p0Gsps_ktm_main,
+		.data_rate_reg_array[1][0] = datarate_230_4p0Gsps_ktm_main,
+		.data_rate_reg_array[2][0] = datarate_230_4p0Gsps_ktm_main,
+		.data_rate_reg_array[3][0] = datarate_230_4p0Gsps_ktm_main,
+		.data_rate_reg_array[4][0] = datarate_230_4p0Gsps_ktm_main,
+		.data_rate_reg_array[5][0] = datarate_230_4p0Gsps_ktm_main,
+		.data_rate_reg_array[6][0] = datarate_230_4p0Gsps_ktm_main,
+		.data_rate_reg_array[7][0] = datarate_230_4p0Gsps_ktm_main,
 	},
 	{
 		/* ((4.5 GSpS) * (10^9) * (2.28 bits/symbol)) rounded value */
 		.bandwidth = 10260000000,
-		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_4p5Gsps_pista_front),
-		.data_rate_reg_array[0][0] = datarate_230_4p5Gsps_pista_front,
-		.data_rate_reg_array[1][0] = datarate_230_4p5Gsps_pista_front,
-		.data_rate_reg_array[2][0] = datarate_230_4p5Gsps_pista_front,
-		.data_rate_reg_array[3][0] = datarate_230_4p5Gsps_pista_front,
-		.data_rate_reg_array[4][0] = datarate_230_4p5Gsps_pista_front,
-		.data_rate_reg_array[5][0] = datarate_230_4p5Gsps_pista_front,
-		.data_rate_reg_array[6][0] = datarate_230_4p5Gsps_pista_front,
-		.data_rate_reg_array[7][0] = datarate_230_4p5Gsps_pista_front,
+		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_4p5Gsps_ktm_main),
+		.data_rate_reg_array[0][0] = datarate_230_4p5Gsps_ktm_main,
+		.data_rate_reg_array[1][0] = datarate_230_4p5Gsps_ktm_main,
+		.data_rate_reg_array[2][0] = datarate_230_4p5Gsps_ktm_main,
+		.data_rate_reg_array[3][0] = datarate_230_4p5Gsps_ktm_main,
+		.data_rate_reg_array[4][0] = datarate_230_4p5Gsps_ktm_main,
+		.data_rate_reg_array[5][0] = datarate_230_4p5Gsps_ktm_main,
+		.data_rate_reg_array[6][0] = datarate_230_4p5Gsps_ktm_main,
+		.data_rate_reg_array[7][0] = datarate_230_4p5Gsps_ktm_main,
 	},
 	{
 		/* ((5.0 GSpS) * (10^9) * (2.28 bits/symbol)) rounded value */
 		.bandwidth = 11400000000,
-		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_5p0Gsps_pista_front),
-		.data_rate_reg_array[0][0] = datarate_230_5p0Gsps_pista_front,
-		.data_rate_reg_array[1][0] = datarate_230_5p0Gsps_pista_front,
-		.data_rate_reg_array[2][0] = datarate_230_5p0Gsps_pista_front,
-		.data_rate_reg_array[3][0] = datarate_230_5p0Gsps_pista_front,
-		.data_rate_reg_array[4][0] = datarate_230_5p0Gsps_pista_front,
-		.data_rate_reg_array[5][0] = datarate_230_5p0Gsps_pista_front,
-		.data_rate_reg_array[6][0] = datarate_230_5p0Gsps_pista_front,
-		.data_rate_reg_array[7][0] = datarate_230_5p0Gsps_pista_front,
+		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_5p0Gsps_ktm_main),
+		.data_rate_reg_array[0][0] = datarate_230_5p0Gsps_ktm_main,
+		.data_rate_reg_array[1][0] = datarate_230_5p0Gsps_ktm_main,
+		.data_rate_reg_array[2][0] = datarate_230_5p0Gsps_ktm_main,
+		.data_rate_reg_array[3][0] = datarate_230_5p0Gsps_ktm_main,
+		.data_rate_reg_array[4][0] = datarate_230_5p0Gsps_ktm_main,
+		.data_rate_reg_array[5][0] = datarate_230_5p0Gsps_ktm_main,
+		.data_rate_reg_array[6][0] = datarate_230_5p0Gsps_ktm_main,
+		.data_rate_reg_array[7][0] = datarate_230_5p0Gsps_ktm_main,
 	},
 	{
 		/* ((5.5 GSpS) * (10^9) * (2.28 bits/symbol)) rounded value */
 		.bandwidth = 12540000000,
-		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_5p5Gsps_pista_front),
-		.data_rate_reg_array[0][0] = datarate_230_5p5Gsps_pista_front,
-		.data_rate_reg_array[1][0] = datarate_230_5p5Gsps_pista_front,
-		.data_rate_reg_array[2][0] = datarate_230_5p5Gsps_pista_front,
-		.data_rate_reg_array[3][0] = datarate_230_5p5Gsps_pista_front,
-		.data_rate_reg_array[4][0] = datarate_230_5p5Gsps_pista_front,
-		.data_rate_reg_array[5][0] = datarate_230_5p5Gsps_pista_front,
-		.data_rate_reg_array[6][0] = datarate_230_5p5Gsps_pista_front,
-		.data_rate_reg_array[7][0] = datarate_230_5p5Gsps_pista_front,
+		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_5p5Gsps_ktm_main),
+		.data_rate_reg_array[0][0] = datarate_230_5p5Gsps_ktm_main,
+		.data_rate_reg_array[1][0] = datarate_230_5p5Gsps_ktm_main,
+		.data_rate_reg_array[2][0] = datarate_230_5p5Gsps_ktm_main,
+		.data_rate_reg_array[3][0] = datarate_230_5p5Gsps_ktm_main,
+		.data_rate_reg_array[4][0] = datarate_230_5p5Gsps_ktm_main,
+		.data_rate_reg_array[5][0] = datarate_230_5p5Gsps_ktm_main,
+		.data_rate_reg_array[6][0] = datarate_230_5p5Gsps_ktm_main,
+		.data_rate_reg_array[7][0] = datarate_230_5p5Gsps_ktm_main,
 	},
 	{
 		/* ((6.0 GSpS) * (10^9) * (2.28 bits/symbol)) rounded value */
 		.bandwidth = 13680000000,
-		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_6p0Gsps_pista_front),
-		.data_rate_reg_array[0][0] = datarate_230_6p0Gsps_pista_front,
-		.data_rate_reg_array[1][0] = datarate_230_6p0Gsps_pista_front,
-		.data_rate_reg_array[2][0] = datarate_230_6p0Gsps_pista_front,
-		.data_rate_reg_array[3][0] = datarate_230_6p0Gsps_pista_front,
-		.data_rate_reg_array[4][0] = datarate_230_6p0Gsps_pista_front,
-		.data_rate_reg_array[5][0] = datarate_230_6p0Gsps_pista_front,
-		.data_rate_reg_array[6][0] = datarate_230_6p0Gsps_pista_front,
-		.data_rate_reg_array[7][0] = datarate_230_6p0Gsps_pista_front,
+		.data_rate_reg_array_size = ARRAY_SIZE(datarate_230_6p0Gsps_ktm_main),
+		.data_rate_reg_array[0][0] = datarate_230_6p0Gsps_ktm_main,
+		.data_rate_reg_array[1][0] = datarate_230_6p0Gsps_ktm_main,
+		.data_rate_reg_array[2][0] = datarate_230_6p0Gsps_ktm_main,
+		.data_rate_reg_array[3][0] = datarate_230_6p0Gsps_ktm_main,
+		.data_rate_reg_array[4][0] = datarate_230_6p0Gsps_ktm_main,
+		.data_rate_reg_array[5][0] = datarate_230_6p0Gsps_ktm_main,
+		.data_rate_reg_array[6][0] = datarate_230_6p0Gsps_ktm_main,
+		.data_rate_reg_array[7][0] = datarate_230_6p0Gsps_ktm_main,
 	},
 };
 
-struct csiphy_reg_t bist_3ph_arr_2_3_0_pista_front[] = {
+struct csiphy_reg_t bist_3ph_arr_2_3_0_ktm_main[] = {
 	{0x0230, 0x1C, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0234, 0xFA, 0x00, CSIPHY_DEFAULT_PARAMS},
 	{0x0238, 0xD4, 0x00, CSIPHY_DEFAULT_PARAMS},
@@ -1963,7 +1963,7 @@ struct csiphy_reg_t bist_3ph_arr_2_3_0_pista_front[] = {
 	{0x0A40, 0x85, 0x00, CSIPHY_DEFAULT_PARAMS},
 };
 
-struct csiphy_reg_t bist_status_arr_2_3_0_pista_front[] = {
+struct csiphy_reg_t bist_status_arr_2_3_0_ktm_main[] = {
 	{0x0344, 0x00, 0x00, CSIPHY_3PH_REGS},
 	{0x0744, 0x00, 0x00, CSIPHY_3PH_REGS},
 	{0x0B44, 0x00, 0x00, CSIPHY_3PH_REGS},
@@ -1973,7 +1973,7 @@ struct csiphy_reg_t bist_status_arr_2_3_0_pista_front[] = {
 	{0x0CC0, 0x00, 0x00, CSIPHY_2PH_REGS},
 };
 
-struct bist_reg_settings_t bist_setting_2_3_0_pista_front = {
+struct bist_reg_settings_t bist_setting_2_3_0_ktm_main = {
 	.error_status_val_3ph = 0x10,
 	.error_status_val_2ph = 0x10,
 	.set_status_update_3ph_base_offset = 0x0240,
@@ -1984,53 +1984,53 @@ struct bist_reg_settings_t bist_setting_2_3_0_pista_front = {
 	.bist_counter_3ph_base_offset = 0x0348,
 	.bist_counter_2ph_base_offset = 0x00C8,
 	.number_of_counters = 2,
-	.num_3ph_bist_settings = ARRAY_SIZE(bist_3ph_arr_2_3_0_pista_front),
-	.bist_3ph_settings_arry = bist_3ph_arr_2_3_0_pista_front,
+	.num_3ph_bist_settings = ARRAY_SIZE(bist_3ph_arr_2_3_0_ktm_main),
+	.bist_3ph_settings_arry = bist_3ph_arr_2_3_0_ktm_main,
 	.bist_2ph_settings_arry = NULL,
 	.num_2ph_bist_settings = 0,
-	.num_status_reg = ARRAY_SIZE(bist_status_arr_2_3_0_pista_front),
-	.bist_status_arr = bist_status_arr_2_3_0_pista_front,
+	.num_status_reg = ARRAY_SIZE(bist_status_arr_2_3_0_ktm_main),
+	.bist_status_arr = bist_status_arr_2_3_0_ktm_main,
 };
 
-struct data_rate_settings_t data_rate_delta_table_2_3_0_pista_front = {
-	.num_data_rate_settings = ARRAY_SIZE(data_rate_settings_2_3_0_pista_front),
-	.data_rate_settings = data_rate_settings_2_3_0_pista_front,
+struct data_rate_settings_t data_rate_delta_table_2_3_0_ktm_main = {
+	.num_data_rate_settings = ARRAY_SIZE(data_rate_settings_2_3_0_ktm_main),
+	.data_rate_settings = data_rate_settings_2_3_0_ktm_main,
 };
 
-struct csiphy_reg_parms_t csiphy_v2_3_0_pista_front = {
+struct csiphy_reg_parms_t csiphy_v2_3_0_ktm_main = {
 	.mipi_csiphy_interrupt_status0_addr = 0x1138,
 	.mipi_csiphy_interrupt_clear0_addr = 0x1058,
 	.mipi_csiphy_glbl_irq_cmd_addr = 0x1028,
 	.size_offset_betn_lanes = 0x400,
-	.status_reg_params = &status_regs_2_3_0_pista_front,
-	.csiphy_common_reg_array_size = ARRAY_SIZE(csiphy_common_reg_2_3_0_pista_front),
-	.csiphy_reset_enter_array_size = ARRAY_SIZE(csiphy_reset_enter_reg_2_3_0_pista_front),
-	.csiphy_reset_exit_array_size = ARRAY_SIZE(csiphy_reset_exit_reg_2_3_0_pista_front),
-	.csiphy_2ph_config_array_size = ARRAY_SIZE(csiphy_2ph_v2_3_0_reg_pista_front),
-	.csiphy_3ph_config_array_size = ARRAY_SIZE(csiphy_3ph_v2_3_0_reg_pista_front),
-	.csiphy_2ph_combo_config_array_size = ARRAY_SIZE(csiphy_2ph_v2_3_0_combo_mode_reg_pista_front),
+	.status_reg_params = &status_regs_2_3_0_ktm_main,
+	.csiphy_common_reg_array_size = ARRAY_SIZE(csiphy_common_reg_2_3_0_ktm_main),
+	.csiphy_reset_enter_array_size = ARRAY_SIZE(csiphy_reset_enter_reg_2_3_0_ktm_main),
+	.csiphy_reset_exit_array_size = ARRAY_SIZE(csiphy_reset_exit_reg_2_3_0_ktm_main),
+	.csiphy_2ph_config_array_size = ARRAY_SIZE(csiphy_2ph_v2_3_0_reg_ktm_main),
+	.csiphy_3ph_config_array_size = ARRAY_SIZE(csiphy_3ph_v2_3_0_reg_ktm_main),
+	.csiphy_2ph_combo_config_array_size = ARRAY_SIZE(csiphy_2ph_v2_3_0_combo_mode_reg_ktm_main),
 	.csiphy_3ph_combo_config_array_size = 0,
 	.csiphy_2ph_3ph_config_array_size = 0,
-	.csiphy_interrupt_status_size = ARRAY_SIZE(csiphy_irq_reg_2_3_0_pista_front),
+	.csiphy_interrupt_status_size = ARRAY_SIZE(csiphy_irq_reg_2_3_0_ktm_main),
 	.csiphy_num_common_status_regs = 20,
-	.aon_sel_params = &aon_cam_select_params_2_3_0_pista_front,
+	.aon_sel_params = &aon_cam_select_params_2_3_0_ktm_main,
 };
 
-struct csiphy_ctrl_t ctrl_reg_2_3_0_pista_front = {
-	.csiphy_common_reg = csiphy_common_reg_2_3_0_pista_front,
-	.csiphy_2ph_reg = csiphy_2ph_v2_3_0_reg_pista_front,
-	.csiphy_3ph_reg = csiphy_3ph_v2_3_0_reg_pista_front,
-	.csiphy_2ph_combo_mode_reg = csiphy_2ph_v2_3_0_combo_mode_reg_pista_front,
+struct csiphy_ctrl_t ctrl_reg_2_3_0_ktm_main = {
+	.csiphy_common_reg = csiphy_common_reg_2_3_0_ktm_main,
+	.csiphy_2ph_reg = csiphy_2ph_v2_3_0_reg_ktm_main,
+	.csiphy_3ph_reg = csiphy_3ph_v2_3_0_reg_ktm_main,
+	.csiphy_2ph_combo_mode_reg = csiphy_2ph_v2_3_0_combo_mode_reg_ktm_main,
 	.csiphy_3ph_combo_reg = NULL,
 	.csiphy_2ph_3ph_mode_reg = NULL,
-	.csiphy_reg = &csiphy_v2_3_0_pista_front,
-	.csiphy_irq_reg = csiphy_irq_reg_2_3_0_pista_front,
-	.csiphy_reset_enter_regs = csiphy_reset_enter_reg_2_3_0_pista_front,
-	.csiphy_reset_exit_regs = csiphy_reset_exit_reg_2_3_0_pista_front,
-	.csiphy_lane_config_reg = csiphy_lane_en_reg_2_3_0_pista_front,
-	.data_rates_settings_table = &data_rate_delta_table_2_3_0_pista_front,
-	.csiphy_bist_reg = &bist_setting_2_3_0_pista_front,
+	.csiphy_reg = &csiphy_v2_3_0_ktm_main,
+	.csiphy_irq_reg = csiphy_irq_reg_2_3_0_ktm_main,
+	.csiphy_reset_enter_regs = csiphy_reset_enter_reg_2_3_0_ktm_main,
+	.csiphy_reset_exit_regs = csiphy_reset_exit_reg_2_3_0_ktm_main,
+	.csiphy_lane_config_reg = csiphy_lane_en_reg_2_3_0_ktm_main,
+	.data_rates_settings_table = &data_rate_delta_table_2_3_0_ktm_main,
+	.csiphy_bist_reg = &bist_setting_2_3_0_ktm_main,
 	.getclockvoting = get_clk_voting_dynamic,
 };
 
-#endif /* _CAM_CSIPHY_2_3_0_HWREG_PISTA_FRONT_H_ */
+#endif /* _CAM_CSIPHY_2_3_0_HWREG_KTM_MAIN_H_ */

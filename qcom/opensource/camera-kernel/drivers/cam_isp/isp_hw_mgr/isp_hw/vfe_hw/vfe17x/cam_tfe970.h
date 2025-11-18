@@ -693,7 +693,7 @@ static struct cam_vfe_top_ver4_hw_info tfe970_top_hw_info = {
 	.wr_client_desc         = tfe970_wr_client_desc,
 	.ipp_module_desc        = tfe970_ipp_mod_desc,
 	.bayer_module_desc      = tfe970_bayer_mod_desc,
-	.num_mux = 7,
+	.num_mux = 6,
 	.mux_type = {
 		CAM_VFE_CAMIF_VER_4_0,
 		CAM_VFE_RDI_VER_1_0,
@@ -1427,10 +1427,17 @@ static struct cam_vfe_bus_ver3_hw_info tfe970_bus_hw_info = {
 			.bw_limiter_addr          = 0x00001E1C,
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_3,
 			.ubwc_regs                = NULL,
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+			.supported_formats        = BIT_ULL(CAM_FORMAT_PLAIN16_8) |
+				BIT_ULL(CAM_FORMAT_PLAIN16_10) | BIT_ULL(CAM_FORMAT_PLAIN16_12) |
+				BIT_ULL(CAM_FORMAT_PLAIN16_14) | BIT_ULL(CAM_FORMAT_PLAIN16_16) |
+				BIT_ULL(CAM_FORMAT_UBWC_P016) | BIT_ULL(CAM_FORMAT_PLAIN16_10_LSB),
+#else
 			.supported_formats        = BIT_ULL(CAM_FORMAT_PLAIN16_8) |
 				BIT_ULL(CAM_FORMAT_PLAIN16_10) | BIT_ULL(CAM_FORMAT_PLAIN16_12) |
 				BIT_ULL(CAM_FORMAT_PLAIN16_14) | BIT_ULL(CAM_FORMAT_PLAIN16_16) |
 				BIT_ULL(CAM_FORMAT_UBWC_P016),
+#endif
 		},
 		/* BUS Client 18 PDAF_2 */
 		{
@@ -1463,10 +1470,17 @@ static struct cam_vfe_bus_ver3_hw_info tfe970_bus_hw_info = {
 			.bw_limiter_addr          = 0x00001F1C,
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_3,
 			.ubwc_regs                = NULL,
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+			.supported_formats        = BIT_ULL(CAM_FORMAT_PLAIN8) |
+				BIT_ULL(CAM_FORMAT_PLAIN16_8) | BIT_ULL(CAM_FORMAT_PLAIN16_10) |
+				BIT_ULL(CAM_FORMAT_PLAIN16_12) | BIT_ULL(CAM_FORMAT_PLAIN16_14) |
+				BIT_ULL(CAM_FORMAT_PLAIN16_16) | BIT_ULL(CAM_FORMAT_PLAIN16_10_LSB),
+#else
 			.supported_formats        = BIT_ULL(CAM_FORMAT_PLAIN8) |
 				BIT_ULL(CAM_FORMAT_PLAIN16_8) | BIT_ULL(CAM_FORMAT_PLAIN16_10) |
 				BIT_ULL(CAM_FORMAT_PLAIN16_12) | BIT_ULL(CAM_FORMAT_PLAIN16_14) |
 				BIT_ULL(CAM_FORMAT_PLAIN16_16),
+#endif
 
 		},
 		/* BUS Client 19 PDAF_3 */
@@ -1533,12 +1547,22 @@ static struct cam_vfe_bus_ver3_hw_info tfe970_bus_hw_info = {
 			.bw_limiter_addr          = 0x0000211C,
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_5,
 			.ubwc_regs                = NULL,
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+			.supported_formats        = BIT_ULL(CAM_FORMAT_MIPI_RAW_10) |
+				BIT_ULL(CAM_FORMAT_MIPI_RAW_12) | BIT_ULL(CAM_FORMAT_MIPI_RAW_14) |
+				BIT_ULL(CAM_FORMAT_PLAIN128) | BIT_ULL(CAM_FORMAT_PLAIN8) |
+				BIT_ULL(CAM_FORMAT_PLAIN16_8) | BIT_ULL(CAM_FORMAT_PLAIN16_10) |
+				BIT_ULL(CAM_FORMAT_PLAIN16_12) | BIT_ULL(CAM_FORMAT_PLAIN16_14) |
+				BIT_ULL(CAM_FORMAT_PLAIN16_16) | BIT_ULL(CAM_FORMAT_PLAIN64) |
+				BIT_ULL(CAM_FORMAT_PLAIN16_10_LSB),
+#else
 			.supported_formats        = BIT_ULL(CAM_FORMAT_MIPI_RAW_10) |
 				BIT_ULL(CAM_FORMAT_MIPI_RAW_12) | BIT_ULL(CAM_FORMAT_MIPI_RAW_14) |
 				BIT_ULL(CAM_FORMAT_PLAIN128) | BIT_ULL(CAM_FORMAT_PLAIN8) |
 				BIT_ULL(CAM_FORMAT_PLAIN16_8) | BIT_ULL(CAM_FORMAT_PLAIN16_10) |
 				BIT_ULL(CAM_FORMAT_PLAIN16_12) | BIT_ULL(CAM_FORMAT_PLAIN16_14) |
 				BIT_ULL(CAM_FORMAT_PLAIN16_16) | BIT_ULL(CAM_FORMAT_PLAIN64),
+#endif
 		},
 		/* BUS Client 21 RDI_1 */
 		{
@@ -1571,12 +1595,22 @@ static struct cam_vfe_bus_ver3_hw_info tfe970_bus_hw_info = {
 			.bw_limiter_addr          = 0x0000221C,
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_6,
 			.ubwc_regs                = NULL,
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+			.supported_formats        = BIT_ULL(CAM_FORMAT_MIPI_RAW_10) |
+				BIT_ULL(CAM_FORMAT_MIPI_RAW_12) | BIT_ULL(CAM_FORMAT_MIPI_RAW_14) |
+				BIT_ULL(CAM_FORMAT_PLAIN128) | BIT_ULL(CAM_FORMAT_PLAIN8) |
+				BIT_ULL(CAM_FORMAT_PLAIN16_8) | BIT_ULL(CAM_FORMAT_PLAIN16_10) |
+				BIT_ULL(CAM_FORMAT_PLAIN16_12) | BIT_ULL(CAM_FORMAT_PLAIN16_14) |
+				BIT_ULL(CAM_FORMAT_PLAIN16_16) | BIT_ULL(CAM_FORMAT_PLAIN64) |
+				BIT_ULL(CAM_FORMAT_PLAIN16_10_LSB),
+#else
 			.supported_formats        = BIT_ULL(CAM_FORMAT_MIPI_RAW_10) |
 				BIT_ULL(CAM_FORMAT_MIPI_RAW_12) | BIT_ULL(CAM_FORMAT_MIPI_RAW_14) |
 				BIT_ULL(CAM_FORMAT_PLAIN128) | BIT_ULL(CAM_FORMAT_PLAIN8) |
 				BIT_ULL(CAM_FORMAT_PLAIN16_8) | BIT_ULL(CAM_FORMAT_PLAIN16_10) |
 				BIT_ULL(CAM_FORMAT_PLAIN16_12) | BIT_ULL(CAM_FORMAT_PLAIN16_14) |
 				BIT_ULL(CAM_FORMAT_PLAIN16_16) | BIT_ULL(CAM_FORMAT_PLAIN64),
+#endif
 		},
 		/* BUS Client 22 RDI_2 */
 		{
@@ -1609,12 +1643,22 @@ static struct cam_vfe_bus_ver3_hw_info tfe970_bus_hw_info = {
 			.bw_limiter_addr          = 0x0000231C,
 			.comp_group               = CAM_VFE_BUS_VER3_COMP_GRP_7,
 			.ubwc_regs                = NULL,
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+			.supported_formats        = BIT_ULL(CAM_FORMAT_MIPI_RAW_10) |
+				BIT_ULL(CAM_FORMAT_MIPI_RAW_12) | BIT_ULL(CAM_FORMAT_MIPI_RAW_14) |
+				BIT_ULL(CAM_FORMAT_PLAIN128) | BIT_ULL(CAM_FORMAT_PLAIN8) |
+				BIT_ULL(CAM_FORMAT_PLAIN16_8) | BIT_ULL(CAM_FORMAT_PLAIN16_10) |
+				BIT_ULL(CAM_FORMAT_PLAIN16_12) | BIT_ULL(CAM_FORMAT_PLAIN16_14) |
+				BIT_ULL(CAM_FORMAT_PLAIN16_16) | BIT_ULL(CAM_FORMAT_PLAIN64) |
+				BIT_ULL(CAM_FORMAT_PLAIN16_10_LSB),
+#else
 			.supported_formats        = BIT_ULL(CAM_FORMAT_MIPI_RAW_10) |
 				BIT_ULL(CAM_FORMAT_MIPI_RAW_12) | BIT_ULL(CAM_FORMAT_MIPI_RAW_14) |
 				BIT_ULL(CAM_FORMAT_PLAIN128) | BIT_ULL(CAM_FORMAT_PLAIN8) |
 				BIT_ULL(CAM_FORMAT_PLAIN16_8) | BIT_ULL(CAM_FORMAT_PLAIN16_10) |
 				BIT_ULL(CAM_FORMAT_PLAIN16_12) | BIT_ULL(CAM_FORMAT_PLAIN16_14) |
 				BIT_ULL(CAM_FORMAT_PLAIN16_16) | BIT_ULL(CAM_FORMAT_PLAIN64),
+#endif
 		},
 		/* BUS Client 23 RDI_3 */
 		{

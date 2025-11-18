@@ -8,6 +8,7 @@
 #include "cam_common_util.h"
 #include "cam_packet_util.h"
 #include "oplus_cam_actuator.h"
+#include "cam_req_mgr_dev.h"
 
 int32_t oplus_cam_actuator_ignore_init_error(struct cam_actuator_ctrl_t *a_ctrl, int32_t rc)
 {
@@ -50,12 +51,12 @@ int32_t oplus_cam_actuator_construct_default_power_setting(
 	power_info->power_setting[pwr_up_count].delay = 2;
 	pwr_up_count++;
 
-	if(true == a_ctrl->power_custom1_reg)
+	if(true == a_ctrl->power_custom2_reg)
 	{
-		power_info->power_setting[pwr_up_count].seq_type = SENSOR_CUSTOM_REG1;
-		power_info->power_setting[pwr_up_count].seq_val = CAM_V_CUSTOM1;
+		power_info->power_setting[pwr_up_count].seq_type = SENSOR_CUSTOM_REG2;
+		power_info->power_setting[pwr_up_count].seq_val = CAM_V_CUSTOM2;
 		power_info->power_setting[pwr_up_count].config_val = 1;
-		power_info->power_setting[pwr_up_count].delay = 8;
+		power_info->power_setting[pwr_up_count].delay = 1;
 		pwr_up_count++;
 	}
 
@@ -64,6 +65,15 @@ int32_t oplus_cam_actuator_construct_default_power_setting(
 	power_info->power_setting[pwr_up_count].config_val = 1;
 	power_info->power_setting[pwr_up_count].delay = 10;
 	pwr_up_count++;
+
+	if(true == a_ctrl->power_custom1_reg)
+	{
+		power_info->power_setting[pwr_up_count].seq_type = SENSOR_CUSTOM_REG1;
+		power_info->power_setting[pwr_up_count].seq_val = CAM_V_CUSTOM1;
+		power_info->power_setting[pwr_up_count].config_val = 1;
+		power_info->power_setting[pwr_up_count].delay = 8;
+		pwr_up_count++;
+	}
 
 	if (a_ctrl->power_setting_size)
 	{
@@ -88,7 +98,7 @@ int32_t oplus_cam_actuator_construct_default_power_setting(
 	{
 		power_info->power_down_setting[pwr_down_count].seq_type = SENSOR_CUSTOM_REG1;
 		power_info->power_down_setting[pwr_down_count].seq_val = CAM_V_CUSTOM1;
-		power_info->power_down_setting[pwr_down_count].config_val = 1;
+		power_info->power_down_setting[pwr_down_count].config_val = 0;
 		power_info->power_down_setting[pwr_down_count].delay = 0;
 		pwr_down_count++;
 	}
@@ -98,6 +108,15 @@ int32_t oplus_cam_actuator_construct_default_power_setting(
 	power_info->power_down_setting[pwr_down_count].config_val = 0;
 	power_info->power_down_setting[pwr_down_count].delay = 1;
 	pwr_down_count++;
+
+	if(true == a_ctrl->power_custom2_reg)
+	{
+		power_info->power_down_setting[pwr_down_count].seq_type = SENSOR_CUSTOM_REG2;
+		power_info->power_down_setting[pwr_down_count].seq_val = CAM_V_CUSTOM2;
+		power_info->power_down_setting[pwr_down_count].config_val = 0;
+		power_info->power_down_setting[pwr_down_count].delay = 0;
+		pwr_down_count++;
+	}
 
 	power_info->power_down_setting[pwr_down_count].seq_type = SENSOR_VIO;
 	power_info->power_down_setting[pwr_down_count].seq_val = CAM_VIO;
@@ -181,6 +200,32 @@ int oplus_cam_actuator_read_current(void *arg)
 		usleep_range(500, 500);
 	}
 	CAM_ERR(CAM_ACTUATOR, "actuator: %s oplus_cam_actuator_read_current exit", a_ctrl->actuator_name);
+	return rc;
+}
+
+int oplus_cam_actuator_SetNotifyRfiService(struct cam_actuator_ctrl_t *a_ctrl, struct i2c_settings_array *i2c_set)
+{
+	struct cam_req_mgr_message req_msg = {0};
+	int rc = 0;
+
+	req_msg.session_hdl = a_ctrl->bridge_intf.session_hdl;
+	req_msg.u.err_msg.device_hdl = a_ctrl->bridge_intf.device_hdl;
+	req_msg.u.err_msg.link_hdl = a_ctrl->bridge_intf.link_hdl;
+	req_msg.u.err_msg.error_type = a_ctrl->id;
+	req_msg.u.err_msg.request_id = i2c_set->request_id;
+	req_msg.u.err_msg.resource_size = 0x0;
+	req_msg.u.err_msg.error_code = CAM_REQ_MGR_IIC_ERR_ACTUATOR_FAIL;
+	rc = cam_req_mgr_notify_message(&req_msg,
+		V4L_EVENT_CAM_REQ_MGR_NODE_EVENT,
+		V4L_EVENT_CAM_REQ_MGR_EVENT);
+	CAM_ERR(CAM_SENSOR,"Notifying v4l2 error [type: %u code: %u] failed on %d id%s",req_msg.u.err_msg.error_type, req_msg.u.err_msg.error_code, a_ctrl->id,a_ctrl->actuator_name);
+
+	if (rc < 0) {
+		CAM_ERR(CAM_ACTUATOR, "send event failed! rc %d", rc);
+	} else {
+		CAM_ERR(CAM_ACTUATOR, "send event success! rc%d", rc);
+	}
+
 	return rc;
 }
 #ifdef OPLUS_FEATURE_CAMERA_COMMON

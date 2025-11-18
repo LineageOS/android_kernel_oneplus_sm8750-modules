@@ -3372,7 +3372,6 @@ static void cam_icp_mgr_process_dbg_buf(struct cam_icp_hw_mgr *hw_mgr)
 
 		while (remain_len) {
 			pkt_ptr = msg_ptr;
-
 #ifdef OPLUS_FEATURE_CAMERA_COMMON
 			if (remain_len >= (ICP_DBG_BUF_SIZE_IN_WORDS << BYTE_WORD_SHIFT) ||
 				(pkt_ptr >= hw_mgr->dbg_buf + ICP_DBG_BUF_SIZE_IN_WORDS) ||
@@ -3380,8 +3379,7 @@ static void cam_icp_mgr_process_dbg_buf(struct cam_icp_hw_mgr *hw_mgr)
 				CAM_WARN(CAM_ICP,
 					"Error message: remain_len:%u, dbg_buf:%p pkt_ptr:%p pkt_size:%u pkt_type:0x%x read_in_words:%d",
 					remain_len, hw_mgr->dbg_buf, pkt_ptr,
-					pkt_ptr[ICP_PACKET_SIZE], pkt_ptr[ICP_PACKET_TYPE],
-					read_in_words);
+					pkt_ptr[ICP_PACKET_SIZE], pkt_ptr[ICP_PACKET_TYPE], read_in_words);
 				return;
 			}
 #endif

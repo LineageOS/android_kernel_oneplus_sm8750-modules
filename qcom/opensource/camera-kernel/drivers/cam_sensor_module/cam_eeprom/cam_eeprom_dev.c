@@ -12,7 +12,10 @@
 #include "camera_main.h"
 #include "cam_compat.h"
 #include "cam_mem_mgr_api.h"
-
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+#include "cam_compat.h"
+static bool gProbe_done;
+#endif
 static struct cam_i3c_eeprom_data {
 	struct cam_eeprom_ctrl_t                  *e_ctrl;
 	struct completion                          probe_complete;
@@ -679,6 +682,10 @@ static int32_t cam_eeprom_platform_driver_probe(
 	if (rc)
 		CAM_ERR(CAM_EEPROM, "failed to add component rc: %d", rc);
 
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+		gProbe_done = true;
+#endif
+
 	return rc;
 }
 
@@ -893,6 +900,11 @@ int cam_eeprom_driver_init(void)
 	struct device_node                      *dev;
 	int num_entries = 0;
 
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+		void *drv_ptr = NULL;
+		gProbe_done = false;
+#endif
+
 	rc = platform_driver_register(&cam_eeprom_platform_driver);
 	if (rc < 0) {
 		CAM_ERR(CAM_EEPROM, "platform_driver_register failed rc = %d",
@@ -911,6 +923,14 @@ int cam_eeprom_driver_init(void)
 		CAM_ERR(CAM_EEPROM, "i2c_add_driver failed rc = %d", rc);
 		goto i2c_register_err;
 	}
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+		if (gProbe_done == false) {
+			CAM_ERR(CAM_SENSOR, "%s deferred probe", cam_eeprom_platform_driver.driver.name);
+			drv_ptr = (void*)&(cam_eeprom_platform_driver.driver);
+			dev_defer_supplier_debug(drv_ptr);
+		}
+#endif
+
 
 	memset(eeprom_i3c_id, 0, sizeof(struct i3c_device_id) * (MAX_I3C_DEVICE_ID_ENTRIES + 1));
 

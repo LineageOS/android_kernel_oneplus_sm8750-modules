@@ -209,11 +209,36 @@ static int32_t cam_actuator_i2c_modes_util(
 {
 	int32_t rc = 0;
 	uint32_t i, size;
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+	int32_t retry_count;
+	int32_t MaxRetryCount = 5;
+#endif
 
 	if (i2c_list->op_code == CAM_SENSOR_I2C_WRITE_RANDOM) {
 		rc = camera_io_dev_write(io_master_info,
 			&(i2c_list->i2c_settings));
 		if (rc < 0) {
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+			if(-EINVAL == rc)
+			{
+				for (retry_count = 0; retry_count < MaxRetryCount; retry_count++)
+				{
+					rc = camera_io_dev_write(io_master_info,&(i2c_list->i2c_settings));
+					if(rc >= 0)
+					{
+						CAM_ERR(CAM_ACTUATOR, "retry write I2C settings success");
+						return rc;
+					}
+					CAM_ERR(CAM_ACTUATOR, "retry write I2C settings fail retry_count:%d", retry_count+1);
+					if(-ETIMEDOUT == rc)
+					{
+						CAM_ERR(CAM_ACTUATOR, "Iic is no longer responding");
+						return rc;
+					}
+					msleep(3);
+				}
+			}
+#endif
 			CAM_ERR(CAM_ACTUATOR,
 				"Failed to random write I2C settings: %d",
 				rc);
@@ -349,6 +374,10 @@ int32_t cam_actuator_apply_settings(struct cam_actuator_ctrl_t *a_ctrl,
 {
 	struct i2c_settings_list *i2c_list;
 	int32_t rc = 0;
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+	int af_cci = 8;
+	char fb_payload[PAYLOAD_LENGTH] = {0};
+#endif
 
 	if (a_ctrl == NULL || i2c_set == NULL) {
 		CAM_ERR(CAM_ACTUATOR, "Invalid Args");
@@ -386,6 +415,16 @@ int32_t cam_actuator_apply_settings(struct cam_actuator_ctrl_t *a_ctrl,
 				"Failed to apply settings: %d",
 				rc);
 #ifdef OPLUS_FEATURE_CAMERA_COMMON
+			if (-ETIMEDOUT == rc)
+			{
+				//Set Notify Rfi Reduced power
+				CAM_ERR(CAM_ACTUATOR,"notify RFI to reduce Frequency");
+				oplus_cam_actuator_SetNotifyRfiService(a_ctrl, i2c_set);
+
+				//report iic error to fb
+				af_cci = (a_ctrl->cci_i2c_master << 1)|(a_ctrl->cci_num);
+				KEVENT_FB_ACTUATOR_IIC_FAILED(fb_payload, "actuator iic control error",af_cci);
+			}
 			oplus_cam_actuator_reactive_setting_apply(a_ctrl);
 #endif
 		} else {
@@ -436,6 +475,7 @@ int32_t cam_actuator_apply_request(struct cam_req_mgr_apply_request *apply)
 			goto release_mutex;
 		}
 	}
+
 	for (del_req_id = 0; del_req_id < MAX_PER_FRAME_ARRAY; del_req_id++) {
 		i2c_set = &(a_ctrl->i2c_data.per_frame[del_req_id]);
 		if ((i2c_set->is_settings_valid == 1) &&
