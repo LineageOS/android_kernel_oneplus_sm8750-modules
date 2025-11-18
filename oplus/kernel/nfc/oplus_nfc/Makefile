@@ -3,5 +3,5 @@
 # Makefile for OPLUS_NFC based NFC driver
 #
 
-obj-$(CONFIG_OPLUS_NFC) +=  oplus_nfc.o
+obj-m +=  oplus_nfc.o
 #obj-y +=  oplus_nfc.o
