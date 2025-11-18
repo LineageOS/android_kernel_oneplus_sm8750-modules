@@ -177,6 +177,7 @@ static u32 _regs_dump_i7p[] = {
 	0xf164000c,
 	0xf164002c,
 	0xf1640034,
+	0xf1640054,
 	0xf1640080,
 	0xf1640204,
 	0xf1640300,
@@ -1246,9 +1247,9 @@ static int _iris7p_lp_abyp_exit_video_pre(void)
 
 	// Update ABP switch parameter
 	if (timing_info.refresh_rate == IRIS_FPS_144)
-		abp_ctrl = 0x0c905073; // VDO_HS_LATENCY = 83, LP_WIDTH = 1
+		abp_ctrl = 0x0c907073; // VDO_HS_LATENCY = 83, LP_WIDTH = 1
 	else if (timing_info.refresh_rate == IRIS_FPS_120)//for 120Hz
-		abp_ctrl = 0x0c90507b; // VDO_HS_LATENCY = 52, LP_WIDTH = 2
+		abp_ctrl = 0x0c90707b; // VDO_HS_LATENCY = 52, LP_WIDTH = 2
 	else {
 		IRIS_LOGE("%s(),%d: FPS(%d) not match(144/120).", __func__, __LINE__, timing_info.refresh_rate);
 		return -1;
@@ -1279,8 +1280,18 @@ int iris_lp_abyp_exit(void)
 	int toler_cnt = RETRY_MAX_CNT;
 	int rc = 0;
 	ktime_t lp_ktime0;
+	struct iris_mode_info timing_info;
 
 	pcfg = iris_get_cfg();
+
+	if (pcfg->lightup_ops.obtain_cur_timing_info) {
+		pcfg->lightup_ops.obtain_cur_timing_info(&timing_info);
+		if (iris_is_abyp_timing(&timing_info)) {
+			IRIS_LOGI("Panel current timing: %dx%d@%dHz: Not supported", timing_info.h_active, timing_info.v_active, timing_info.refresh_rate);
+			rc = -1;
+			return rc;
+		}
+	}
 
 #ifdef IRIS_EXT_CLK
 	if (pcfg->iris_clk_set)
@@ -1326,7 +1337,7 @@ exit_abyp_loop:
 	}
 
 	/*restore default dma setting when switch to PT from ABYP*/
-	if (pcfg->iris_chip_type == CHIP_IRIS8) {
+	if ((pcfg->iris_chip_type == CHIP_IRIS8) || (pcfg->iris_chip_type == CHIP_IRIS7P)) {
 		iris_set_ipopt_payload_data(IRIS_IP_SYS, pcfg->id_sys_dma_gen_ctrl, 4, pcfg->default_dma_gen_ctrl);
 		iris_set_ipopt_payload_data(IRIS_IP_SYS, ID_SYS_DMA_GEN_CTRL2, 4, pcfg->default_dma_gen_ctrl_2);
 		IRIS_LOGD("Restore default setting %x  %x",  pcfg->default_dma_gen_ctrl, pcfg->default_dma_gen_ctrl_2);

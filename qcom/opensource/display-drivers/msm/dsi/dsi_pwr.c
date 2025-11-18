@@ -233,7 +233,6 @@ static int dsi_pwr_enable_vregs(struct dsi_regulator_info *regs, bool enable)
 				(void)regulator_set_voltage(regs->vregs[i].vreg,
 						regs->vregs[i].off_min_voltage,
 						regs->vregs[i].max_voltage);
-
 		}
 	}
 

@@ -316,6 +316,11 @@ struct dsi_display {
 #ifdef OPLUS_FEATURE_DISPLAY
 	struct oplus_dsi_display oplus_display;
 #endif /* OPLUS_FEATURE_DISPLAY */
+#if defined(CONFIG_PXLW_IRIS)
+	u32 off;
+	u32 cnt;
+	u8 cmd_data_type;
+#endif /* CONFIG_PXLW_IRIS */
 };
 
 int dsi_display_dev_probe(struct platform_device *pdev);
@@ -469,8 +474,8 @@ int dsi_display_find_mode(struct dsi_display *display,
  * Return: 0 if supported or error code.
  */
 int dsi_display_validate_mode(struct dsi_display *display,
-			      struct dsi_display_mode *mode,
-			      u32 flags);
+				  struct dsi_display_mode *mode,
+				  u32 flags);
 
 /**
  * dsi_display_validate_mode_change() - validates mode if variable refresh case
@@ -737,7 +742,7 @@ int dsi_display_cmd_transfer(struct drm_connector *connector,
  * @ts:                 Command time stamp in nano-seconds.
  */
 int dsi_display_cmd_receive(void *display, const char *cmd_buf,
-			    u32 cmd_buf_len, u8 *recv_buf, u32 recv_buf_len, ktime_t *ts);
+				u32 cmd_buf_len, u8 *recv_buf, u32 recv_buf_len, ktime_t *ts);
 
 /**
  * dsi_display_soft_reset() - perform a soft reset on DSI controller

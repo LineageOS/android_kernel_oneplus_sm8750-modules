@@ -26,6 +26,9 @@
 #ifdef OPLUS_FEATURE_DISPLAY_ONSCREENFINGERPRINT
 #include "oplus_onscreenfingerprint.h"
 #endif /* OPLUS_FEATURE_DISPLAY_ONSCREENFINGERPRINT */
+#if defined(CONFIG_PXLW_IRIS)
+#include "dsi_iris_api.h"
+#endif
 
 #define to_dsi_bridge(x)     container_of((x), struct dsi_bridge, base)
 #define to_dsi_state(x)      container_of((x), struct dsi_connector_state, base)
@@ -225,6 +228,11 @@ static void dsi_bridge_pre_enable(struct drm_bridge *bridge)
 		return;
 	}
 #ifdef OPLUS_FEATURE_DISPLAY_ONSCREENFINGERPRINT
+	mutex_lock(&c_bridge->display->display_lock);
+	if (oplus_display_ops.bridge_post_enable) {
+		oplus_display_ops.bridge_post_enable(c_bridge->display, &c_bridge->dsi_mode);
+	}
+	mutex_unlock(&c_bridge->display->display_lock);
 	if (oplus_ofp_is_supported() && oplus_ofp_video_mode_30hz_aod_is_enabled()) {
 		oplus_ofp_video_mode_refresh_flag_update(&(c_bridge->dsi_mode));
 	}
@@ -291,6 +299,10 @@ static void dsi_bridge_enable(struct drm_bridge *bridge)
 
 	if (display && display->drm_conn) {
 		sde_connector_helper_bridge_enable(display->drm_conn);
+#if defined(CONFIG_PXLW_IRIS)
+		if (iris_is_chip_supported())
+			iris_ioctl_unlock();
+#endif /* CONFIG_PXLW_IRIS */
 		if (display->poms_pending) {
 			display->poms_pending = false;
 			sde_connector_schedule_status_work(display->drm_conn,
@@ -326,6 +338,10 @@ static void dsi_bridge_disable(struct drm_bridge *bridge)
 						&conn_state->msm_mode);
 
 		sde_connector_helper_bridge_disable(display->drm_conn);
+#if defined(CONFIG_PXLW_IRIS)
+		if (iris_is_chip_supported())
+			iris_ioctl_lock();
+#endif /* CONFIG_PXLW_IRIS */
 	}
 
 	rc = dsi_display_pre_disable(c_bridge->display);

@@ -75,7 +75,7 @@ static int iris_catalog_init_i7p(void)
 	pcfg->pw_chip_func_ops.iris_parse_lut_cmds_ = iris_parse_lut_cmds_i7p;
 	pcfg->pw_chip_func_ops.iris_get_hdr_enable_ = NULL;
 	pcfg->pw_chip_func_ops.iris_quality_setting_off_ = iris_quality_setting_off_i7p;
-	pcfg->pw_chip_func_ops.iris_end_dpp_ = iris_end_dpp_i7p;
+	pcfg->pw_chip_func_ops.iris_end_dpp_ = iris_end_dpp_i7p_v2;
 	pcfg->pw_chip_func_ops.iris_pq_parameter_init_ = iris_pq_parameter_init_i7p;
 	pcfg->pw_chip_func_ops.iris_cm_ratio_set_i5_ = NULL;
 	pcfg->pw_chip_func_ops.iris_cm_ratio_set_ = iris_cm_ratio_set_i7p;

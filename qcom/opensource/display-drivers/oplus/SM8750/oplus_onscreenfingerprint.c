@@ -309,7 +309,7 @@ int oplus_ofp_init(void *dsi_panel)
 				p_oplus_ofp_params->timer.function = oplus_ofp_notify_uiready_timer_handler;
 			}
 		}
-
+		p_oplus_ofp_params->aod_layer_disappeard_bl_ready = 1;
 	}
 
 	/* indicates how many frames cost from aod off cmd sent to normal frame */
@@ -505,6 +505,24 @@ bool oplus_ofp_local_hbm_unlocking_acceleration_is_enabled(void)
 	}
 
 	return (bool)(OPLUS_OFP_GET_LOCAL_HBM_UNLOCKING_ACCELERATION_CONFIG(p_oplus_ofp_params->fp_type));
+}
+
+bool oplus_ofp_full_screen_aod_mode_is_enabled(void)
+{
+	struct oplus_ofp_params *p_oplus_ofp_params = oplus_ofp_get_params(oplus_ofp_display_id);
+
+	if (!p_oplus_ofp_params) {
+		OFP_ERR("Invalid params\n");
+		return false;
+	}
+
+	if (!oplus_ofp_is_supported()) {
+		OFP_DEBUG("ofp is not support, full screen aod mode is also not supported\n");
+		return false;
+	}
+
+	return (bool)((p_oplus_ofp_params->longrui_aod_config & OPLUS_OFP_FULL_SCREEN_AOD_CONFIG)
+					&& (p_oplus_ofp_params->longrui_aod_mode & OPLUS_OFP_FULL_SCREEN_AOD_MODE));
 }
 
 bool oplus_ofp_get_hbm_state(void)
@@ -2117,7 +2135,7 @@ int oplus_ofp_hbm_handle(void *sde_encoder_virt)
 			|| hbm_enable & OPLUS_OFP_PROPERTY_FINGERPRESS_LAYER) && bl_level)
 				|| (p_oplus_ofp_params->doze_active && (hbm_enable & OPLUS_OFP_PROPERTY_FINGERPRESS_LAYER)
 					&& bl_level && !(oplus_ofp_video_mode_30hz_aod_is_enabled() && (refresh_rate == 30)))) {
-		if (oplus_ofp_video_mode_30hz_aod_is_enabled()) {
+		if (oplus_ofp_video_mode_30hz_aod_is_enabled() || p_oplus_ofp_params->oplus_ofp_ramless_set_lhbm_after_120hz) {
 			if (refresh_rate == 120) {
 				rc = oplus_ofp_set_panel_hbm(c_conn, true);
 				if (rc) {
@@ -2919,11 +2937,15 @@ bool oplus_ofp_backlight_filter(void *dsi_panel, unsigned int bl_level)
 				need_filter_backlight = true;
 			}
 		}
-		if (!oplus_ofp_get_aod_state() && (hbm_enable & OPLUS_OFP_PROPERTY_AOD_LAYER) && bl_level && p_oplus_ofp_params->aod_unlocking) {
+		if (!oplus_ofp_get_aod_state() && (hbm_enable & OPLUS_OFP_PROPERTY_AOD_LAYER) && bl_level && p_oplus_ofp_params->aod_unlocking
+				&& !((p_oplus_ofp_params->longrui_aod_config & OPLUS_OFP_FULL_SCREEN_AOD_CONFIG)
+					&& (p_oplus_ofp_params->longrui_aod_mode & OPLUS_OFP_FULL_SCREEN_AOD_MODE))) {
 			OFP_INFO("aod layer exist, hbm_state is true, filter backlight %u setting\n", bl_level);
 			need_filter_backlight = true;
 		}
-	} else if ((p_oplus_ofp_params->aod_unlocking && !oplus_ofp_ultrasonic_is_enabled()) && p_oplus_ofp_params->fp_press && bl_level) {
+	} else if ((p_oplus_ofp_params->aod_unlocking && !oplus_ofp_ultrasonic_is_enabled()) && p_oplus_ofp_params->fp_press && bl_level
+					&& !((p_oplus_ofp_params->longrui_aod_config & OPLUS_OFP_FULL_SCREEN_AOD_CONFIG)
+						&& (p_oplus_ofp_params->longrui_aod_mode & OPLUS_OFP_FULL_SCREEN_AOD_MODE))) {
 		OFP_INFO("aod unlocking is true, filter backlight %u setting\n", bl_level);
 		need_filter_backlight = true;
 	} else if (!p_oplus_ofp_params->aod_unlocking && !p_oplus_ofp_params->doze_active
@@ -2935,10 +2957,12 @@ bool oplus_ofp_backlight_filter(void *dsi_panel, unsigned int bl_level)
 	} else if (oplus_ofp_get_aod_state()) {
 		OFP_INFO("aod state is true, filter backlight %u setting\n", bl_level);
 		need_filter_backlight = true;
-	} else if (!oplus_ofp_get_aod_state() && (hbm_enable & OPLUS_OFP_PROPERTY_AOD_LAYER) && bl_level
+	} else if (!oplus_ofp_get_aod_state() && (!p_oplus_ofp_params->aod_layer_disappeard_bl_ready) && bl_level
 				&& !((p_oplus_ofp_params->longrui_aod_config & OPLUS_OFP_A_MIRROR_TO_THE_END_AOD_CONFIG)
 					&& (p_oplus_ofp_params->longrui_aod_mode & OPLUS_OFP_A_MIRROR_TO_THE_END_AOD_MODE)
-					&& !p_oplus_ofp_params->doze_active)) {
+					&& !p_oplus_ofp_params->doze_active)
+				&& !((p_oplus_ofp_params->longrui_aod_config & OPLUS_OFP_FULL_SCREEN_AOD_CONFIG)
+					&& (p_oplus_ofp_params->longrui_aod_mode & OPLUS_OFP_FULL_SCREEN_AOD_MODE))) {
 		OFP_INFO("aod layer exist, filter backlight %u setting\n", bl_level);
 		need_filter_backlight = true;
 	} else if (p_oplus_ofp_params->dimlayer_hbm || hbm_enable) {
@@ -3322,10 +3346,14 @@ void oplus_ofp_wait_te_before_aod_on(struct dsi_panel *panel)
 
 	oplus_sde_early_wakeup(panel);
 	oplus_wait_for_vsync(panel);
-	if (refresh_rate == 60 || refresh_rate == 90) {
+	if (refresh_rate == 60) {
 		oplus_need_to_sync_te(panel);
+		usleep_range(18*1000, 18*1000);
+	} else if (refresh_rate == 90) {
+		oplus_need_to_sync_te(panel);
+		usleep_range(13*1000, 13*1000);
 	} else {
-		usleep_range(300, 300);
+		usleep_range(10*1000, 10*1000);
 	}
 
 	return;
@@ -3383,7 +3411,9 @@ int oplus_ofp_power_mode_handle(void *dsi_display, int power_mode)
 			OFP_INFO("oplus_ofp_doze_active:%d\n", p_oplus_ofp_params->doze_active);
 			OPLUS_OFP_TRACE_INT("oplus_ofp_doze_active", p_oplus_ofp_params->doze_active);
 
-			if (!oplus_ofp_oled_capacitive_is_enabled() && !oplus_ofp_ultrasonic_is_enabled()) {
+			if (!oplus_ofp_oled_capacitive_is_enabled() && !oplus_ofp_ultrasonic_is_enabled()
+					&& !((p_oplus_ofp_params->longrui_aod_config & OPLUS_OFP_FULL_SCREEN_AOD_CONFIG)
+						&& (p_oplus_ofp_params->longrui_aod_mode & OPLUS_OFP_FULL_SCREEN_AOD_MODE))) {
 				/* hbm mode -> normal mode -> aod mode */
 				if (oplus_ofp_get_hbm_state()) {
 					if (oplus_ofp_local_hbm_is_enabled()) {
@@ -3408,8 +3438,10 @@ int oplus_ofp_power_mode_handle(void *dsi_display, int power_mode)
 			}
 
 			refresh_rate = display->panel->cur_mode->timing.refresh_rate;
-			if (!oplus_ofp_video_mode_30hz_aod_is_enabled()
-					|| (oplus_ofp_video_mode_30hz_aod_is_enabled() && (refresh_rate == 30))) {
+			if ((!oplus_ofp_video_mode_30hz_aod_is_enabled()
+					|| (oplus_ofp_video_mode_30hz_aod_is_enabled() && (refresh_rate == 30)))
+						&& !((p_oplus_ofp_params->longrui_aod_config & OPLUS_OFP_FULL_SCREEN_AOD_CONFIG)
+							&& (p_oplus_ofp_params->longrui_aod_mode & OPLUS_OFP_FULL_SCREEN_AOD_MODE))) {
 				/* whether need to wait for TE before AOD on */
 				if (p_oplus_ofp_params->need_to_wait_te_before_aod_on) {
 					oplus_ofp_wait_te_before_aod_on(display->panel);
@@ -3558,6 +3590,11 @@ int oplus_panel_parse_video_mode_aod_brightness_config(struct dsi_panel *panel)
 	}
 
 	utils = &panel->utils;
+
+	p_oplus_ofp_params->oplus_ofp_ramless_set_lhbm_after_120hz = utils->read_bool(utils->data,
+			"oplus,ofp-ramless-set-lhbm-after-120hz");
+	OPLUS_DSI_INFO("oplus,ofp-ramless-set-lhbm-after-120hz: %s\n",
+			p_oplus_ofp_params->oplus_ofp_ramless_set_lhbm_after_120hz ? "true" : "false");
 
 	p_oplus_ofp_params->video_mode_aod_brightness_change_enable = utils->read_bool(utils->data,
 			"oplus,video-mode-aod-brightness-change-enable");
@@ -4031,7 +4068,7 @@ int oplus_ofp_aod_off_backlight_recovery(void *sde_encoder_virt)
 
 	display = c_conn->display;
 
-	if (!display || !display->panel) {
+	if (!display || !display->panel || !display->panel->oplus_panel.vendor_name) {
 		OFP_ERR("Invalid display params\n");
 		return -EINVAL;
 	}
@@ -4041,19 +4078,36 @@ int oplus_ofp_aod_off_backlight_recovery(void *sde_encoder_virt)
 	hbm_enable = sde_connector_get_property(c_conn->base.state, CONNECTOR_PROP_HBM_ENABLE);
 	new_aod_layer_status = hbm_enable & OPLUS_OFP_PROPERTY_AOD_LAYER;
 	OFP_DEBUG("hbm_enable:%llu,new_aod_layer_status:%d\n", hbm_enable, new_aod_layer_status);
-
 	if (last_aod_layer_status && !new_aod_layer_status) {
-		OFP_INFO("recovery backlight level = %d after aod layer disappear\n", display->panel->bl_config.bl_level);
-		mutex_lock(&display->panel->panel_lock);
-		display->panel->oplus_panel.aod_backlight_async = true;
-		rc = dsi_panel_set_backlight(display->panel, display->panel->bl_config.bl_level);
-		if (rc) {
-			OFP_ERR("unable to set backlight\n");
-		}
-		display->panel->oplus_panel.aod_backlight_async = false;
-		mutex_unlock(&display->panel->panel_lock);
+		p_oplus_ofp_params->aod_layer_disappeard_bl_ready = 1;
+	} else if (!last_aod_layer_status && new_aod_layer_status) {
+		p_oplus_ofp_params->aod_layer_disappeard_bl_ready = 0;
 	}
 
+	if ((!strcmp(display->panel->oplus_panel.vendor_name, "AE035")) &&  (hbm_enable & OPLUS_OFP_PROPERTY_FINGERPRESS_LAYER)) {
+		if (p_oplus_ofp_params->panel_hbm_status || new_aod_layer_status) {
+			if (last_aod_layer_status && !new_aod_layer_status) {
+				mutex_lock(&display->panel->panel_lock);
+				rc = dsi_panel_set_backlight(display->panel, display->panel->bl_config.bl_level);
+				if (rc) {
+					OFP_ERR("unable to set backlight\n");
+				}
+				display->panel->oplus_panel.aod_backlight_async = false;
+				mutex_unlock(&display->panel->panel_lock);
+			}
+		}
+	} else {
+		if (last_aod_layer_status && !new_aod_layer_status) {
+			mutex_lock(&display->panel->panel_lock);
+			display->panel->oplus_panel.aod_backlight_async = true;
+			rc = dsi_panel_set_backlight(display->panel, display->panel->bl_config.bl_level);
+			if (rc) {
+				OFP_ERR("unable to set backlight\n");
+			}
+			display->panel->oplus_panel.aod_backlight_async = false;
+			mutex_unlock(&display->panel->panel_lock);
+		}
+	}
 	last_aod_layer_status = new_aod_layer_status;
 
 	OPLUS_OFP_TRACE_END("oplus_ofp_aod_off_backlight_recovery");
@@ -5020,6 +5074,25 @@ int oplus_ofp_set_longrui_aod_mode(void *buf)
 	OFP_INFO("longrui_aod_mode:0x%x\n", p_oplus_ofp_params->longrui_aod_mode);
 	OPLUS_OFP_TRACE_INT("oplus_ofp_longrui_aod_mode", p_oplus_ofp_params->longrui_aod_mode);
 
+	if (display->panel) {
+		if (!strcmp(display->panel->type, "primary")) {
+			p_oplus_ofp_params = oplus_ofp_get_params(OPLUS_OFP_SECONDARY_DISPLAY);
+		} else if (!strcmp(display->panel->type, "secondary")) {
+			p_oplus_ofp_params = oplus_ofp_get_params(OPLUS_OFP_PRIMARY_DISPLAY);
+		}
+		if (!p_oplus_ofp_params) {
+			OFP_ERR("Invalid params\n");
+			return -EINVAL;
+		}
+		p_oplus_ofp_params->longrui_aod_mode = (p_oplus_ofp_params->longrui_aod_mode & ~OPLUS_OFP_FULL_SCREEN_AOD_MODE)
+													| ((*longrui_aod_mode) & OPLUS_OFP_FULL_SCREEN_AOD_MODE);
+		if (p_oplus_ofp_params->longrui_aod_mode & OPLUS_OFP_FULL_SCREEN_AOD_MODE) {
+			p_oplus_ofp_params->longrui_aod_mode = p_oplus_ofp_params->longrui_aod_mode & ~OPLUS_OFP_A_MIRROR_TO_THE_END_AOD_MODE;
+		}
+		OFP_INFO("another panel longrui_aod_mode:0x%x\n", p_oplus_ofp_params->longrui_aod_mode);
+		p_oplus_ofp_params = oplus_ofp_get_params(oplus_ofp_display_id);
+	}
+
 	if (!oplus_ofp_is_supported()) {
 		OFP_DEBUG("ofp is not supported\n");
 		return 0;
@@ -5091,6 +5164,25 @@ ssize_t oplus_ofp_set_longrui_aod_mode_attr(struct kobject *obj,
 	p_oplus_ofp_params->longrui_aod_mode = longrui_aod_mode;
 	OFP_INFO("longrui_aod_mode:0x%x\n", p_oplus_ofp_params->longrui_aod_mode);
 	OPLUS_OFP_TRACE_INT("oplus_ofp_longrui_aod_mode", p_oplus_ofp_params->longrui_aod_mode);
+
+	if (display->panel) {
+		if (!strcmp(display->panel->type, "primary")) {
+			p_oplus_ofp_params = oplus_ofp_get_params(OPLUS_OFP_SECONDARY_DISPLAY);
+		} else if (!strcmp(display->panel->type, "secondary")) {
+			p_oplus_ofp_params = oplus_ofp_get_params(OPLUS_OFP_PRIMARY_DISPLAY);
+		}
+		if (!p_oplus_ofp_params) {
+			OFP_ERR("Invalid params\n");
+			return count;
+		}
+		p_oplus_ofp_params->longrui_aod_mode = (p_oplus_ofp_params->longrui_aod_mode & ~OPLUS_OFP_FULL_SCREEN_AOD_MODE)
+													| (longrui_aod_mode & OPLUS_OFP_FULL_SCREEN_AOD_MODE);
+		if (p_oplus_ofp_params->longrui_aod_mode & OPLUS_OFP_FULL_SCREEN_AOD_MODE) {
+			p_oplus_ofp_params->longrui_aod_mode = p_oplus_ofp_params->longrui_aod_mode & ~OPLUS_OFP_A_MIRROR_TO_THE_END_AOD_MODE;
+		}
+		OFP_INFO("another panel longrui_aod_mode:0x%x\n", p_oplus_ofp_params->longrui_aod_mode);
+		p_oplus_ofp_params = oplus_ofp_get_params(oplus_ofp_display_id);
+	}
 
 	if (!oplus_ofp_is_supported()) {
 		OFP_DEBUG("ofp is not supported\n");

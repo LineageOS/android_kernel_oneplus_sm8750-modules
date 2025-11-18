@@ -35,6 +35,9 @@ void iris_init_i7p(struct dsi_display *display, struct dsi_panel *panel)
 {
 	struct iris_cfg *pcfg = iris_get_cfg();
 	struct iris_vendor_cfg *pcfg_ven = iris_get_vendor_cfg();
+#ifdef IRIS_EXT_CLK
+	struct platform_device *pdev = pcfg->pdev;
+#endif
 
 	IRIS_LOGI("%s(), for dispaly: %s, panel: %s",
 			__func__,
@@ -113,7 +116,18 @@ void iris_init_i7p(struct dsi_display *display, struct dsi_panel *panel)
 	pcfg->memc_chain_en = false;
 
 #ifdef IRIS_EXT_CLK // skip ext clk
-	pcfg->ext_clk = devm_clk_get(&display->pdev->dev, "divclk");
+	if (pdev && iris_clk_parse(pdev->dev.of_node)) {
+		IRIS_LOGI("Get clk from iris node");
+		pcfg->ext_clk = devm_clk_get(&pdev->dev, IRIS_EXT_CLK_NAME);
+	} else if (iris_clk_parse(pcfg->dev->of_node)) {
+		IRIS_LOGI("Get clk from dsi node");
+		pcfg->ext_clk = devm_clk_get(&display->pdev->dev, IRIS_EXT_CLK_NAME);
+	} else {
+		pcfg->ext_clk = NULL;
+	}
+	if (IS_ERR_OR_NULL(pcfg->ext_clk)) {
+		IRIS_LOGE("%s(%d) --- failed to get ext_clk", __func__, __LINE__);
+        }
 #endif
 
 	if (!iris_virtual_display(display)) {

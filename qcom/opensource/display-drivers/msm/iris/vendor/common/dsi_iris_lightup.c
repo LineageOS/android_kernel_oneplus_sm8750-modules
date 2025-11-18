@@ -54,6 +54,7 @@ static void _iris_i2c_preload_work(struct work_struct *work)
 
 	iris_get_cfg()->iris_i2c_preload = true;
 	iris_enable(pcfg_ven->panel, NULL);
+	iris_mipi_domain_power_down();
 	iris_get_cfg()->iris_i2c_preload = false;
 }
 
@@ -257,7 +258,6 @@ void iris_control_pwr_regulator(bool on)
 	if (!iris_is_chip_supported())
 		return;
 
-	IRIS_LOGI("%s(), power enable", __func__);
 	rc = dsi_pwr_enable_regulator(&pcfg_ven->iris_power_info, on);
 	if (rc)
 		IRIS_LOGE("failed to power %s iris", on ? "on" : "off");
@@ -1112,12 +1112,42 @@ uint32_t iris_schedule_line_no_get(void)
 }
 
 #ifdef IRIS_EXT_CLK
+bool iris_clk_parse(struct device_node *np)
+{
+	const char *clk_dtsi_name = NULL;
+	int count, i = 0;
+
+	if (!of_get_property(np, "clocks", NULL) || !of_get_property(np, "clock-names", NULL)) {
+		IRIS_LOGI("ext clk not exist in node: %s", np->name);
+	} else {
+		count = of_property_count_strings(np, "clock-names");
+		if (count < 0) {
+			IRIS_LOGE("parse clock error");
+		} else {
+			for (i = (count-1);  i >= 0; i--) {
+				of_property_read_string_index(np, "clock-names", i, &clk_dtsi_name);
+				if (!strncmp(clk_dtsi_name, IRIS_EXT_CLK_NAME, strlen(IRIS_EXT_CLK_NAME))) {
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
 void iris_clk_enable(bool is_secondary)
 {
+	int rc = 0;
 	struct iris_cfg *pcfg = iris_get_cfg();
 
 	if (is_secondary) {
 		IRIS_LOGD("%s(), %d, skip enable clk in virtual channel", __func__, __LINE__);
+		return;
+	}
+
+	if (IS_ERR_OR_NULL(pcfg->ext_clk)) {
+		rc = PTR_ERR(pcfg->ext_clk);
+		IRIS_LOGE("%s(), %d, failed to get iris ext clk, rc = %d", __func__, __LINE__, rc);
 		return;
 	}
 
@@ -1136,10 +1166,17 @@ void iris_clk_enable(bool is_secondary)
 
 void iris_clk_disable(bool is_secondary)
 {
+	int rc = 0;
 	struct iris_cfg *pcfg = iris_get_cfg();
 
 	if (is_secondary) {
 		IRIS_LOGD("%s(), %d, skip disable clk in virtual channel", __func__, __LINE__);
+		return;
+	}
+
+	if (IS_ERR_OR_NULL(pcfg->ext_clk)) {
+		rc = PTR_ERR(pcfg->ext_clk);
+		IRIS_LOGE("%s(), %d, failed to get iris ext clk, rc = %d", __func__, __LINE__, rc);
 		return;
 	}
 

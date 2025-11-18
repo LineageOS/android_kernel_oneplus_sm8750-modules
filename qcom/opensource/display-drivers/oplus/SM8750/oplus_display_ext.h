@@ -56,6 +56,7 @@ int oplus_display_read_panel_id(struct dsi_display *display, struct panel_id *pa
 int oplus_panel_register_fpga_notifier(void);
 
 void oplus_panel_check_fpga(struct dsi_panel *panel);
+void oplus_panel_switch_vid_mode_compenstate_post(struct dsi_panel *panel, struct drm_crtc *crtc, int refresh_rate);
 #endif /* _OPLUS_DISPLAY_EXT_H_ */
 
 

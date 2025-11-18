@@ -23,6 +23,8 @@
 extern u32 bl_lvl;
 extern struct panel_id panel_id;
 extern int panel_id_custom;
+int dsi_cmd_set_type_status;
+
 
 const char *cmd_set_prop_map[DSI_CMD_SET_MAX] = {
 	"qcom,mdss-dsi-pre-on-command",
@@ -263,7 +265,39 @@ const char *cmd_set_prop_map[DSI_CMD_SET_MAX] = {
 	"oplus,dsi-panel-gamma-compensation-command",
 	"oplus,dsi-panel-white-point-compensation-off",
 	"oplus,dsi-panel-white-point-compensation-on",
+	"qcom,mdss-dsi-timing-switch-compensation-command",
+	"qcom,mdss-dsi-fps-switch-120-to-60-command",
+	"qcom,mdss-dsi-fps-switch-60-to-120-command",
+	"qcom,mdss-dsi-fps-switch-120-to-144-command",
+	"qcom,mdss-dsi-fps-switch-144-to-120-command",
+	"qcom,mdss-dsi-fps-switch-120-to-90-command",
+	"qcom,mdss-dsi-fps-switch-90-to-120-command",
+	"qcom,mdss-dsi-fps-switch-144-to-60-command",
+	"qcom,mdss-dsi-fps-switch-60-to-144-command",
+	"qcom,mdss-dsi-fps-switch-90-to-60-command",
+	"qcom,mdss-dsi-fps-switch-60-to-90-command",
+	"qcom,mdss-dsi-fps-switch-144-to-90-command",
+	"qcom,mdss-dsi-fps-switch-90-to-144-command",
+	"oplus,mdss-dsi-dynamic-float-te-command",
+	"oplus,mdss-dsi-dynamic-float-dc-te-command",
+	"oplus,mdss-dsi-dynamic-float-default-te-command",
+	"qcom,mdss-dsi-fps-switch-165HZ-enter-144Hz-command",
+	"qcom,mdss-dsi-fps-switch-165HZ-enter-120Hz-command",
+	"qcom,mdss-dsi-fps-switch-165HZ-enter-90Hz-command",
+	"qcom,mdss-dsi-fps-switch-165HZ-enter-60Hz-command",
+	"qcom,mdss-dsi-fps-switch-144HZ-enter-120Hz-command",
+	"qcom,mdss-dsi-fps-switch-144HZ-enter-90Hz-command",
+	"qcom,mdss-dsi-fps-switch-144HZ-enter-60Hz-command",
+	"qcom,mdss-dsi-fps-switch-enter-165Hz-command",
+	"qcom,mdss-dsi-fps-switch-144Hz-enter-165Hz-command",
+	"qcom,mdss-dsi-fps-switch-enter-144Hz-command",
 #endif /* OPLUS_FEATURE_DISPLAY */
+
+#ifdef OPLUS_FEATURE_AP_UIR_DIMMING
+	"oplus,dsi-panel-apuir-on-command",
+	"oplus,dsi-panel-apuir-middle-off-command",
+	"oplus,dsi-panel-apuir-off-command",
+#endif /*OPLUS_FEATURE_AP_UIR_DIMMING*/
 };
 
 const char *cmd_set_state_map[DSI_CMD_SET_MAX] = {
@@ -505,7 +539,38 @@ const char *cmd_set_state_map[DSI_CMD_SET_MAX] = {
 	"oplus,dsi-panel-gamma-compensation-command-state",
 	"oplus,dsi-panel-white-point-compensation-off-state",
 	"oplus,dsi-panel-white-point-compensation-on-state",
+	"qcom,mdss-dsi-timing-switch-compensation-command-state",
+	"qcom,mdss-dsi-fps-switch-120-to-60-command-state",
+	"qcom,mdss-dsi-fps-switch-60-to-120-command-state",
+	"qcom,mdss-dsi-fps-switch-120-to-144-command-state",
+	"qcom,mdss-dsi-fps-switch-144-to-120-command-state",
+	"qcom,mdss-dsi-fps-switch-120-to-90-command-state",
+	"qcom,mdss-dsi-fps-switch-90-to-120-command-state",
+	"qcom,mdss-dsi-fps-switch-144-to-60-command-state",
+	"qcom,mdss-dsi-fps-switch-60-to-144-command-state",
+	"qcom,mdss-dsi-fps-switch-90-to-60-command-state",
+	"qcom,mdss-dsi-fps-switch-60-to-90-command-state",
+	"qcom,mdss-dsi-fps-switch-144-to-90-command-state",
+	"qcom,mdss-dsi-fps-switch-90-to-144-command-state",
+	"oplus,mdss-dsi-dynamic-float-te-command-state",
+	"oplus,mdss-dsi-dynamic-float-dc-te-command-state",
+	"oplus,mdss-dsi-dynamic-float-default-te-command-state",
+	"qcom,mdss-dsi-fps-switch-165HZ-enter-144Hz-command-state",
+	"qcom,mdss-dsi-fps-switch-165HZ-enter-120Hz-command-state",
+	"qcom,mdss-dsi-fps-switch-165HZ-enter-90Hz-command-state",
+	"qcom,mdss-dsi-fps-switch-165HZ-enter-60Hz-command-state",
+	"qcom,mdss-dsi-fps-switch-144HZ-enter-120Hz-command-state",
+	"qcom,mdss-dsi-fps-switch-144HZ-enter-90Hz-command-state",
+	"qcom,mdss-dsi-fps-switch-144HZ-enter-60Hz-command-state",
+	"qcom,mdss-dsi-fps-switch-enter-165Hz-command-state",
+	"qcom,mdss-dsi-fps-switch-144Hz-enter-165Hz-command-state",
+	"qcom,mdss-dsi-fps-switch-enter-144Hz-command-state",
 #endif /* OPLUS_FEATURE_DISPLAY */
+#ifdef OPLUS_FEATURE_AP_UIR_DIMMING
+	"oplus,dsi-panel-apuir-on-command-state",
+	"oplus,dsi-panel-apuir-middle-off-command-state",
+	"oplus,dsi-panel-apuir-off-command-state",
+#endif /*OPLUS_FEATURE_AP_UIR_DIMMING*/
 };
 
 EXPORT_SYMBOL(cmd_set_prop_map);
@@ -671,6 +736,19 @@ int oplus_panel_cmd_print(struct dsi_panel *panel, enum dsi_cmd_set_type type)
 	return 0;
 }
 
+void oplus_panel_timing_switch_cmd_replace_handle(struct dsi_panel *panel, enum dsi_cmd_set_type *type)
+{
+	if (panel->oplus_panel.last_refresh_rate != 165) {
+		return;
+	}
+
+	if (*type == DSI_CMD_SET_TIMING_SWITCH) {
+		*type = DSI_CMD_SET_TIMING_SWITCH_COMPENSATION;
+	}
+
+	return;
+}
+
 int oplus_panel_cmd_switch(struct dsi_panel *panel, enum dsi_cmd_set_type *type)
 {
 	enum dsi_cmd_set_type type_store = *type;
@@ -685,6 +763,7 @@ int oplus_panel_cmd_switch(struct dsi_panel *panel, enum dsi_cmd_set_type *type)
 		}
 	}
 
+	oplus_panel_timing_switch_cmd_replace_handle(panel, type);
 	count = panel->cur_mode->priv_info->cmd_sets[*type].count;
 	if (count == 0) {
 		OPLUS_DSI_DEBUG("[%s] %s is undefined, restore to %s\n",
@@ -794,6 +873,47 @@ int oplus_panel_cmd_reg_replace(struct dsi_panel *panel, enum dsi_cmd_set_type t
 		}
 	}
 
+	return 0;
+}
+
+int oplus_panel_cmd_reg_read_specific_row(struct dsi_panel *panel, struct dsi_display_mode *mode,
+		enum dsi_cmd_set_type type, u8 *read_reg, size_t read_reg_len, u32 row)
+{
+	struct dsi_cmd_desc *cmds = NULL;
+	size_t tx_len = 0;
+	u8 *tx_buf = NULL;
+	u32 count = 0;
+	u32 index = 0;
+
+	if(!panel) {
+		OPLUS_DSI_ERR("invalid display panel\n");
+		return -ENODEV;
+	}
+	if(!read_reg) {
+		OPLUS_DSI_ERR("invalid cmd reg\n");
+		return -ENODEV;
+	}
+
+	if (!mode || !mode->priv_info) {
+		OPLUS_DSI_INFO("mode is null, use panel cur_mode\n");
+		mode = panel->cur_mode;
+	}
+	cmds = mode->priv_info->cmd_sets[type].cmds;
+	count = mode->priv_info->cmd_sets[type].count;
+	if (row > count) {
+		OPLUS_DSI_ERR("Exceeding the number of rows of the command\n");
+		return -EFAULT;
+	}
+	index = row - 1;
+	tx_len = cmds[index].msg.tx_len;
+	tx_buf = (u8 *)cmds[index].msg.tx_buf;
+
+	if ((tx_len - 1) != read_reg_len) {
+		OPLUS_DSI_ERR("the number of rows of the command is wrong tx_len = %zu read_reg_len = %zu\n", tx_len, read_reg_len);
+		return -EFAULT;
+	}
+	tx_buf++;
+	memcpy(read_reg, tx_buf, read_reg_len);
 	return 0;
 }
 
@@ -985,4 +1105,64 @@ int oplus_panel_send_asynchronous_cmd(struct dsi_display *display)
 	rc = oplus_display_panel_set_demura2_offset(display);
 
 	return rc;
+}
+int oplus_panel_vid_cmdp_handle(void *dsi_panel, enum dsi_cmd_set_type type)
+{
+	struct dsi_panel *panel = dsi_panel;
+	struct dsi_display_mode *mode;
+	struct dsi_cmd_desc *cmds;
+	int i = 0;
+	u32 count;
+
+	OPLUS_DSI_DEBUG("start\n");
+
+	if (!panel || !panel->cur_mode) {
+		OPLUS_DSI_ERR("invalid panel param\n");
+		return -EINVAL;
+	}
+
+	if((panel->panel_mode != DSI_OP_VIDEO_MODE) || (!panel->oplus_panel.enable_dsi_cmd_package)) {
+		return 0;
+	}
+	mode = panel->cur_mode;
+	cmds = mode->priv_info->cmd_sets[type].cmds;
+	count = mode->priv_info->cmd_sets[type].count;
+
+	OPLUS_DSI_TRACE_BEGIN("oplus_panel_vid_cmdp_handle");
+	switch (type) {
+	case DSI_CMD_SET_ON:
+	case DSI_CMD_SET_OFF:
+	case DSI_CMD_ESD_SWITCH_PAGE:
+	case DSI_CMD_DEFAULT_SWITCH_PAGE:
+	case DSI_CMD_SET_PPS:
+	case DSI_CMD_FPS_165HZ_ENTER_144HZ:
+	case DSI_CMD_FPS_165HZ_ENTER_120HZ:
+	case DSI_CMD_FPS_165HZ_ENTER_90HZ:
+	case DSI_CMD_FPS_165HZ_ENTER_60HZ:
+	case DSI_CMD_FPS_144HZ_ENTER_120HZ:
+	case DSI_CMD_FPS_144HZ_ENTER_90HZ:
+	case DSI_CMD_FPS_144HZ_ENTER_60HZ:
+	case DSI_CMD_FPS_ENTER_165HZ:
+	case DSI_CMD_FPS_144HZ_ENTER_165HZ:
+	case DSI_CMD_FPS_ENTER_144HZ:
+		break;
+	default:
+		if (count > 0) {
+			dsi_cmd_set_type_status = (int)type;
+			OPLUS_DSI_TRACE_INT("oplus_dsi_cmd_set_type", dsi_cmd_set_type_status);
+			panel->oplus_panel.dsi_cmd_need_to_package =  true;
+			OPLUS_DSI_INFO("Set dsi_cmd: %s to batch.\n", cmd_set_prop_map[type]);
+
+			for (i = 0; i < count; i++) {
+				cmds->msg.flags |= MIPI_DSI_MSG_BATCH_COMMAND;
+				cmds++;
+			}
+		}
+		break;
+	}
+
+	OPLUS_DSI_TRACE_END("oplus_panel_vid_cmdp_handle");
+	OPLUS_DSI_DEBUG("end\n");
+
+	return 0;
 }

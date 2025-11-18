@@ -27,6 +27,7 @@
 #include "oplus_display_device_ioctl.h"
 #include "oplus_display_ffl.h"
 #include "oplus_display_dc_diming.h"
+#include "oplus_display_dfte.h"
 
 #define OPLUS_PANEL_NAME "oplus_display"
 #define OPLUS_PANEL_CLASS_NAME "oplus_display_class"
@@ -103,7 +104,7 @@ struct kernel_loglevel {
 
 /* oplus ioctl case start */
 #define PANEL_COMMOND_BASE 0x00
-#define PANEL_COMMOND_MAX  0xCA
+#define PANEL_COMMOND_MAX  0xD5
 
 #define PANEL_IOCTL_SET_POWER                    PANEL_IOW(0x01, struct panel_vol_set)
 #define PANEL_IOCTL_GET_POWER                    PANEL_IOWR(0x02, struct panel_vol_get)
@@ -197,6 +198,9 @@ struct kernel_loglevel {
 #define PANEL_IOCTL_GET_MIPI_ERR_CHECK            PANEL_IOWR(0xC1, unsigned int)
 #define PANEL_IOCTL_SET_WHITE_POINT_FLAG         PANEL_IOWR(0xC8, unsigned int)
 #define PANEL_IOCTL_GET_IGNORE_MODE              PANEL_IOWR(0xC9, struct ignore_mode_get)
+#define PANEL_IOCTL_GET_BRIGHTNESS_TIME          PANEL_IOWR(0xD0, struct panel_brightness_time)
+#define PANEL_IOCTL_SET_DYNAMIC_FLOAT_TE         PANEL_IOW(0xD3, unsigned int)
+#define PANEL_IOCTL_GET_DYNAMIC_FLOAT_TE         PANEL_IOWR(0xD4, unsigned int)
 /*oplus ioctl case end*/
 
 int oplus_display_panel_init(void);

@@ -197,11 +197,13 @@ struct oplus_ofp_params {
 	struct workqueue_struct *aod_off_set_wq;		/* a workqueue used to send aod off cmds to speed up aod unlocking */
 	struct work_struct aod_off_set_work;			/* a work struct used to send aod off cmds to speed up aod unlocking */
 	struct notifier_block touchpanel_event_notifier;/* add for touchpanel event notifier */
+	bool aod_layer_disappeard_bl_ready;
 	/* add for enter aod change brightness by light sensor*/
 	bool video_mode_aod_brightness_change_enable;
 	u32 video_mode_aod_brightness_value_count;
 	u8 video_mode_aod_high_brightness_values[VIDEO_AOD_BRIGHTNESS_VALUE_COUNT];
 	u8 video_mode_aod_low_brightness_values[VIDEO_AOD_BRIGHTNESS_VALUE_COUNT];
+	bool oplus_ofp_ramless_set_lhbm_after_120hz;
 };
 
 /* log level config */
@@ -251,6 +253,7 @@ bool oplus_ofp_local_hbm_is_enabled(void);
 bool oplus_ofp_ultrasonic_is_enabled(void);
 bool oplus_ofp_video_mode_aod_fod_is_enabled(void);
 bool oplus_ofp_local_hbm_unlocking_acceleration_is_enabled(void);
+bool oplus_ofp_full_screen_aod_mode_is_enabled(void);
 bool oplus_ofp_video_mode_30hz_aod_is_enabled(void);
 bool oplus_ofp_get_hbm_state(void);
 int oplus_ofp_property_update(void *sde_connector, void *sde_connector_state, int prop_id, uint64_t prop_val);

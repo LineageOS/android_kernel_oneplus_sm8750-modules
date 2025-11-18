@@ -102,6 +102,11 @@ struct oplus_backlight_config {
 	bool need_to_set_demura2_offset;
 	u32 demura2_offset;
 	bool backlight_check_disable;
+	bool hbm_max_exit_restore_gir;
+	/* if oplus_bl_demura_dbv_support,
+	make sure demura cmd and bl cmd set by one frame */
+	bool oplus_bl_demura_set_by_one_frame;
+	bool need_set_demura;
 };
 
 /*
@@ -173,6 +178,18 @@ struct oplus_display_mode_priv_info{
 	u32 refresh_rate;
 };
 
+/***  dynamic float te params config   *****************
+oplus,dynamic-float-te-support = <1>;    // 1 support 0&no config is not support
+oplus,mdss-dsi-dynamic-float-te-command;  // dynamic group te code
+oplus,mdss-dsi-dynamic-float-default-te-command;  // default group te code
+********************************************************/
+/* oplus pwm turbo initialize params ***************/
+struct oplus_dynamic_float_te_params {
+	unsigned int support;					/* bit(8):enable or disabled*/
+	u32 dynamic_float_te_en;				/* switch dynamic float te enable or disable */
+	u32 dynamic_float_te_state;
+};
+
 struct oplus_panel {
 	/* ---------------- substurcture variate ---------------- */
 	struct oplus_pinctrl_info pinctrl_info;
@@ -215,6 +232,10 @@ struct oplus_panel {
 	bool is_apl_read_support;
 	bool white_point_compensation_enabled;
 	bool aod_backlight_async;
+	bool lut_enabled;
+	/* add for video mode dsi cmd package feature*/
+	bool dsi_cmd_need_to_package;
+	bool enable_dsi_cmd_package;
 
 	/* ---------------- apollo variate ---------------- */
 	bool is_switching;
@@ -240,6 +261,7 @@ struct oplus_panel {
 	int bl_demura_mode;
 	bool vid_timming_switch_enabled;
 	bool vid_timming_switch_post_enabled;
+	bool vid_fps_switch_compenstate_enable;
 
 	bool need_power_on_backlight;
 	struct oplus_brightness_alpha *dc_ba_seq;
@@ -287,6 +309,7 @@ struct oplus_panel {
 	/* add for factory test fps switch, ignore some fps */
 	int ignore_mode_count;
 	u32 *ignore_mode;
+	struct oplus_dynamic_float_te_params dfte_params;
 };
 
 #endif /* _OPLUS_PANEL_H_ */

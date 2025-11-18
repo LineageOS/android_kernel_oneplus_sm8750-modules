@@ -1897,7 +1897,9 @@ struct sde_hw_blk_reg_map *sde_hw_ctl_init(enum sde_ctl idx,
 	}
 
 	c->caps = cfg;
+
 	_setup_ctl_ops(&c->ops, c->caps->features, m->mdp[0].features);
+
 	c->idx = idx;
 	c->mixer_count = m->mixer_count;
 	c->mixer_hw_caps = m->mixer;

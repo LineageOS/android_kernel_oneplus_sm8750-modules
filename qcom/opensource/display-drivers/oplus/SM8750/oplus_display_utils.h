@@ -118,4 +118,8 @@ void oplus_panel_pl_check_enable(struct dsi_panel *panel);
 int oplus_display_panel_gamma_compensation(struct dsi_display *display);
 
 int oplus_display_panel_A0020_gamma_compensation(struct dsi_display *display);
+
+int oplus_dsi_panel_parse_lut(struct dsi_panel *panel);
+void oplus_panel_timing_switch_lut_set(struct dsi_panel *panel);
+void oplus_panel_timing_switch_wait_te(struct dsi_panel *panel);
 #endif /* _OPLUS_DISPLAY_UTILS_H_ */

@@ -357,7 +357,6 @@ static struct rc_config_table config_table[] =  {
 		.param_c = RC_PARAM_C1,
 		.merge_mode = RC_MERGE_DUAL_PIPE,
 		.merge_mode_en = RC_MERGE_SINGLE_PIPE,
-
 	},
 	/* RC_PARAM_A0 quad configurations */
 	{

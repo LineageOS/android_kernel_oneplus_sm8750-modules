@@ -24,6 +24,12 @@ int oplus_display_send_dcs_lock(struct dsi_display *display,
 		enum dsi_cmd_set_type type);
 
 /**
+ * oplus_panel_cmd_reg_read() - read cmd regs
+ */
+int oplus_panel_cmd_reg_read_specific_row(struct dsi_panel *panel, struct dsi_display_mode *mode,
+		enum dsi_cmd_set_type type, u8 *read_reg, size_t read_reg_len, u32 row);
+
+/**
  * oplus_panel_cmd_reg_replace() - replace cmd regs
  */
 int oplus_panel_cmd_reg_replace(struct dsi_panel *panel, enum dsi_cmd_set_type type,
@@ -34,6 +40,7 @@ int oplus_panel_cmd_reg_replace_specific_row(struct dsi_panel *panel, struct dsi
 int oplus_panel_cmdq_sync_handle(void *dsi_panel, enum dsi_cmd_set_type type, bool before_cmd);
 int oplus_panel_cmdq_sync_count_reset(void *sde_connector);
 int oplus_panel_cmdq_sync_count_decrease(void *sde_connector);
+int oplus_panel_vid_cmdp_handle(void *dsi_panel, enum dsi_cmd_set_type type);
 
 /**
  * oplus_panel_send_asynchronous_cmd() - send commands asynchronously

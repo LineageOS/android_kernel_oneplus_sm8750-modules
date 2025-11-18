@@ -14,6 +14,9 @@
 #include "oplus_panel.h"
 #include "oplus_defs.h"
 #endif /* OPLUS_FEATURE_DISPLAY */
+#if defined(CONFIG_PXLW_IRIS) || defined(CONFIG_PXLW_SOFT_IRIS)
+#include "dsi_iris_cmpt.h"
+#endif
 
 #define DSI_H_TOTAL(t) (((t)->h_active) + ((t)->h_back_porch) + \
 			((t)->h_sync_width) + ((t)->h_front_porch))
@@ -35,6 +38,7 @@
 								##__VA_ARGS__)
 #define DSI_DEBUG(fmt, ...)	DRM_DEV_DEBUG(NULL, "[msm-dsi-debug]: "fmt, \
 								##__VA_ARGS__)
+
 /**
  * enum dsi_pixel_format - DSI pixel formats
  * @DSI_PIXEL_FORMAT_RGB565:
@@ -299,7 +303,7 @@ enum dsi_dyn_clk_feature_type {
  * @DSI_CMD_SET_STICKY_STILL_DISABLE       Still indiaction disable command
  * @DSI_CMD_SET_STICKY_ON_FLY:             Still indication enable for only one frame
  * @DSI_CMD_SET_TRIGGER_SELF_REFRESH:      Trigger self refresh from Gram
- * @DSI_CMD_SET_FPS_SWITCH:		   FPS Switch
+ * @DSI_CMD_SET_FPS_SWITCH                 Set fps switch
  * @DSI_CMD_SET_MAX
  */
 enum dsi_cmd_set_type {
@@ -347,7 +351,6 @@ enum dsi_cmd_set_type {
 	DSI_CMD_SET_MAX
 };
 #endif /* OPLUS_FEATURE_DISPLAY */
-
 /**
  * enum dsi_cmd_set_state - command set state
  * @DSI_CMD_SET_STATE_LP:   dsi low power mode
@@ -589,6 +592,12 @@ struct dsi_host_common_cfg {
 	struct dsi_split_link_config split_link;
 	u32 byte_intf_clk_div;
 	u32 dma_sched_line;
+#ifdef OPLUS_FEATURE_DISPLAY
+	u32 dma_sched_line_60;
+	u32 dma_sched_line_90;
+	u32 dma_sched_line_120;
+	u32 dma_sched_line_144;
+#endif
 	u32 dma_sched_window;
 	bool skip_pps_update;
 };
@@ -762,6 +771,7 @@ struct dsi_display_mode_priv_info {
 	unsigned int oplus_ofp_hbm_on_period;
 	unsigned int oplus_ofp_aod_off_insert_black_frame;
 	unsigned int oplus_ofp_aod_off_black_frame_total_time;
+	unsigned int oplus_ofp_hbm_on_period_in_timing_swtch;
 #endif /* OPLUS_FEATURE_DISPLAY_ONSCREENFINGERPRINT */
 };
 

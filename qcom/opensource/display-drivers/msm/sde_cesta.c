@@ -1080,7 +1080,6 @@ int sde_cesta_bind(struct device *dev, struct device *master, void *data)
 
 	sde_dbg_reg_register_base("sde_rsc_wrapper", cesta->wrapper_io.base,
 			cesta->wrapper_io.len, msm_get_phys_addr(pdev, "wrapper"), SDE_DBG_RSC);
-
 	sde_dbg_reg_register_base("disp_cc", cesta->disp_cc_io.base,
 			cesta->disp_cc_io.len, msm_get_phys_addr(pdev, "disp_cc"), SDE_DBG_RSC);
 
@@ -1095,6 +1094,7 @@ int sde_cesta_bind(struct device *dev, struct device *master, void *data)
 		sde_dbg_reg_register_base("sde_crmb_pt_base", sde_crmb_pt_base, 0x8c, 0x0AF27400, SDE_DBG_RSC);
 		sde_dbg_reg_register_base("sde_crmc_base", sde_crmc_base, 0x400, 0x0AF27800, SDE_DBG_RSC);
 	}
+
 	for (i = 0; i < cesta->scc_count; i++) {
 		char blk_name[32];
 

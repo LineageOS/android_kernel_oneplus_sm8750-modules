@@ -17,6 +17,7 @@
 #include "oplus_debug.h"
 #include "oplus_display_panel_cmd.h"
 #include "oplus_onscreenfingerprint.h"
+#include "oplus_display_device_ioctl.h"
 #ifdef OPLUS_TRACKPOINT_REPORT
 #include <soc/oplus/oplus_trackpoint_report.h>
 #endif /* OPLUS_TRACKPOINT_REPORT */
@@ -1708,4 +1709,86 @@ error:
 	lvd_config->exit_cmd = DSI_CMD_SET_MAX;
 
 	return rc;
+}
+
+
+int oplus_dsi_panel_parse_lut(struct dsi_panel *panel)
+{
+	struct dsi_parser_utils *utils = NULL;
+
+	if (!panel) {
+		OPLUS_DSI_ERR("Invalid Params\n");
+		return  -EINVAL;
+	}
+
+	utils = &panel->utils;
+	panel->oplus_panel.lut_enabled = utils->read_bool(utils->data, "oplus,dsi-lut-set-enabled");
+	OPLUS_DSI_INFO("oplus,dsi-lut-set-enabled: %s", panel->oplus_panel.lut_enabled ? "true" : "false");
+
+	return 0;
+}
+
+void oplus_panel_timing_switch_lut_set(struct dsi_panel *panel)
+{
+	int rc = 0;
+	unsigned int refresh_rate = 0;
+	unsigned int last_refresh_rate = 0;
+
+	if (!panel) {
+		OPLUS_DSI_ERR("Invalid Params\n");
+		return;
+	}
+
+	if (panel->oplus_panel.lut_enabled == true) {
+		refresh_rate = panel->cur_mode->timing.refresh_rate;
+		last_refresh_rate = panel->oplus_panel.last_refresh_rate;
+		OPLUS_DSI_INFO("refresh_rate %d last_refresh_rate %d\n", refresh_rate, last_refresh_rate);
+		if (last_refresh_rate == 120 && refresh_rate == 60) {
+			rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_FPS_SWITCH_120_TO_60, false);
+		} else if (last_refresh_rate == 60 && refresh_rate == 120) {
+			rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_FPS_SWITCH_60_TO_120, false);
+		} else if (last_refresh_rate == 120 && refresh_rate == 144) {
+			rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_FPS_SWITCH_120_TO_144, false);
+		} else if (last_refresh_rate == 144 && refresh_rate == 120) {
+			rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_FPS_SWITCH_144_TO_120, false);
+		} else if (last_refresh_rate == 120 && refresh_rate == 90) {
+			rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_FPS_SWITCH_120_TO_90, false);
+		} else if (last_refresh_rate == 90 && refresh_rate == 120) {
+			rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_FPS_SWITCH_90_TO_120, false);
+		} else if (last_refresh_rate == 144 && refresh_rate == 60) {
+			rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_FPS_SWITCH_144_TO_60, false);
+		} else if (last_refresh_rate == 60 && refresh_rate == 144) {
+			rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_FPS_SWITCH_60_TO_144, false);
+		} else if (last_refresh_rate == 90 && refresh_rate == 60) {
+			rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_FPS_SWITCH_90_TO_60, false);
+		} else if (last_refresh_rate == 60 && refresh_rate == 90) {
+			rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_FPS_SWITCH_60_TO_90, false);
+		} else if (last_refresh_rate == 144 && refresh_rate == 90) {
+			rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_FPS_SWITCH_144_TO_90, false);
+		} else if (last_refresh_rate == 90 && refresh_rate == 144) {
+			rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_FPS_SWITCH_90_TO_144, false);
+		} else {
+			OPLUS_DSI_INFO("no associated LUT SEL\n");
+		}
+		if (rc) {
+			OPLUS_DSI_ERR("failed to send DSI_CMD_ESD_SWITCH_PAGE, rc=%d\n", rc);
+		}
+	}
+
+	return;
+}
+
+void oplus_panel_timing_switch_wait_te(struct dsi_panel *panel)
+{
+	if (!panel) {
+		OPLUS_DSI_ERR("Invalid Params\n");
+		return;
+	}
+
+	if (panel->oplus_panel.wait_te_config & BIT(1)) {
+		if (panel->cur_mode->timing.refresh_rate == 90)
+			oplus_need_to_sync_te(panel);
+	}
+
+	return;
 }

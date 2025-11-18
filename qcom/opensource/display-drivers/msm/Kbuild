@@ -88,6 +88,13 @@ LINUX_INC +=	-I$(DISPLAY_ROOT) \
 	-I$(DISPLAY_ROOT)/../synx-kernel/msm/synx \
 	-I$(DISPLAY_ROOT)/include/uapi/display \
 
+ifeq ($(CONFIG_PXLW_IRIS),y)
+PWATOP=$(DISPLAY_ROOT)/msm/iris
+LINUX_INC +=	-I$(PWATOP)/core/include \
+	-I$(PWATOP)/core \
+	-I$(PWATOP)/vendor
+endif
+
 CDEFINES +=	-DANI_LITTLE_BYTE_ENDIAN \
 	-DANI_LITTLE_BIT_ENDIAN \
 	-DDOT11F_LITTLE_ENDIAN_HOST \
@@ -277,6 +284,11 @@ msm_drm-$(CONFIG_DRM_MSM_DSI) += dsi/dsi_phy.o \
 				 dsi/dsi_clk_manager.o \
 				 dsi/dsi_display_test.o
 
+ifeq ($(CONFIG_PXLW_IRIS),y)
+include $(PWATOP)/core/Kbuild
+include $(PWATOP)/vendor/Kbuild
+endif
+
 msm_drm-$(CONFIG_DSI_PARSER) += dsi/dsi_parser.o
 
 msm_drm-$(CONFIG_THERMAL_OF) += msm_cooling_device.o
@@ -291,6 +303,7 @@ msm_drm-$(CONFIG_DRM_MSM) += msm_atomic.o \
 			     msm_prop.o
 
 msm_drm-$(OPLUS_FEATURE_DISPLAY) += \
+				../oplus/SM8750/oplus_apuirdim.o \
 				../oplus/SM8750/oplus_display_utils.o \
 				../oplus/SM8750/oplus_display_sysfs_attrs.o \
 				../oplus/SM8750/oplus_display_dc_diming.o \
@@ -300,11 +313,13 @@ msm_drm-$(OPLUS_FEATURE_DISPLAY) += \
 				../oplus/SM8750/oplus_display_power.o \
 				../oplus/SM8750/oplus_display_effect.o \
 				../oplus/SM8750/oplus_display_device_ioctl.o \
+				../oplus/SM8750/oplus_display_dfte.o \
 				../oplus/SM8750/oplus_display_bl.o \
 				../oplus/SM8750/oplus_display_interface.o \
 				../oplus/SM8750/oplus_display_pwm.o \
 				../oplus/SM8750/oplus_display_parse.o \
 				../oplus/SM8750/oplus_display_panel_cmd.o \
+				../oplus/SM8750/oplus_display_panel_oha.o \
 				../oplus/SM8750/oplus_display_ext.o \
 				../oplus/SM8750/oplus_display_esd.o \
 				../oplus/SM8750/oplus_bl_ic_ktz8868.o

@@ -146,6 +146,10 @@ struct msm_kms_funcs {
 			u32 hdisplay, u32 *num_dsc);
 	bool (*in_trusted_vm)(const struct msm_kms *kms);
 	bool (*in_loopback_mode)(struct drm_crtc_state *crtc_state);
+#if defined(CONFIG_PXLW_IRIS) || defined(CONFIG_PXLW_SOFT_IRIS)
+	int (*iris_operate)(struct msm_kms *kms, u32 operate_type,
+			struct msm_iris_operate_value *operate_value);
+#endif
 };
 
 struct msm_kms {

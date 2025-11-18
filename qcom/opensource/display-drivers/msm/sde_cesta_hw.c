@@ -26,7 +26,7 @@
 #define SCC_CLK_GATE_SEL		0x8
 #define SCC_HW_STATE_READBACK		0x10
 #define SCC_DEBUG_FLUSH_MISSED		0x20
-#define DEBUG_FLUSH_MISSED_CLEAR	0x24
+#define DEBUG_FLUSH_MISSED_CLEAR	0x24 
 #define DISP_CC_MISC_CMD		0x0
 
 extern void __iomem *sde_crmc_base, *sde_crm_client_base, *sde_crmb_pt_base;

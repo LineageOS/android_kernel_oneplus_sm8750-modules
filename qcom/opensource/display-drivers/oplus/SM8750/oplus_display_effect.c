@@ -18,6 +18,10 @@
 #include "oplus_onscreenfingerprint.h"
 #endif /* OPLUS_FEATURE_DISPLAY_ONSCREENFINGERPRINT */
 
+#ifdef OPLUS_FEATURE_AP_UIR_DIMMING
+#include "oplus_apuirdim.h"
+#endif /* OPLUS_FEATURE_AP_UIR_DIMMING */
+
 int seed_mode = 0;
 extern int oplus_seed_backlight;
 /* outdoor hbm flag*/
@@ -63,6 +67,11 @@ int dsi_panel_seed_mode_unlock(struct dsi_panel *panel, int mode)
 		return -EINVAL;
 	}
 
+#ifdef OPLUS_FEATURE_AP_UIR_DIMMING
+	if (oplus_get_apuir_enable() && oplus_apuir_get_uir_state()) {
+		return 0;
+	}
+#endif
 	switch (mode) {
 	case 0:
 		type = DSI_CMD_SEED_MODE0;
@@ -102,6 +111,12 @@ int dsi_panel_loading_effect_mode_unlock(struct dsi_panel *panel, int mode)
 	if (!dsi_panel_initialized(panel)) {
 		return -EINVAL;
 	}
+
+#ifdef OPLUS_FEATURE_AP_UIR_DIMMING
+	if (oplus_get_apuir_enable() && oplus_apuir_get_uir_state()) {
+		return 0;
+	}
+#endif
 
 	switch (mode) {
 	case PANEL_LOADING_EFFECT_MODE1:
@@ -164,6 +179,12 @@ int dsi_panel_seed_mode(struct dsi_panel *panel, int mode)
 		return -EINVAL;
 	}
 
+#ifdef OPLUS_FEATURE_AP_UIR_DIMMING
+	if (oplus_get_apuir_enable() && oplus_apuir_get_uir_state()) {
+		return 0;
+	}
+#endif
+
 	if (mode >= PANEL_LOADING_EFFECT_FLAG) {
 		rc = dsi_panel_loading_effect_mode_unlock(panel, mode);
 	} else {
@@ -190,6 +211,12 @@ int dsi_display_seed_mode_lock(struct dsi_display *display, int mode)
 		dsi_display_clk_ctrl(display->dsi_clk_handle,
 				DSI_CORE_CLK, DSI_CLK_ON);
 	}
+
+#ifdef OPLUS_FEATURE_AP_UIR_DIMMING
+	if (oplus_get_apuir_enable() && oplus_apuir_get_uir_state()) {
+		return 0;
+	}
+#endif
 
 	rc = dsi_panel_seed_mode(display->panel, mode);
 
@@ -259,6 +286,12 @@ int oplus_display_panel_set_seed(void *data)
 				display->panel->oplus_panel.vendor_name, mode);
 		return -EINVAL;
 	}
+
+#ifdef OPLUS_FEATURE_AP_UIR_DIMMING
+	if (oplus_get_apuir_enable() && oplus_apuir_get_uir_state()) {
+		return 0;
+	}
+#endif
 
 	dsi_display_seed_mode_lock(display, mode);
 
@@ -389,7 +422,6 @@ int oplus_display_panel_update_apl_value(void *data)
 			SDE_ATRACE_END("switch default page");
 		}
 		atomic_set(&sde_conn->oplus_conn.bl_apl_need_update, false);
-
 	}
 
 	return ret;

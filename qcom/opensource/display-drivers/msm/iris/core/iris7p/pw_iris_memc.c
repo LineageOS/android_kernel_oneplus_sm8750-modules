@@ -332,6 +332,8 @@ void iris_frc_mif_reg_set_i7p(void)
 	u32 mvc_gen_cnt_thr, fi_meta_fast_entry_thr;
 	u32 memc_level = 3;
 	u16 phase_ratio = 0;
+	u32 fb_start_row = 0;
+	u32 fb_end_row = frc_setting->mv_vres;
 
 	if (pcfg->memc_info.memc_mode == MEMC_SINGLE_EXTMV_ENABLE) {
 		val_frcc_enable_0 = 0x0025d090;
@@ -441,6 +443,17 @@ void iris_frc_mif_reg_set_i7p(void)
 
 	if (pcfg->memc_info.memc_mode == MEMC_SINGLE_EXTMV_ENABLE)
 		val_frcc_enable_1 |= 0x48004;
+
+	if (pcfg->rx_mode == IRIS_VIDEO_MODE && pcfg->tx_mode == IRIS_VIDEO_MODE &&
+		(pcfg->memc_info.panel_fps == 120 && pcfg->memc_info.video_fps < 35)) {
+		val_frcc_enable_1 |= 0x80;	//enable EXT_FB_EN
+
+		fb_start_row = CEILING(pcfg->memc_info.mBorderWidth * pcfg->memc_info.mv_vres,
+			pcfg->frc_setting.disp_vres);
+		fb_end_row = pcfg->memc_info.mv_vres -
+			(pcfg->memc_info.mBorderWidth * pcfg->memc_info.mv_vres / pcfg->frc_setting.disp_vres);
+	}
+
 	iris_frc_reg_add_i7p(IRIS_FRC_MIF_ADDR + FRCC_ENABLE_1, val_frcc_enable_1, 0);
 	/* in vin-vout mode, need disable COMMAND_MODE */
 	if ((pcfg->rx_mode == IRIS_VIDEO_MODE) && (pcfg->tx_mode == IRIS_VIDEO_MODE)) {
@@ -496,7 +509,7 @@ void iris_frc_mif_reg_set_i7p(void)
 	iris_frc_reg_add_i7p(IRIS_FRC_MIF_ADDR + FRCC_FBD_CTRL_0,
 		(frc_setting->mv_vres << 16) | frc_setting->mv_hres, 0);
 	iris_frc_reg_add_i7p(IRIS_FRC_MIF_ADDR + FRCC_FBD_CTRL_1, frc_setting->mv_hres << 16, 0);
-	iris_frc_reg_add_i7p(IRIS_FRC_MIF_ADDR + FRCC_FBD_CTRL_2, frc_setting->mv_vres << 16, 0);
+	iris_frc_reg_add_i7p(IRIS_FRC_MIF_ADDR + FRCC_FBD_CTRL_2, fb_end_row << 16 | fb_start_row, 0);
 
 	iris_frc_reg_add_i7p(IRIS_FRC_MIF_ADDR + VD_MEMORY_BSADR, frc_setting->video_baseaddr, 0);
 	iris_frc_reg_add_i7p(IRIS_FRC_MIF_ADDR + VD_MEMORY_OFFSET, fmif_vd_offset, 0);
@@ -586,7 +599,8 @@ void iris_gmd_reg_set_i7p(void)
 		frc_setting->mv_hres + (frc_setting->mv_vres << 16), 0);
 	/* it is only aimed at Genshin Impact and Game for Peace*/
 	if (pcfg->memc_info.memc_mode == MEMC_SINGLE_GAME_ENABLE &&
-		(pcfg->memc_info.memc_app == 3 || pcfg->memc_info.memc_app == 0)) {
+		(pcfg->memc_info.memc_app == 3 || pcfg->memc_info.memc_app == 0
+		|| pcfg->memc_info.memc_app == 119)) {
 		iris_frc_reg_add_i7p(IRIS_GMD_ADDR + GMD_START_WIN, 0x00320000, 0);
 		iris_frc_reg_add_i7p(IRIS_GMD_ADDR + GMD_STOP_WIN, ((frc_setting->mv_vres - 50) << 16) +
 			(frc_setting->mv_hres), 0);
@@ -1610,11 +1624,11 @@ void iris_memc_info_update_i7p(void)
 	if (pcfg->memc_info.memc_mode == MEMC_SINGLE_EXTMV_ENABLE)
 		pcfg->memc_info.n2m_mode = 0;
 
-	IRIS_LOGI("memc info: mode-%d, fw-%d, level-%d, ratio-%d-%d, vfr-%d, lt-%d, n2m-%d, osdwin-%d",
+	IRIS_LOGI("memc info: mode-%d, fw-%d, level-%d, ratio-%d-%d, vfr-%d, lt-%d, n2m-%d, osdwin-%d, mBorderWidth-%d",
 		pcfg->memc_info.memc_mode, (pcfg->memc_info.mv_hres << 16) | pcfg->memc_info.mv_vres,
 		pcfg->memc_info.memc_level, pcfg->memc_info.video_fps, pcfg->memc_info.panel_fps,
 		pcfg->memc_info.vfr_en, pcfg->memc_info.low_latency_mode, pcfg->memc_info.n2m_mode,
-		pcfg->memc_info.osd_window_en);
+		pcfg->memc_info.osd_window_en, pcfg->memc_info.mBorderWidth);
 }
 
 void iris_frc_setting_update_i7p(void)

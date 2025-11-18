@@ -18,7 +18,6 @@
 #include "dp_debug.h"
 #include "sde_dbg.h"
 
-
 #define ALTMODE_CONFIGURE_MASK (0x3f)
 #define ALTMODE_HPD_STATE_MASK (0x40)
 #define ALTMODE_HPD_IRQ_MASK (0x80)

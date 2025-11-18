@@ -133,7 +133,7 @@ enum sde_dbg_dump_context {
  * flood.
  */
 #ifndef OPLUS_FEATURE_DISPLAY
-#define SDE_EVTLOG_PRINT_ENTRY	256
+#define SDE_EVTLOG_PRINT_ENTRY  256
 #else
 #define SDE_EVTLOG_PRINT_ENTRY  2048
 #endif /* OPLUS_FEATURE_DISPLAY */

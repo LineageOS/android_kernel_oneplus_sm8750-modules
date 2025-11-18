@@ -1668,11 +1668,19 @@ int oplus_adfr_sa_handle(void *sde_encoder_virt)
 		return -EINVAL;
 	}
 
+#ifdef OPLUS_FEATURE_DISPLAY_ONSCREENFINGERPRINT
+	/* auto mode and min fps are available only after power on */
+	if ((display->panel->power_mode != SDE_MODE_DPMS_ON) && !oplus_ofp_full_screen_aod_mode_is_enabled()) {
+		ADFR_DEBUG("should not handle sa when power mode is %u\n", display->panel->power_mode);
+		return 0;
+	}
+#else
 	/* auto mode and min fps are available only after power on */
 	if (display->panel->power_mode != SDE_MODE_DPMS_ON) {
 		ADFR_DEBUG("should not handle sa when power mode is %u\n", display->panel->power_mode);
 		return 0;
 	}
+#endif /* OPLUS_FEATURE_DISPLAY_ONSCREENFINGERPRINT */
 
 	h_skew = display->panel->cur_mode->timing.h_skew;
 
@@ -2021,11 +2029,19 @@ int oplus_adfr_idle_mode_handle(void *sde_encoder_virt, bool enter_idle)
 	}
 #endif /* OPLUS_FEATURE_DISPLAY_ONSCREENFINGERPRINT */
 
+#ifdef OPLUS_FEATURE_DISPLAY_ONSCREENFINGERPRINT
+	/* idle mode are available only after power on */
+	if ((display->panel->power_mode != SDE_MODE_DPMS_ON) && !oplus_ofp_full_screen_aod_mode_is_enabled()) {
+		ADFR_DEBUG("should not handle idle mode when power mode is %u\n", display->panel->power_mode);
+		return 0;
+	}
+#else
 	/* idle mode are available only after power on */
 	if (display->panel->power_mode != SDE_MODE_DPMS_ON) {
 		ADFR_DEBUG("should not handle idle mode when power mode is %u\n", display->panel->power_mode);
 		return 0;
 	}
+#endif /* OPLUS_FEATURE_DISPLAY_ONSCREENFINGERPRINT */
 
 	OPLUS_ADFR_TRACE_BEGIN("oplus_adfr_idle_mode_handle");
 
@@ -4382,21 +4398,23 @@ int oplus_adfr_set_test_te(void *buf)
 	}
 
 	OPLUS_ADFR_TRACE_BEGIN("oplus_adfr_set_test_te");
+	if (p_oplus_adfr_params->test_te.config != *test_te_config) {
+		p_oplus_adfr_params->test_te.config = *test_te_config;
+		global_test_te_config = p_oplus_adfr_params->test_te.config;
+		ADFR_INFO("oplus_adfr_test_te_config:%u\n", p_oplus_adfr_params->test_te.config);
+		OPLUS_ADFR_TRACE_INT("oplus_adfr_test_te_config", p_oplus_adfr_params->test_te.config);
 
-	p_oplus_adfr_params->test_te.config = *test_te_config;
-	global_test_te_config = p_oplus_adfr_params->test_te.config;
-	ADFR_INFO("oplus_adfr_test_te_config:%u\n", p_oplus_adfr_params->test_te.config);
-	OPLUS_ADFR_TRACE_INT("oplus_adfr_test_te_config", p_oplus_adfr_params->test_te.config);
-
-	test_te_irq = gpio_to_irq(p_oplus_adfr_params->test_te.gpio);
-	if (p_oplus_adfr_params->test_te.config != OPLUS_ADFR_TEST_TE_DISABLE) {
-		enable_irq(test_te_irq);
-		ADFR_INFO("enable test te irq\n");
+		test_te_irq = gpio_to_irq(p_oplus_adfr_params->test_te.gpio);
+		if (p_oplus_adfr_params->test_te.config != OPLUS_ADFR_TEST_TE_DISABLE) {
+			enable_irq(test_te_irq);
+			ADFR_INFO("enable test te irq\n");
+		} else {
+			disable_irq(test_te_irq);
+			ADFR_INFO("disable test te irq\n");
+		}
 	} else {
-		disable_irq(test_te_irq);
-		ADFR_INFO("disable test te irq\n");
+		ADFR_INFO("do nothing while the value of test_te_config was not changed\n");
 	}
-
 	OPLUS_ADFR_TRACE_END("oplus_adfr_set_test_te");
 
 	ADFR_DEBUG("end\n");

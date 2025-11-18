@@ -189,6 +189,7 @@ void iris_scurve_update_i7p(u32 *buffer);
 void iris_scurve_enable_set_i8(u32 level);
 void iris_end_dpp_i7(bool bcommit);
 void iris_end_dpp_i7p(bool bcommit);
+void iris_end_dpp_i7p_v2(bool bcommit, uint8_t path);
 void iris_end_dpp_i8(bool bcommit);
 int iris_get_hdr_enable_i5(void);
 int iris_get_hdr_enable_i7(void);
@@ -205,5 +206,6 @@ int iris_kickoff(bool is_secondary);
 void iris_replace_send_3d_lut_i8(int index);
 void iris_cm_color_gamut_pre_clear_i5(void);
 void iris_cm_color_gamut_pre_clear_i7(void);
+u32 iris_gamut_index_valid_i7p(u32 level);
 
 #endif // _PW_IRIS_PQ_H_

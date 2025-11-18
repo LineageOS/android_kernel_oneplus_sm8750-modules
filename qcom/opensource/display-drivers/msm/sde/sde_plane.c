@@ -43,6 +43,9 @@
 #include "oplus_display_sysfs_attrs.h"
 #include "oplus_debug.h"
 #endif /* OPLUS_FEATURE_DISPLAY */
+#if defined(CONFIG_PXLW_IRIS)
+#include "dsi_iris_api.h"
+#endif
 
 #define SDE_DEBUG_PLANE(pl, fmt, ...) SDE_DEBUG("plane%d " fmt,\
 		(pl) ? (pl)->base.base.id : -1, ##__VA_ARGS__)
@@ -728,7 +731,6 @@ int sde_plane_wait_input_fence(struct drm_plane *plane, uint32_t wait_ms, int *e
 #endif
 			prefix = sde_sync_get_name_prefix(input_fence);
 			rc = sde_sync_wait(input_fence, wait_ms, error_status);
-
 			switch (rc) {
 			case 0:
 				SDE_ERROR_PLANE(psde, "%ums timeout on %08X fd %lld\n",
@@ -1281,6 +1283,10 @@ static inline void _sde_plane_setup_csc(struct sde_plane *psde, struct sde_plane
 	else
 		pstate->csc_ptr = (struct sde_csc_cfg *)&sde_csc_YUV2RGB_601L;
 	mutex_unlock(&psde->property_info.property_lock);
+
+#if defined(CONFIG_PXLW_IRIS)
+	iris_sde_plane_setup_csc(pstate->csc_ptr);
+#endif
 
 	SDE_DEBUG_PLANE(psde, "using 0x%X 0x%X 0x%X...\n",
 			pstate->csc_ptr->csc_mv[0],
@@ -3731,6 +3737,12 @@ static void _sde_plane_update_format_and_rects(struct sde_plane *psde,
 		pp_idx = _sde_plane_cac_loopback_update_pp_idx(psde, pstate, cac_mode);
 		psde->pipe_hw->ops.setup_cac_ctrl(psde->pipe_hw, cac_mode, fov_en, pp_idx);
 	}
+
+#if defined(PXLW_IRIS_DUAL)
+	if (psde->pipe_hw->ops.setup_csc_v2)
+		psde->pipe_hw->ops.setup_csc_v2(psde->pipe_hw,
+			fmt, pstate->csc_usr_ptr);
+#endif
 }
 
 static void _sde_plane_update_sharpening(struct sde_plane *psde)
@@ -3795,7 +3807,14 @@ static void _sde_plane_update_properties(struct drm_plane *plane,
 			psde->pipe_hw->ops.setup_format)
 		_sde_plane_update_format_and_rects(psde, pstate, fmt);
 
+#if defined(CONFIG_PXLW_IRIS)
+	if (iris_is_chip_supported() && (iris_get_pq_disable_val() & 0x04) > 0)
+		iris_sde_color_process_plane_disable(plane, _sde_plane_get_hw_ctl(plane, NULL));
+	else
+		sde_color_process_plane_setup(plane);
+#else /* CONFIG_PXLW_IRIS */
 	sde_color_process_plane_setup(plane);
+#endif /* CONFIG_PXLW_IRIS */
 
 	/* update sharpening */
 	if ((pstate->dirty & SDE_PLANE_DIRTY_SHARPEN) &&

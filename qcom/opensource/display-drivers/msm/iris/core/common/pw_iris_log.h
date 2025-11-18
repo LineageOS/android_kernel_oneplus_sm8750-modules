@@ -22,7 +22,7 @@
 #define __PW_IRIS_LOG_H_
 
 #include <linux/kernel.h>
-#include "pw_iris_trace.h"
+#include "sde_trace.h"
 
 #ifndef IRIS_LOG_PREFIX
 #define IRIS_LOG_PREFIX "IRIS_LOG"
@@ -158,26 +158,26 @@ inline int iris_get_trace_en(void);
 #define IRIS_ATRACE_BEGIN(name)			\
 	do {					\
 		if (iris_get_trace_en())	\
-			PW_IRIS_ATRACE_BEGIN(name);	\
+			SDE_ATRACE_BEGIN(name);	\
 	} while (0)
 
 #define IRIS_ATRACE_END(name)			\
 	do {					\
 		if (iris_get_trace_en())	\
-			PW_IRIS_ATRACE_END(name);	\
+			SDE_ATRACE_END(name);	\
 	} while (0)
 
 #define IRIS_ATRACE_INT(name, value)			\
 	do {						\
 		if (iris_get_trace_en())		\
-			PW_IRIS_ATRACE_INT(name, value);	\
+			SDE_ATRACE_INT(name, value);	\
 	} while (0)
 
 #define IRIS_ATRACE_MARK(name)			\
 	do {					\
 		if (iris_get_trace_en()) {	\
-			PW_IRIS_ATRACE_INT(name, 1);	\
-			PW_IRIS_ATRACE_INT(name, 0);	\
+			SDE_ATRACE_INT(name, 1);	\
+			SDE_ATRACE_INT(name, 0);	\
 		}	\
 	} while (0)
 

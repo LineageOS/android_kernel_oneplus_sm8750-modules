@@ -1593,6 +1593,7 @@ static void _iris_scl_reset_param(void)
 	iris_cnn_loaded_models[CNN_DMA_BUF_RIGHT] = CNN_NORMAL_MODEL1;
 	iris_cnn_models[SCL_DATA_PATH0] = CNN_NORMAL_MODEL1;
 	iris_cnn_models[SCL_DATA_PATH1] = CNN_NORMAL_MODEL1;
+	iris_ptsr_1to1 = false;
 
 	payload = iris_get_ipopt_payload_data(IRIS_IP_IOINC1D, 0x00, 2);
 	if (payload != NULL)
@@ -2353,14 +2354,7 @@ static void _iris_srcnn_proc(bool enable, int32_t proc_h, int32_t proc_v,
 
 	iris_init_update_ipopt_t(IRIS_IP_SR, 0x01, 0x01, 1);
 
-	if (path_sel == SCL_DATA_PATH1) {
-		if (strategy == SCL_2D_ONLY && proc_h == out_h && proc_v == out_v)
-			iris_ptsr_1to1 = true;
-		else
-			iris_ptsr_1to1 = false;
-	}
-
-	if (enable && iris_ptsr_1to1)
+	if (enable && iris_ptsr_1to1 && path_sel == SCL_DATA_PATH1)
 		sr_mode = SRCNN_MODE_ENABLE;
 
 	_iris_srcnn_config_pwil(sr_mode);
@@ -2369,6 +2363,24 @@ static void _iris_srcnn_proc(bool enable, int32_t proc_h, int32_t proc_v,
 bool iris_scl_ptsr_1to1(void)
 {
 	return iris_ptsr_1to1;
+}
+
+static void _iris_ptsr_check_1to1(bool enable, int32_t proc_h, int32_t proc_v,
+	int32_t out_h, int32_t out_v, uint32_t strategy, uint32_t path_sel)
+{
+	if (path_sel != SCL_DATA_PATH1)
+		return;
+
+	if (!enable) {
+		if (iris_ptsr_1to1)
+			iris_ptsr_1to1 = false;
+		return;
+	}
+
+	if (strategy == SCL_2D_ONLY && proc_h == out_h && proc_v == out_v)
+		iris_ptsr_1to1 = true;
+	else
+		iris_ptsr_1to1 = false;
 }
 
 static void _iris_srcnn_enable(bool enable, uint32_t path_sel)
@@ -2395,7 +2407,7 @@ static void _iris_srcnn_enable(bool enable, uint32_t path_sel)
 	payload[0] = BITS_SET(payload[0], 1, enable_pos, path_ctrl);
 	iris_init_update_ipopt_t(IRIS_IP_SR, 0x01, 0x01, 1);
 
-	if (enable && iris_ptsr_1to1)
+	if (enable && iris_ptsr_1to1 && path_sel == SCL_DATA_PATH1)
 		sr_mode = SRCNN_MODE_ENABLE;
 
 	_iris_srcnn_config_pwil(sr_mode);
@@ -2418,6 +2430,8 @@ static bool _iris_srcnn_perform_config(bool enable,
 
 	if (change_type == SCL_NO_CHANGE)
 		return false;
+
+	_iris_ptsr_check_1to1(enable, proc_h, proc_v, out_h, out_v, strategy, path_sel);
 
 	if (change_type == SCL_SWITCH_ONLY) {
 		_iris_srcnn_enable(enable, path_sel);
@@ -3305,6 +3319,8 @@ static void _iris_scl_ptsr_switch(uint32_t count, uint32_t *values)
 	} else {
 		proc_h = pcfg->frc_setting.disp_hres;
 		proc_v = pcfg->frc_setting.disp_vres;
+		if (iris_ptsr_1to1)
+			iris_ptsr_1to1 = false;
 	}
 
 	if (count == 2)
@@ -4196,6 +4212,9 @@ bool iris_is_ptsr_enable(void)
 		uint32_t proc_h = BITS_GET(payload[5], 16, 0);
 		uint32_t proc_v = BITS_GET(payload[5], 16, 16);
 
+		IRIS_LOGI("%s(), size: %u x %u, 1 to 1: %s", __func__,
+			pcfg->frc_setting.disp_hres, pcfg->frc_setting.disp_vres,
+			iris_ptsr_1to1 ? "true" : "false");
 		if (proc_h != pcfg->frc_setting.disp_hres ||
 			proc_v != pcfg->frc_setting.disp_vres ||
 			iris_ptsr_1to1)

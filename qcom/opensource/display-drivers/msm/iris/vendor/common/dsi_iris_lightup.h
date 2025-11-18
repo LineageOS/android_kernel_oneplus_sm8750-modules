@@ -27,6 +27,7 @@ struct iris_vendor_cfg {
 struct iris_vendor_cfg *iris_get_vendor_cfg(void);
 
 #ifdef IRIS_EXT_CLK
+bool iris_clk_parse(struct device_node *np);
 void iris_clk_enable(bool is_secondary);
 void iris_clk_disable(bool is_secondary);
 void iris_core_clk_set(bool enable, bool is_secondary);

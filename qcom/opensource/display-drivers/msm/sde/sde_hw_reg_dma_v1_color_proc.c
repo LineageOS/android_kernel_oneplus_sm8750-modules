@@ -16,6 +16,9 @@
 #include "sde_hw_util.h"
 #include "sde_kms.h"
 #include <drm/msm_drm_aiqe.h>
+#if defined(CONFIG_PXLW_IRIS) || defined(CONFIG_PXLW_SOFT_IRIS)
+#include "dsi_iris_api.h"
+#endif
 
 /* Reserve space of 128 words for LUT dma payload set-up */
 #define REG_DMA_HEADERS_BUFFER_SZ (sizeof(u32) * 128)
@@ -5372,7 +5375,6 @@ void reg_dmav2_setup_dspp_igcv4(struct sde_hw_dspp *ctx, void *cfg)
 	data[j++] = lut_cfg->c2_last ? (u16)(lut_cfg->c2_last << 4) : (4095 << 4);
 	data[j++] = lut_cfg->c0_last ? (u16)(lut_cfg->c0_last << 4) : (4095 << 4);
 	data[j++] = lut_cfg->c1_last ? (u16)(lut_cfg->c1_last << 4) : (4095 << 4);
-
 	reg_dmav2_setup_dspp_igc_common(ctx, cfg, len, data, transfer_size_bytes);
 	kvfree(data);
 }

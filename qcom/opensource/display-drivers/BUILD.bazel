@@ -40,6 +40,37 @@ ddk_headers(
 )
 
 ddk_headers(
+    name = "iris_core_headers",
+    hdrs = glob([
+      "msm/iris/core/*.h",
+      "msm/iris/core/include/*.h",
+      "msm/iris/core/common/*.h",
+      "msm/iris/core/iris7p/*.h",
+    ]),
+    includes = [
+      "msm/iris/core/include",
+      "msm/iris/core",
+      "msm/iris/core/common",
+      "msm/iris/core/iris7p",
+     ]
+)
+
+ddk_headers(
+    name = "iris_vendor_headers",
+    hdrs = glob([
+      "msm/iris/vendor/*.h",
+      "msm/iris/vendor/include/*.h",
+      "msm/iris/vendor/common/*.h",
+      "msm/iris/vendor/iris7p/*.h",
+    ]),
+    includes = [
+      "msm/iris/vendor",
+      "msm/iris/vendor/common",
+      "msm/iris/vendor/iris7p",
+     ]
+)
+
+ddk_headers(
     name = "sde_headers",
     hdrs = glob([
       "msm/sde/*.h",
@@ -76,7 +107,7 @@ ddk_headers(
 
 ddk_headers(
     name = "display_drivers_headers",
-    hdrs = [ ":linux_includes", ":uapi_headers", ":msm_headers",":dp_headers",":dsi_headers",":sde_headers",":rotator_headers", ":oplus_drm_headers"]
+    hdrs = [ ":linux_includes", ":uapi_headers", ":msm_headers",":dp_headers",":dsi_headers",":sde_headers",":rotator_headers", ":iris_core_headers",":iris_vendor_headers",":oplus_drm_headers"]
 )
 
 load(":targets/sun.bzl", "define_sun")
