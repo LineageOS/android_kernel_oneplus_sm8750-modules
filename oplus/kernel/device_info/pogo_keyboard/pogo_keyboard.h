@@ -47,7 +47,6 @@
 
 #define WAKEUP_NAME "pogo_wakeup"
 #define KEYBOARD_NAME "pogo_keyboard"
-#define KEYBOARD_NFC_NAME "pogo_keyboard_nfc"
 #define TOUCHPAD_NAME "pogo_touchpad"
 #define KEYBOARD_CORE_NAME "tinno,pogo_keyboard"
 
@@ -64,43 +63,33 @@
 #define CONFIG_KEYBOARD_ERR
 #define CONFIG_KEYBOARD_INFO
 
-
-//#define CONFIG_ADC_SUPPORT
-//#define CONFIG_PLUG_SUPPORT // use hall sensor for keyboard attachment detection, or else use drx low signal from keyboard.
-
 #define CONFIG_POWER_CTRL_SUPPORT
 
 #define CONFIG_BOARD_V4_SUPPORT
 
 #define CONFIG_KB_DEBUG_FS     // enable keyboard debugging file nodes.
 
-#define KB_TAG   "POGO_KB:"
+#ifdef CONFIG_KEYBOARD_DEBUG
+extern int kb_debug_level;
+#define kb_debug(fmt, args...)  do {\
+                                    if(kb_debug_level & (1 << 0))\
+                                        printk("[DEBUG]POGO_KB:%s " fmt, __func__, ##args);\
+                                } while (0)
+#else
+#define kb_debug(fmt, args...)   do { } while (0)
+#endif
+
 #ifdef CONFIG_KEYBOARD_INFO
-#define kb_info(fmt, args...)   printk(KERN_ERR KB_TAG fmt,##args)
+#define kb_info(fmt, args...)   printk("[INFO]POGO_KB:%s " fmt, __func__, ##args);
 #else
 #define kb_info(fmt, args...)   do { } while (0)
 #endif
 
-
-#ifdef CONFIG_KEYBOARD_DEBUG
-static bool pogo_debug_en = true;
-#else
-static bool pogo_debug_en = false;
-#endif
-#define kb_debug(fmt, args...)  do {\
-                                    if(pogo_debug_en)\
-                                        printk(KERN_ERR KB_TAG fmt,##args);\
-                                } while (0)
-
-
-
-
 #ifdef CONFIG_KEYBOARD_ERR
-#define kb_err(fmt, args...)   printk(KERN_ERR KB_TAG fmt,##args)
+#define kb_err(fmt, args...)   printk("[ERR]POGO_KB:%s " fmt, __func__, ##args)
 #else
 #define kb_err(fmt, args...)   do { } while (0)
 #endif
-
 
 #define KEYBOARD_CONNECT_STATUS         (1<<0) // keyboard is attached.
 #define KEYBOARD_LCD_ON_STATUS          (1<<1) // pad lcd is on.
@@ -124,6 +113,7 @@ static bool pogo_debug_en = false;
 #define KEY_CUSTOMERAPP2        0x28b
 #define KEY_KB_ENABLE           0x28e
 #define KEY_KB_DISABLE          0x28f
+#define KEY_AI                  0x2fa
 
 
 
@@ -144,6 +134,9 @@ static bool pogo_debug_en = false;
 
 // Timer expiry time, unit-ms
 #define POWEROFF_TIMER_EXPIRY       50
+
+// Timer unit-s
+#define POWERON_PLUG_CKECK_TIMER       5
 
 #define POWEROFF_DISCONNECT_MAX     20
 #define POWEROFF_CONNECT_MAX        12
@@ -214,6 +207,9 @@ enum {
     KEYBOARD_REPORT_KBVER_EVENT,
     KEYBOARD_REPORT_KBLOG_EVENT,
     KEYBOARD_REPORT_NFC_STA,
+    KEYBOARD_REPORT_UART_OPEN_EVENT,
+    KEYBOARD_REPORT_UART_CLOSE_EVENT,
+    KEYBOARD_REPORT_TP_DIST_EVENT,
     POGO_KEYBOARD_EVENT_MAX, //add new event befor it
 };
 
@@ -257,6 +253,14 @@ struct pogo_keyboard_event {
     unsigned char event;
 };
 
+struct pogo_uevent {
+    struct class *uevent_class;
+    struct device *uevent_dev;
+    char *class_name;
+    char *cdev_name;
+    char *dev_name;
+};
+
 struct pogo_keyboard_data {
     struct input_dev *input_pogo_keyboard;
     unsigned char old[8];
@@ -278,7 +282,12 @@ struct pogo_keyboard_data {
     struct touch_event event;
     unsigned int touchpad_x_max;
     unsigned int touchpad_y_max;
+    unsigned int touchpad_x_resolution;
+    unsigned int touchpad_y_resolution;
+    int prev_finger_count;
     bool touchpad_disable_state;
+    bool touchpad_gesture_state;
+    bool touchpad_gesture_ignore;
     bool keypad_pluginout_state;   //keyboard plugin/out status for factory test.
     struct input_dev *input_wakeup;
 
@@ -361,10 +370,9 @@ struct pogo_keyboard_data {
     struct delayed_work lcd_notify_reg_work;
 
     unsigned long long mac_addr;                //keyboard mac, report when plug in by keyboard
-    struct class *uevent_class;
-    struct device *uevent_dev;
-    struct class *uevent_nfc_class;
-    struct device *uevent_nfc_dev;
+    struct pogo_uevent *pogo;
+    struct pogo_uevent *nfc;
+    struct pogo_uevent *pogo_uart;
 
     char *tty_name;
     char *keyboard_name;
@@ -414,6 +422,13 @@ struct pogo_keyboard_data {
     unsigned char nfc_status;
 };
 
+typedef struct {
+    uint8_t main_cmd;
+    uint8_t sub_cmd;
+    uint8_t *ack;
+    size_t ack_len;
+    void (*handler)(char *buf, struct pogo_keyboard_data *client);
+} CommandHandler;
 
 extern struct pogo_keyboard_data *pogo_keyboard_client;
 extern char TAG[60];
@@ -434,6 +449,7 @@ void pogo_keyboard_led_report(int key_value);
 
 int touchpad_input_init(void);
 int touchpad_input_report(char *buf);
+void reset_tool_buttons(struct input_dev *input_dev);
 
 extern ssize_t pogo_tty_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos);
 

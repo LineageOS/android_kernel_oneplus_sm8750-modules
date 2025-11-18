@@ -2367,7 +2367,7 @@ int tfa_tib_dsp_msgmulti(struct tfa_device *tfa, int length, const char *buffer)
 		if (tfa->verbose)
 				pr_debug("%s, Creating the multi-message \n\n", __FUNCTION__);
 
-		blob = kmalloc(tfadsp_max_msg_size, GFP_KERNEL);
+		blob = kzalloc(tfadsp_max_msg_size, GFP_KERNEL);
 		#ifdef OPLUS_ARCH_EXTENDS
 		/*fix coverity issue 216430*/
 		if (blob == NULL) {

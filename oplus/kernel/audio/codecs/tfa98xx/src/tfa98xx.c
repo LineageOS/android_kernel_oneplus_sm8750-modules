@@ -632,7 +632,7 @@ static ssize_t tfa98xx_dbgfs_r_read(struct file *file,
 		goto r_c_err;
 	}
 
-	str = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	str = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!str) {
 		ret = -ENOMEM;
 		pr_err("[0x%x] memory allocation failed\n", tfa98xx->i2c->addr);
@@ -819,7 +819,7 @@ static ssize_t tfa98xx_dbgfs_rpc_read(struct file *file,
 	if (count == 0)
 		return 0;
 
-	buffer = kmalloc(count, GFP_KERNEL);
+	buffer = kzalloc(count, GFP_KERNEL);
 	if (buffer == NULL)
 		return -ENOMEM;
 
@@ -874,7 +874,7 @@ static ssize_t tfa98xx_dbgfs_rpc_send(struct file *file,
 		return 0;
 
 	/* msg_file.name is not used */
-	msg_file = kmalloc(count + sizeof(struct nxpTfaFileDsc), GFP_KERNEL);
+	msg_file = kzalloc(count + sizeof(struct nxpTfaFileDsc), GFP_KERNEL);
 	if (msg_file == NULL)
 		return	-ENOMEM;
 
@@ -2919,7 +2919,7 @@ static ssize_t tfa98xx_rw_write(struct file *filp, struct kobject *kobj,
 	int ret;
 	int retries = I2C_RETRIES;
 
-	data = kmalloc(count+1, GFP_KERNEL);
+	data = kzalloc(count+1, GFP_KERNEL);
 	if (data == NULL)
 		return  -ENOMEM;
 

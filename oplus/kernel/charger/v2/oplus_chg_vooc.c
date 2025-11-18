@@ -323,6 +323,8 @@ struct oplus_chg_vooc {
 
 	struct oplus_plc_protocol *opp;
 	int plc_status;
+	bool reset_adapter;
+	bool check_boot_reset_adapter;
 };
 
 struct oplus_adapter_struct {
@@ -1676,6 +1678,7 @@ static int oplus_vooc_get_real_wired_type(struct oplus_chg_vooc *chip)
 #define OPLUS_SVID	0x22d9
 #define BEFORE_VOOC_CURR_CHECK 200
 #define WAIT_CURR_STARUP 500
+#define BOOT_RESETADAPTER_20S 20
 static void oplus_vooc_switch_check_work(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
@@ -1688,6 +1691,7 @@ static void oplus_vooc_switch_check_work(struct work_struct *work)
 	unsigned long schedule_delay = 0;
 	int rc;
 	union mms_msg_data data = { 0 };
+	struct timespec64 uptime;
 
 	chg_info("vooc switch check\n");
 
@@ -1814,7 +1818,7 @@ static void oplus_vooc_switch_check_work(struct work_struct *work)
 			&chip->vooc_wait_bc12,
 			msecs_to_jiffies(VOOC_WAIT_BC1P2_GET_TYPE));
 		chg_type = oplus_wired_get_chg_type();
-		if (chg_type == OPLUS_CHG_USB_TYPE_UNKNOWN) {
+		if (chg_type == OPLUS_CHG_USB_TYPE_UNKNOWN || chip->fastchg_started) {
 			if (!chip->vooc_online) {
 				chip->switch_retry_count = 0;
 				oplus_cpa_switch_end(chip->cpa_topic, CHG_PROTOCOL_VOOC);
@@ -1836,16 +1840,25 @@ static void oplus_vooc_switch_check_work(struct work_struct *work)
 	chg_info("switch_retry_count=%d, fast_chg_status=%d fastchg_check_timeout=%lu\n",
 		 chip->switch_retry_count, chip->fast_chg_status, fastchg_check_timeout);
 	if (chip->switch_retry_count == 0) {
+		if (oplus_chg_get_boot_reset_adapter_support_flags() && !chip->check_boot_reset_adapter) {
+			ktime_get_boottime_ts64(&uptime);
+			if ((unsigned long)uptime.tv_sec < BOOT_RESETADAPTER_20S) {
+				chip->check_boot_reset_adapter = true;
+				chip->reset_adapter = true;
+			}
+		}
 		if ((chip->fast_chg_status ==
 			     CHARGER_STATUS_SWITCH_TEMP_RANGE ||
 		     chip->fast_chg_status == CHARGER_STATUS_FAST_TO_WARM ||
 		     chip->fast_chg_status == CHARGER_STATUS_FAST_DUMMY ||
 		     chip->fast_chg_status == CHARGER_STATUS_TIMEOUT_RETRY ||
-		     chip->fast_chg_status == CHARGER_STATUS_CURR_LIMIT) &&
+		     chip->fast_chg_status == CHARGER_STATUS_CURR_LIMIT ||
+		     chip->reset_adapter) &&
 		    oplus_vooc_is_allow_fast_chg(chip) &&
 		    is_wired_charge_suspend_votable_available(chip)) {
 			chg_info("fast_chg_status=%d reset adapter\n",
 				 chip->fast_chg_status);
+			chip->reset_adapter = false;
 			/* Reset adapter */
 			oplus_reset_adapter(chip);
 		}
@@ -3093,7 +3106,16 @@ static void oplus_vooc_fastchg_work(struct work_struct *work)
 				oplus_chg_strategy_init(chip->general_strategy);
 			if (chip->bypass_strategy != NULL)
 				oplus_chg_strategy_init(chip->bypass_strategy);
-			oplus_vooc_setup_watchdog_timer(chip, 25000);
+
+			rc = oplus_mms_get_item_data(chip->comm_topic, COMM_ITEM_EIS_STATUS, &msg_data, false);
+			if ((rc == 0) && (msg_data.intval == EIS_STATUS_PREPARE)) {
+				chg_info("<EIS> into eis, set watchdog 65000ms\n");
+				oplus_vooc_push_eis_status(chip, EIS_STATUS_HIGH_CURRENT);
+				oplus_vooc_setup_watchdog_timer(chip, 65000);
+			} else {
+				chg_info("<EIS> no eis, set watchdog 25000ms\n");
+				oplus_vooc_setup_watchdog_timer(chip, 25000);
+			}
 		} else {
 			chg_info("not allow fastchg\n");
 			oplus_vooc_set_ap_fastchg_allow(chip->vooc_ic, 0, 1);
@@ -3113,16 +3135,6 @@ static void oplus_vooc_fastchg_work(struct work_struct *work)
 		if ((sid_to_adapter_power(oplus_get_adapter_sid(chip, chip->adapter_id)) >= 80) &&
 		    chip->support_abnormal_over_80w_adapter)
 		    chip->is_abnormal_adapter |= ABNOMAL_ADAPTER_IS_OVER_80W_ADAPTER;
-
-		rc = oplus_mms_get_item_data(chip->comm_topic, COMM_ITEM_EIS_STATUS, &msg_data, false);
-		if ((rc == 0) && (msg_data.intval == EIS_STATUS_PREPARE)) {
-			chg_info("<EIS> into eis, set watchdog 65000ms\n");
-			oplus_vooc_push_eis_status(chip, EIS_STATUS_HIGH_CURRENT);
-			oplus_vooc_setup_watchdog_timer(chip, 65000);
-		} else {
-			chg_info("<EIS> no eis, set watchdog 25000ms\n");
-			oplus_vooc_setup_watchdog_timer(chip, 25000);
-		}
 
 		oplus_select_abnormal_max_cur(chip);
 		chip->vooc_strategy_change_count = 0;
@@ -3578,6 +3590,10 @@ static void oplus_vooc_subscribe_wired_topic(struct oplus_mms *topic,
 	oplus_mms_get_item_data(chip->wired_topic, WIRED_ITEM_ONLINE, &data,
 				true);
 	chip->wired_online = !!data.intval | chip->vooc_online;
+	if (chip->wired_online)
+		chip->check_boot_reset_adapter = false;
+	else
+		chip->check_boot_reset_adapter = true;
 	if (!chip->cpa_support && chip->wired_online)
 		schedule_delayed_work(&chip->vooc_switch_check_work, 0);
 
@@ -3892,6 +3908,8 @@ static void oplus_vooc_plugin_work(struct work_struct *work)
 		}
 	} else {
 		chg_info("wired charge offline\n");
+		chip->check_boot_reset_adapter = true;
+		chip->reset_adapter = false;
 		chip->bat_temp_region = TEMP_REGION_MAX;
 		/* Clean up normal charging related settings */
 		vote(chip->vooc_disable_votable, TIMEOUT_VOTER, false, 0,
@@ -6420,7 +6438,7 @@ static void oplus_chg_vooc_turn_off_work(struct work_struct *work)
 }
 
 #if IS_ENABLED(CONFIG_OPLUS_DYNAMIC_CONFIG_CHARGER)
-#include "config/dynamic_cfg/oplus_vooc_cfg.c"
+#include "config/dynamic_cfg/oplus_vooc_cfg.h"
 #endif
 
 static int oplus_vooc_probe(struct platform_device *pdev)
@@ -6533,7 +6551,11 @@ parse_dt_err:
 	return rc;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+static void oplus_vooc_remove(struct platform_device *pdev)
+#else
 static int oplus_vooc_remove(struct platform_device *pdev)
+#endif
 {
 	struct oplus_chg_vooc *chip = platform_get_drvdata(pdev);
 
@@ -6570,7 +6592,9 @@ static int oplus_vooc_remove(struct platform_device *pdev)
 	devm_kfree(&pdev->dev, chip);
 	platform_set_drvdata(pdev, NULL);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	return 0;
+#endif
 }
 
 static void oplus_vooc_shutdown(struct platform_device *pdev)

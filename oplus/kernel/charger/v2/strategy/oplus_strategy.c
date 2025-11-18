@@ -328,6 +328,9 @@ extern int lcf_strategy_register(void);
 extern int puc2_strategy_register(void);
 extern int inr_strategy_register(void);
 extern int ddrc_strategy_register(void);
+extern int ddrc_v2_strategy_register(void);
+extern int bs_strategy_register(void);
+extern int pcc_strategy_register(void);
 
 static __init int oplus_chg_strategy_module_init(void)
 {
@@ -337,6 +340,9 @@ static __init int oplus_chg_strategy_module_init(void)
 	puc2_strategy_register();
 	inr_strategy_register();
 	ddrc_strategy_register();
+	ddrc_v2_strategy_register();
+	bs_strategy_register();
+	pcc_strategy_register();
 
 	return 0;
 }

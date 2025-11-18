@@ -204,6 +204,7 @@ struct aw882xx {
 	unsigned char total_pa_number; /*Total number of pa*/
 	unsigned char need_f0_cali; /*need f0 calibration*/
 	unsigned char que_dela_work; /*queue_delayed_work*/
+	unsigned char need_add_bus_id; /*need add i2c bus id when i2c addr is Conflicts*/
 #endif
 	int reset_gpio;
 	int irq_gpio;

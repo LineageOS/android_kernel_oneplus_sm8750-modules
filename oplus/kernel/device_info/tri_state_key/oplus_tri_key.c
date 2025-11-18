@@ -58,7 +58,6 @@ enum {
 	MODE_MAX_NUM
 	} tri_mode;
 
-
 unsigned int tristate_extcon_tab[] = {
 		MODE_MUTE,
 		MODE_DO_NOT_DISTURB,
@@ -2044,7 +2043,7 @@ static int fb_notifier_callback(struct notifier_block *self, unsigned long event
 #endif
 
 #if IS_ENABLED(CONFIG_DRM_OPLUS_PANEL_NOTIFY) || IS_ENABLED(CONFIG_QCOM_PANEL_EVENT_NOTIFIER)
-struct drm_panel *trikey_dev_get_panel(struct device_node *of_node)
+struct drm_panel *trikey_dev_get_panel(struct device_node *of_node, int panel_id)
 {
 	int i;
 	int count;
@@ -2062,7 +2061,11 @@ struct drm_panel *trikey_dev_get_panel(struct device_node *of_node)
 	} else {
 		TRI_KEY_LOG("[oplus,dsi-display-dev] node found \n");
 		/* for primary panel */
-		strncpy(disp_node, "oplus,dsi-panel-primary", sizeof("oplus,dsi-panel-primary"));
+		if (!panel_id) {
+			strncpy(disp_node, "oplus,dsi-panel-primary", sizeof("oplus,dsi-panel-primary"));
+		} else {
+			strncpy(disp_node, "oplus,dsi-panel-secondary", sizeof("oplus,dsi-panel-secondary"));
+		}
 	}
 	TRI_KEY_LOG("disp_node = %s \n", disp_node);
 
@@ -2112,6 +2115,22 @@ int oplus_hall_register_notifier(void)
 			TRI_KEY_LOG("Unable to register fb_notifier: %d\n", ret);
 		} else {
 			g_the_chip->notifier_cookie = cookie;
+		}
+		TRI_KEY_LOG("set primary panel pass\n");
+	}
+
+	if (g_hall_dev->secondry_panel_notify) {
+		g_the_chip->active_panel_sec = g_hall_dev->active_panel_sec;
+		if (g_the_chip->active_panel_sec) {
+			cookie = panel_event_notifier_register(PANEL_EVENT_NOTIFICATION_SECONDARY,
+					PANEL_EVENT_NOTIFIER_CLIENT_TRI_STATE_KEY_FOR_SEC, g_the_chip->active_panel_sec,
+					&trikey_panel_notifier_callback, g_the_chip);
+			if (!cookie) {
+				TRI_KEY_LOG("Unable to register fb_notifier: %d\n", ret);
+			} else {
+				g_the_chip->notifier_cookie_sec = cookie;
+			}
+			TRI_KEY_LOG("set secondry panel pass\n");
 		}
 	}
 
@@ -2163,6 +2182,10 @@ int oplus_hall_unregister_notifier(void)
 #elif IS_ENABLED(CONFIG_QCOM_PANEL_EVENT_NOTIFIER)
 	if (g_the_chip->active_panel && g_the_chip->notifier_cookie) {
 		panel_event_notifier_unregister(g_the_chip->notifier_cookie);
+	}
+
+	if (g_the_chip->active_panel_sec && g_the_chip->notifier_cookie_sec) {
+		panel_event_notifier_unregister(g_the_chip->notifier_cookie_sec);
 	}
 #elif IS_ENABLED(CONFIG_OPLUS_MTK_DRM_GKI_NOTIFY)
 	if (g_the_chip->disp_notifier.notifier_call) {

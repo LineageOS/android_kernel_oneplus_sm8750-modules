@@ -159,5 +159,17 @@ LOCAL_MODULE_DEBUG_ENABLE := true
 LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
 include $(DLKM_DIR)/Build_external_kernelmodule.mk
 ###########################################################
+
+########################### oplus typec switch I2C KERNEL  ###########################
+#add for audio netlink kernel communication
+include $(CLEAR_VARS)
+LOCAL_SRC_FILES           := $(OPLUS_AUDIO_SRC_FILES)
+LOCAL_MODULE              := oplus_typec_switch_i2c.ko
+LOCAL_MODULE_KBUILD_NAME  := oplus/qcom/oplus_typec_switch_i2c/oplus_typec_switch_i2c.ko
+LOCAL_MODULE_TAGS         := optional
+LOCAL_MODULE_DEBUG_ENABLE := true
+LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
+include $(DLKM_DIR)/Build_external_kernelmodule.mk
+###########################################################
 endif # audio-kernel
 endif # DLKM check

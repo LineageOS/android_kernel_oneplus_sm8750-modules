@@ -103,6 +103,8 @@
 #define EVENTBUFFER_EXT_PEN_VIBRATOR_ON           0x16
 #define EVENTBUFFER_EXT_PEN_VIBRATOR_OFF          0x17
 #define EVENTBUFFER_EXT_PEN_MODE_5TH_ON           0x18       /* notify maxeye-3RD pencil connected */
+#define EVENTBUFFER_EXT_NOTIFY_KEYBOARD_OPEN      0x26       /*notify keyboard open event during screenOn*/
+#define EVENTBUFFER_EXT_PEN_JITTER_LEVEL          0x25
 #define PEN_CTL_FEEDBACK                          0xffff
 
 #define NVT_TOUCH_FW_DEBUG_INFO (1)
@@ -187,6 +189,14 @@ typedef enum {
 	EVENT_MAP_PROJECTID                     = 0x9A,
 } SPI_EVENT_MAP;
 
+/* com.tencent.tmgp.sgame */
+#define TENCENT_TMGP 10
+#define TENCENT_TMGP_MAP 4
+#define GAME_AIUNIT_CMD 0xBD
+#define PHYSICAL_ORIGIN_LEFT 0
+#define PHYSICAL_ORIGIN_RIGHT 1
+#define MAX_CMD_LEN 9
+
 typedef enum {
 	RESET_STATE_INIT = 0xA0,/* IC reset          */
 	RESET_STATE_REK,        /* ReK baseline      */
@@ -261,6 +271,7 @@ struct nvt_ts_mem_map {
 	uint32_t BOOT_RDY_ADDR;
 	uint32_t POR_CD_ADDR;
 	uint32_t TX_AUTO_COPY_EN;
+	uint32_t ACI_ERR_CLR_ADDR;
 	uint32_t SPI_DMA_TX_INFO;
 	/* BLD CRC */
 	uint32_t BLD_LENGTH_ADDR;
@@ -276,6 +287,7 @@ struct nvt_ts_mem_map {
 	uint32_t DMA_CRC_EN_ADDR;
 	uint32_t BLD_ILM_DLM_CRC_ADDR;
 	uint32_t DMA_CRC_FLAG_ADDR;
+	uint32_t SPI_DMA_VAL_ADDR;
 	uint32_t DOZE_GM_S1D_SCAN_RAW_ADDR;
 	uint32_t DOZE_GM_BTN_SCAN_RAW_ADDR;
 };
@@ -348,6 +360,7 @@ struct chip_data_nt36523 {
 	uint8_t                         recovery_cnt;
 	uint8_t                         ilm_dlm_num;
 	uint8_t                         cascade_2nd_header_info;
+	uint8_t                         spi_dma_div_cnt_val;
 	uint8_t                         enb_casc;
 	uint8_t                         *fwbuf;
 	uint8_t                         hw_crc;
@@ -410,6 +423,19 @@ struct chip_data_nt36523 {
 	bool noise_sta;
 	int water_sta;
 #endif /*end of CONFIG_OPLUS_TP_APK*/
+
+	/*health report*/
+	bool water_mode;
+	bool frequency_hopping;
+	bool frequent_frequency_hopping;
+	bool base_negative_finger;
+	bool baseline_err;
+	bool base_rxabs_baseline;
+	bool shield_palm;
+	bool health_esd;
+	bool bending_mode;
+	bool poor_gnd;
+	bool er_prevent;
 
 	struct nvt_autotest_para *p_nvt_test_para;
 	struct nvt_autotest_offset *p_nvt_autotest_offset;

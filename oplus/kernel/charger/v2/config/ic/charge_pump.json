@@ -768,8 +768,40 @@
                 "write": false,
                 "overwrite": false
             }
+        },
+        {
+            "lable": "OPLUS_IC_FUNC_CP_SET_SSTIMEOUT_UCP_ENABLE",
+            "desc": {
+                "zh": "SS timeout和ucp开关"
+            },
+            "auto_debug_code": true,
+            "parameter_list": ["bool"],
+            "parameter_desc": [
+                {
+                    "range": "0-1",
+                    "type": "in",
+                    "desc": {
+                        "zh": "1:打开, 0:关闭"
+                    }
+                }
+            ],
+            "vict": {
+                "read": false,
+                "write": {
+                    "cmd": "vict -f {id} -S{val} vic-*",
+                    "desc": {
+                        "zh": "SS timeout和ucp开关"
+                    }
+                },
+                 "overwrite": {
+                    "cmd": "vict -f {id} -O {val} vic-*",
+                    "desc": {
+                        "zh": "使用val覆盖传入的开启状态"
+                    }
+                }
+            }
         }
     ],
 
-    "version": "V2.2:19:97fcf08d5f0441eccd59e717a46a7ee11eedd426f97ceec6bcdb0081d90e1538"
+    "version": "V2.3:20:f5b8fe23dec6d58f3e5980881af2bb23af34eb7f0a541058c6a13bb833a102c6"
 }

@@ -94,7 +94,7 @@ static int mm_knl_nt_send_module(struct sk_buff *skb,
 	if (info->attrs[KNL_NT_CMD_ATTR_MS]) {
 		na = info->attrs[KNL_NT_CMD_ATTR_MS];
 		nlh = nlmsg_hdr(skbu);
-		pmesg = (char*)kmalloc(nla_len(na) + 0x10, GFP_KERNEL);
+		pmesg = (char*)kzalloc(nla_len(na) + 0x10, GFP_KERNEL);
 		if (pmesg) {
 			memcpy(pmesg, nla_data(na), nla_len(na));
 			pmesg[nla_len(na)] = 0x0;

@@ -17,6 +17,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/version.h>
 
 #include "oplus_ir_core.h"
 #include "oplus_ir_uart.h"
@@ -135,7 +136,11 @@ end:
 	return 0;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+static void oplus_ir_uart_remove(struct platform_device *pdev)
+#else /* KERNEL_VERSION(6, 1, 0) */
 static int oplus_ir_uart_remove(struct platform_device *pdev)
+#endif /* KERNEL_VERSION(6, 1, 0) */
 {
 	struct oplus_ir_uart_t *ir_uart = platform_get_drvdata(pdev);
 
@@ -143,7 +148,10 @@ static int oplus_ir_uart_remove(struct platform_device *pdev)
 	ir_unregister_device(IR_HW_UART);
 	kfree(ir_uart);
 	ir_uart = NULL;
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	return 0;
+#endif /* KERNEL_VERSION(6, 1, 0) */
 }
 
 static struct of_device_id oplus_ir_uart_of_match_table[] = {

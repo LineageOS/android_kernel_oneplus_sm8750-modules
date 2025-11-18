@@ -38,6 +38,9 @@
 #include <linux/completion.h>
 #include <linux/mutex.h>
 #include <oplus_sec.h>
+#ifndef CONFIG_DISABLE_OPLUS_FUNCTION
+#include <soc/oplus/system/oplus_project.h>
+#endif
 
 struct oplus_sec_ic_test_res {
 	struct completion ack;
@@ -78,6 +81,7 @@ struct oplus_configfs_device {
 
 	struct work_struct gauge_update_work;
 	struct work_struct eis_reset_work;
+	struct work_struct eis_status_update_work;
 	struct delayed_work eis_timeout_work;
 	struct delayed_work plc_enable_work;
 	struct delayed_work clean_plc_enable_work;
@@ -110,6 +114,7 @@ struct oplus_configfs_device {
 	int batt_fcc_coeff;
 	int batt_soh_coeff;
 	int gauge_vbat;
+	int gauge_car_c;
 	int debug_batt_cc;
 	bool deep_support;
 	bool super_endurance_mode_status;
@@ -152,6 +157,7 @@ struct oplus_configfs_device {
 	int real_cool_down;
 	unsigned int nvid_support_flags;
 	int eis_status;
+	int eis_current;
 	int plc_status;
 	bool plc_user_enable;
 };
@@ -647,12 +653,15 @@ static ssize_t battery_fcc_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(battery_fcc);
 
+#define BATT_RM_LEN 10
 static ssize_t battery_rm_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
 	struct oplus_configfs_device *chip = dev->driver_data;
+	int batt_rm;
 
-	return sprintf(buf, "%d\n", chip->batt_rm);
+	batt_rm = chip->batt_rm < 0 ? 0 : chip->batt_rm;
+	return scnprintf(buf, BATT_RM_LEN, "%d\n", batt_rm);
 }
 static DEVICE_ATTR_RO(battery_rm);
 
@@ -862,7 +871,9 @@ static ssize_t historic_soh_date_store(struct device *dev,
 		chg_err("sizeof(set_soh_data) > 128 failed\n");
 		return 0;
 	}
-	strncpy((char *)original_data, set_soh_data, SOH_BUFFER_SIZE);
+	strncpy((char *)original_data, set_soh_data, SOH_BUFFER_SIZE - 1);
+	original_data[SOH_BUFFER_SIZE - 1] = '\0';
+
 	chg_err("write digital signature %s\n", original_data);
 
 	/* read page data for digital signature */
@@ -946,6 +957,7 @@ static ssize_t batt_ic_sn_show(struct device *dev, struct device_attribute *attr
 	else if (strstr(batt_sn_buf, UI_SOH_SN_DATA_TEST_NULL_TAG))
 		memset(batt_date, 0, sizeof(batt_date));
 
+	batt_date[BATT_SN_SIZE] = '\0';
 	if (ret < 0)
 		chg_err("get battery batt_ic_sn_show date error");
 	else
@@ -1260,7 +1272,7 @@ static ssize_t fast_charge_show(struct device *dev,
 
 	fastchg |= chip->ufcs_online;
 
-	fastchg |= chip->pps_online;
+	fastchg |= chip->pps_online || chip->pps_online_keep;
 
 	if (chip->wls_online) {
 		rc = oplus_mms_get_item_data(chip->wls_topic, WLS_ITEM_WLS_TYPE, &data, true);
@@ -1846,7 +1858,6 @@ static ssize_t eis_current_store(
 {
 	int val = 0;
 	struct oplus_configfs_device *chip = dev->driver_data;
-	int batt_num = 0;
 
 	if (!chip) {
 		chg_err("chip is NULL\n");
@@ -1858,6 +1869,10 @@ static ssize_t eis_current_store(
 		return -EINVAL;
 	}
 
+	chg_info("<EIS> set eis current[%d]\n", val);
+	chip->eis_current = val;
+	schedule_work(&chip->eis_status_update_work);
+
 	if (val >= 0) {
 		chg_info("<EIS> enable eis_timeout_timer\n");
 		cancel_delayed_work_sync(&chip->eis_timeout_work);
@@ -1866,50 +1881,6 @@ static ssize_t eis_current_store(
 	} else {
 		chg_info("<EIS> disable eis_timeout_timer\n");
 		cancel_delayed_work_sync(&chip->eis_timeout_work);
-	}
-
-	if (is_vooc_curr_votable_available(chip)) {
-		if (val > 0)
-			vote(chip->vooc_curr_votable, EIS_VOTER, true, val, false);
-		else if (val < 0)
-			vote(chip->vooc_curr_votable, EIS_VOTER, false, 0, false);
-	}
-
-	if (is_ufcs_curr_votable_available(chip)) {
-		if (val > 0)
-			vote(chip->ufcs_curr_votable, EIS_VOTER, true, val, false);
-		else if (val < 0)
-			vote(chip->ufcs_curr_votable, EIS_VOTER, false, 0, false);
-	}
-
-	batt_num = oplus_gauge_get_batt_num();
-	chg_info("<EIS>eis current = %d, batt_num = %d\n", val, batt_num);
-	if (batt_num == 1) {
-		if (is_wired_fcc_votable_available(chip)) {
-			if (val > 0)
-				vote(chip->wired_fcc_votable, EIS_VOTER, true, val, false);
-			else
-				vote(chip->wired_fcc_votable, EIS_VOTER, false, 0, false);
-		}
-
-		if (val > 0) {
-			if (chip->eis_status == EIS_STATUS_DISABLE)
-				oplus_configfs_push_eis_status_msg(chip, EIS_STATUS_PREPARE);
-		} else if (val < 0) {
-			oplus_configfs_push_eis_status_msg(chip, EIS_STATUS_DISABLE);
-		} else {
-			if (chip->eis_status == EIS_STATUS_HIGH_CURRENT)
-				oplus_configfs_push_eis_status_msg(chip, EIS_STATUS_LOW_CURRENT);
-			else
-				oplus_configfs_push_eis_status_msg(chip, EIS_STATUS_DISABLE);
-		}
-	} else {
-		if (is_chg_disable_votable_available(chip)) {
-			if (val)
-				vote(chip->chg_disable_votable, EIS_VOTER, false, 0, false);
-			else
-				vote(chip->chg_disable_votable, EIS_VOTER, true, 1, false);
-		}
 	}
 
 	return count;
@@ -2502,6 +2473,161 @@ static ssize_t sec_ic_test_show(
 }
 static DEVICE_ATTR_RW(sec_ic_test);
 
+#define GAUGE_CAR_C_BUFF_LEN 16
+static ssize_t gauge_car_c_show(
+	struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct oplus_configfs_device *chip = dev->driver_data;
+
+	if (!chip) {
+		chg_err("chip is NULL\n");
+		return -EINVAL;
+	}
+
+	return scnprintf(buf, GAUGE_CAR_C_BUFF_LEN, "%d\n", chip->gauge_car_c);
+}
+static DEVICE_ATTR_RO(gauge_car_c);
+
+static ssize_t chg_path_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	int val = 0;
+	int callname = 0;
+	struct oplus_configfs_device *chip = NULL;
+
+#define PARAMETER_NUM	2
+
+#ifndef CONFIG_DISABLE_OPLUS_FUNCTION
+	if (get_eng_version() == OEM_RELEASE) {
+		chg_err("OEM_RELEASE is ENOTSUPP\n");
+		return -ENOTSUPP;
+	}
+#endif
+
+	if (!dev || !buf) {
+		chg_err("dev or buf is NULL\n");
+		return -EINVAL;
+	}
+
+	chip = dev->driver_data;
+	if (!chip || !chip->wired_topic) {
+		chg_err("chip or wired_topic is NULL\n");
+		return -EINVAL;
+	}
+
+	if (sscanf(buf, "chgpath=%dcallname=%d", &val, &callname) != PARAMETER_NUM) {
+		chg_err("buf format error\n");
+		return -EINVAL;
+	}
+
+	if (val < 0 || val >= CHG_PATH_MAX) {
+		chg_err("data error\n");
+		return -EINVAL;
+	}
+	chg_info("set chg path=%d, callname=%d\n", val, callname);
+	oplus_wired_set_chg_path(chip->wired_topic, val);
+
+	return count;
+}
+static DEVICE_ATTR_WO(chg_path);
+
+static ssize_t bdd_voltdiff_trend_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct oplus_configfs_device *chip = dev->driver_data;
+	int voltdiff_trend;
+
+	voltdiff_trend = oplus_comm_get_bdd_voltdiff_trend(chip->comm_topic);
+	chg_debug("get dual volt diff trend = %d\n", voltdiff_trend);
+
+	return sprintf(buf, "%d\n", voltdiff_trend);
+}
+static DEVICE_ATTR_RO(bdd_voltdiff_trend);
+
+static ssize_t gauge_nvram_stress_test_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int rc;
+	int test_count = 0;
+	int interval = 0;
+	struct oplus_configfs_device *chip = dev->driver_data;
+
+	if (buf == NULL) {
+		chg_err("NULL pointer detected\n");
+		return 0;
+	}
+
+	if (sscanf(buf, "%d,%d", &test_count, &interval) != 2) {
+		chg_err("invalid buff %s\n", buf);
+		return -EINVAL;
+	}
+
+	chg_info("input param = %s, test_count[%d], internal[%d] start\n",
+			 buf, test_count, interval);
+	rc = oplus_gauge_start_stress_read_test(chip->gauge_topic, test_count, interval);
+	if (rc < 0) {
+		chg_err("input param[%s], test_count[%d], internal[%d], start read gauge failed. rc=%d\n",
+			buf, test_count, interval, rc);
+		return rc;
+	}
+
+	rc = oplus_gauge_start_nvram_stress_test(chip->gauge_topic, test_count, interval);
+	if (rc < 0) {
+		chg_err("input param[%s], test_count[%d], internal[%d], start nvram stress test failed. rc=%d\n",
+			buf, test_count, interval, rc);
+		return rc;
+	}
+	rc = oplus_gauge_start_term_volt_stress_test(chip->gauge_topic, test_count, interval);
+	if (rc < 0) {
+		chg_err("input param[%s], test_count[%d], internal[%d], start term volt stress test failed. rc=%d\n",
+			buf, test_count, interval, rc);
+		return rc;
+	}
+	chg_info("input param = %s, test_count[%d], internal[%d] start success\n",
+		buf, test_count, interval);
+	return count;
+}
+
+#define GAUGE_NVRAM_STRESS_TEST_BUFF_LEN 512
+static ssize_t gauge_nvram_stress_test_show(
+	struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct oplus_configfs_device *chip = dev->driver_data;
+	struct oplus_gauge_nvram_stress_test data;
+	int index = 0;
+
+	if (!chip) {
+		chg_err("chip is NULL\n");
+		return -EINVAL;
+	}
+
+	memset((char *)&data, 0, sizeof(struct oplus_gauge_nvram_stress_test));
+	oplus_gauge_get_nvram_stress_test(chip->gauge_topic, &data);
+	index = scnprintf(buf, GAUGE_NVRAM_STRESS_TEST_BUFF_LEN - index,
+				"@nvram_test|input_cnt=%d|sum_cnt=%d|fail_cnt=%d|suc_cnt=%d|test_state=%d" \
+				"@term_volt_test|input_cnt=%d|sum_cnt=%d|fail_cnt=%d|suc_cnt=%d|test_state=%d" \
+				"@read_test|input_cnt=%d|sum_cnt=%d|fail_cnt=%d|suc_cnt=%d|test_state=%d\n",
+				data.input_count, data.sum_cnt, data.fail_cnt,
+				data.suc_cnt, data.test_state,
+				data.input_count, data.term_volt_sum_cnt, data.term_volt_fail_cnt,
+				data.term_volt_suc_cnt, data.term_volt_test_state,
+				data.input_count, data.read_sum_cnt, data.read_fail_cnt,
+				data.read_suc_cnt, data.read_test_state);
+	return index;
+}
+DEVICE_ATTR_RW(gauge_nvram_stress_test);
+
+#define GAUGE_THREE_LEVEL_TEST_BUFF_LEN 128
+static ssize_t get_three_level_term_volt_show(
+	struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct oplus_configfs_device *chip = dev->driver_data;
+	int data[4] = { 0 };
+	oplus_gauge_get_three_level_term_volt(chip->gauge_topic, data);
+	return scnprintf(buf, GAUGE_THREE_LEVEL_TEST_BUFF_LEN,
+			"first_term_volt=%d,second_term_volt=%d,third_term_volt=%d\n",
+			data[0], data[1], data[2]);
+}
+DEVICE_ATTR_RO(get_three_level_term_volt);
+
 static struct device_attribute *oplus_battery_attributes[] = {
 	&dev_attr_authenticate,
 	&dev_attr_battery_cc,
@@ -2583,6 +2709,11 @@ static struct device_attribute *oplus_battery_attributes[] = {
 	&dev_attr_gauge_type,
 	&dev_attr_battery_seal_flag,
 	&dev_attr_sec_ic_test,
+	&dev_attr_gauge_car_c,
+	&dev_attr_chg_path,
+	&dev_attr_bdd_voltdiff_trend,
+	&dev_attr_gauge_nvram_stress_test,
+	&dev_attr_get_three_level_term_volt,
 	NULL
 };
 
@@ -2786,6 +2917,27 @@ static ssize_t rx_disable_store(struct device *dev, struct device_attribute *att
 }
 static DEVICE_ATTR_RW(rx_disable);
 
+static ssize_t bt_info_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct oplus_configfs_device *chip = NULL;
+
+	if (!dev || !buf) {
+		chg_err("dev or buf is NULL\n");
+		return -EINVAL;
+	}
+
+	chip = dev->driver_data;
+	if (!chip || !chip->wls_topic) {
+		chg_err("chip or wls is NULL\n");
+		return -ENODEV;
+	}
+
+	count = oplus_chg_wls_bt_info_store(chip->wls_topic, buf, count);
+
+	return count;
+}
+static DEVICE_ATTR_WO(bt_info);
+
 #ifdef WLS_QI_DEBUG
 ssize_t __attribute__((weak))
 oplus_chg_wls_upgrade_fw_show(struct oplus_mms *mms, char *buf)
@@ -2838,6 +2990,7 @@ static struct device_attribute *oplus_wireless_attributes[] = {
 	&dev_attr_real_type,
 	&dev_attr_status_keep,
 	&dev_attr_rx_disable,
+	&dev_attr_bt_info,
 #ifdef WLS_QI_DEBUG
 	&dev_attr_upgrade_firmware,
 #endif
@@ -3396,7 +3549,7 @@ static ssize_t protocol_type_show(struct device *dev,
 			fast_chg_type = CHARGER_SUBTYPE_FASTCHG_SVOOC;
 	}
 
-	if (chip->wls_online) {
+	if (chip->wls_online && !chip->wired_online) {
 		rc = oplus_mms_get_item_data(chip->wls_topic, WLS_ITEM_WLS_TYPE, &data, true);
 		if (rc < 0)
 			fast_chg_type = CHARGER_SUBTYPE_DEFAULT;
@@ -3627,7 +3780,7 @@ static ssize_t cpa_power_show(struct device *dev,
 
 	if (pre_cpa_power != cpa_power) {
 		pre_cpa_power = cpa_power;
-		chg_info("ui_power_show %d %d %d %d, %d %d %d %d, %d %d %d\n",
+		chg_info("cpa_power_show %d %d %d %d, %d %d %d %d, %d %d %d\n",
 			  adapter_power, project_power, chip->ufcs_online, chip->pps_online,
 			  chip->ufcs_oplus_adapter, chip->pps_oplus_adapter, pps_or_ufcs_ing, pps_or_ufcs_power,
 			  cpa_power, chip->ufcs_adapter_id, cpa_power_by_user);
@@ -4051,6 +4204,80 @@ static ssize_t sili_ic_alg_cfg_store(
 }
 static DEVICE_ATTR_WO(sili_ic_alg_cfg);
 
+#define BYB_INFO_LEN	1024
+static ssize_t byb_status_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct oplus_configfs_device *chip = dev->driver_data;
+	char buffer[BYB_INFO_LEN] = {0};
+	int rc = 0;
+
+	if (chip == NULL) {
+		chg_err("NULL pointer chip detected\n");
+		return 0;
+	}
+
+	if (buf == NULL) {
+		chg_err("NULL pointer buf detected\n");
+		return 0;
+	}
+	rc = oplus_wired_get_byb_status_info(chip->wired_topic, buffer);
+	if (rc < 0) {
+		chg_err("can't get byb_status_info %s,%d\n", buffer, rc);
+		return scnprintf(buf, PAGE_SIZE, "cannot_get_byb_status_info\n");
+	}
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n", buffer);
+}
+static DEVICE_ATTR_RO(byb_status);
+
+static ssize_t byb_vout_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct oplus_configfs_device *chip = dev->driver_data;
+	char buffer[BYB_INFO_LEN] = {0};
+	int rc = 0;
+
+	if (chip == NULL) {
+		chg_err("NULL pointer chip detected\n");
+		return 0;
+	}
+
+	if (buf == NULL) {
+		chg_err("NULL pointer buf detected\n");
+		return 0;
+	}
+	rc = oplus_wired_get_byb_vout_info(chip->wired_topic, buffer);
+	if (rc < 0) {
+		chg_err("can't get byb_vout_info %s,%d\n", buffer, rc);
+		return scnprintf(buf, PAGE_SIZE, "cannot_get_byb_vout_info\n");
+	}
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n", buffer);
+}
+
+static ssize_t byb_vout_store(struct device *dev, struct device_attribute *attr,
+			  const char *buf, size_t count)
+{
+	int val = 0;
+	struct oplus_configfs_device *chip = dev->driver_data;
+	int rc;
+
+	if (kstrtos32(buf, 0, &val)) {
+		chg_err("buf error\n");
+		return -EINVAL;
+	}
+
+	rc = oplus_wired_set_byb_vout_info(chip->wired_topic, val);
+	if (rc < 0) {
+		chg_err("can't set byb_vout_info %s,%d\n", buf, val);
+		return rc;
+	}
+
+	return count;
+}
+static DEVICE_ATTR_RW(byb_vout);
+
 static struct device_attribute *oplus_common_attributes[] = {
 	&dev_attr_common,
 	&dev_attr_boot_completed,
@@ -4075,6 +4302,8 @@ static struct device_attribute *oplus_common_attributes[] = {
 	&dev_attr_plc,
 	&dev_attr_dec_delta,
 	&dev_attr_lpd_config,
+	&dev_attr_byb_status,
+	&dev_attr_byb_vout,
 	NULL
 };
 
@@ -4489,6 +4718,81 @@ static void oplus_configfs_eis_reset_work(struct work_struct *work)
 	oplus_configfs_reset_eis_status(chip);
 }
 
+static void oplus_configfs_eis_common(struct oplus_configfs_device *chip)
+{
+	if (is_vooc_curr_votable_available(chip)) {
+		if (chip->eis_current > 0)
+			vote(chip->vooc_curr_votable, EIS_VOTER, true, chip->eis_current, false);
+		else if (chip->eis_current < 0)
+			vote(chip->vooc_curr_votable, EIS_VOTER, false, 0, false);
+	}
+
+	if (is_ufcs_curr_votable_available(chip)) {
+		if (chip->eis_current > 0)
+			vote(chip->ufcs_curr_votable, EIS_VOTER, true, chip->eis_current, false);
+		else if (chip->eis_current < 0)
+			vote(chip->ufcs_curr_votable, EIS_VOTER, false, 0, false);
+	}
+}
+
+static void oplus_configfs_eis_with_charger(struct oplus_configfs_device *chip)
+{
+	if (is_wired_fcc_votable_available(chip)) {
+		if (chip->eis_current > 0)
+			vote(chip->wired_fcc_votable, EIS_VOTER, true, chip->eis_current, false);
+		else
+			vote(chip->wired_fcc_votable, EIS_VOTER, false, 0, false);
+	}
+
+	if (chip->eis_current > 0) {
+		if (chip->eis_status == EIS_STATUS_DISABLE)
+			oplus_configfs_push_eis_status_msg(chip, EIS_STATUS_PREPARE);
+	} else if (chip->eis_current < 0) {
+		oplus_configfs_push_eis_status_msg(chip, EIS_STATUS_DISABLE);
+	} else {
+		if (chip->eis_status == EIS_STATUS_HIGH_CURRENT)
+			oplus_configfs_push_eis_status_msg(chip, EIS_STATUS_LOW_CURRENT);
+		else
+			oplus_configfs_push_eis_status_msg(chip, EIS_STATUS_DISABLE);
+	}
+}
+
+static void oplus_configfs_eis_with_mos(struct oplus_configfs_device *chip)
+{
+	if (is_chg_disable_votable_available(chip)) {
+		if (chip->eis_current)
+			vote(chip->chg_disable_votable, EIS_VOTER, false, 0, false);
+		else
+			vote(chip->chg_disable_votable, EIS_VOTER, true, 1, false);
+	}
+}
+
+static void oplus_configfs_eis_status_update_work(struct work_struct *work)
+{
+	struct oplus_configfs_device *chip = container_of(
+		work, struct oplus_configfs_device, eis_status_update_work);
+	int batt_num = 0;
+	union mms_msg_data data = { 0 };
+	int rc;
+
+	oplus_configfs_eis_common(chip);
+
+	rc = oplus_mms_get_item_data(chip->wired_topic, WIRED_ITEM_BUCK_EIS_CURRENT_RATE, &data, true);
+	if (rc < 0)
+		data.intval = 0;
+
+	batt_num = oplus_gauge_get_batt_num();
+	chg_info("<EIS> eis current[%d], batt_num[%d], curr_rate[%d], eis_status[%d]\n",
+		chip->eis_current, batt_num, data.intval, chip->eis_status);
+	if ((batt_num == 1) || (data.intval != 0)) {
+		if (data.intval != 0)
+			chip->eis_current = chip->eis_current * data.intval;
+		oplus_configfs_eis_with_charger(chip);
+	} else {
+		oplus_configfs_eis_with_mos(chip);
+	}
+}
+
 static void oplus_configfs_gauge_update_work(struct work_struct *work)
 {
 	struct oplus_configfs_device *chip = container_of(
@@ -4513,6 +4817,9 @@ static void oplus_configfs_gauge_update_work(struct work_struct *work)
 	oplus_mms_get_item_data(chip->gauge_topic, GAUGE_ITEM_GAUGE_VBAT, &data,
 				false);
 	chip->gauge_vbat = data.intval;
+	oplus_mms_get_item_data(chip->gauge_topic, GAUGE_ITEM_CAR_C, &data,
+				false);
+	chip->gauge_car_c = data.intval;
 }
 
 static void oplus_configfs_gauge_subs_callback(struct mms_subscribe *subs,
@@ -4594,6 +4901,8 @@ static void oplus_configfs_subscribe_gauge_topic(struct oplus_mms *topic,
 
 	oplus_mms_get_item_data(chip->gauge_topic, GAUGE_ITEM_SOH_COEFF, &data, true);
 	chip->batt_soh_coeff = data.intval;
+	oplus_mms_get_item_data(chip->gauge_topic, GAUGE_ITEM_CAR_C, &data, true);
+	chip->gauge_car_c = data.intval;
 
 	return;
 }
@@ -4838,7 +5147,7 @@ static void oplus_configfs_comm_subs_callback(struct mms_subscribe *subs,
 		case COMM_ITEM_EIS_STATUS:
 			oplus_mms_get_item_data(chip->comm_topic, id, &data, false);
 			chip->eis_status = data.intval;
-			chg_info("<<EIS>>update eis_status=%d\n", chip->eis_status);
+			chg_info("<EIS> update eis_status = %d\n", chip->eis_status);
 			break;
 		default:
 			break;
@@ -5162,6 +5471,7 @@ static __init int oplus_configfs_init(void)
 
 	INIT_WORK(&chip->gauge_update_work, oplus_configfs_gauge_update_work);
 	INIT_WORK(&chip->eis_reset_work, oplus_configfs_eis_reset_work);
+	INIT_WORK(&chip->eis_status_update_work, oplus_configfs_eis_status_update_work);
 	INIT_DELAYED_WORK(&chip->eis_timeout_work, oplus_configfs_eis_timeout_work);
 	INIT_DELAYED_WORK(&chip->plc_enable_work, oplus_configfs_plc_enable_work);
 	INIT_DELAYED_WORK(&chip->clean_plc_enable_work, oplus_configfs_clean_plc_enable_work);

@@ -16,6 +16,9 @@
 #include "oplus_chg_symbol.h"
 #endif
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+extern struct oplus_gauge_chip* oplus_mtk_gauge_init(void);
+#endif
 static struct oplus_gauge_chip *g_gauge_chip = NULL;
 static struct oplus_gauge_chip *g_sub_gauge_chip = NULL;
 static struct oplus_plat_gauge_operations *g_plat_gauge_ops = NULL;
@@ -587,6 +590,13 @@ void oplus_gauge_init(struct oplus_gauge_chip *chip)
 	g_gauge_chip = chip;
 }
 EXPORT_SYMBOL(oplus_gauge_init);
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+void oplus_mtk_plat_gauge_init(void)
+{
+	g_gauge_chip = oplus_mtk_gauge_init();
+}
+#endif
 
 void oplus_plat_gauge_init(struct oplus_plat_gauge_operations *ops)
 {

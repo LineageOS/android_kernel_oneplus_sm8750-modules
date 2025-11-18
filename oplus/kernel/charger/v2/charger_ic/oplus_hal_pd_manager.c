@@ -696,6 +696,9 @@ static int pd_tcp_notifier_call(struct notifier_block *nb, unsigned long event,
 	bool hard_reset;
 	bool first_boot = false;
 
+	if (IS_ERR_OR_NULL(chip) || IS_ERR_OR_NULL(chip->ic_dev))
+		return NOTIFY_OK;
+
 	switch (event) {
 	case TCP_NOTIFY_SINK_VBUS:
 		chip->sink_mv_new = noti->vbus_state.mv;
@@ -995,6 +998,11 @@ static int pd_tcp_notifier_call(struct notifier_block *nb, unsigned long event,
 		}
 		/* smblib_set_prop(chip, POWER_SUPPLY_PROP_PD_IN_HARD_RESET, &val); */
 		break;
+#if defined(CONFIG_OPLUS_CHARGER_MTK) || IS_ENABLED(CONFIG_OPLUS_PD_EXT_SUPPORT)
+	case TCP_NOTIFY_WD0_STATE:
+		oplus_chg_ic_virq_trigger(chip->ic_dev, OPLUS_IC_VIRQ_CC_DETECT);
+		break;
+#endif
 	default:
 		break;
 	}
@@ -1565,7 +1573,12 @@ static int pd_manager_set_typec_mode(struct oplus_chg_ic_dev *ic_dev,
 		chg_err("ic_dev is NULL");
 		return -ENODEV;
 	}
+
 	chip = oplus_chg_ic_get_drvdata(ic_dev);
+	if (!chip || !chip->tcpc) {
+		chg_err("chip or chip->tcpc is null\n");
+		return  -ENODEV;
+	}
 
 	switch(mode) {
 	case TYPEC_PORT_ROLE_DRP:
@@ -1660,7 +1673,7 @@ static int pd_manager_bc12_completed(struct oplus_chg_ic_dev *ic_dev)
 
 	if (first_boot) {
 		first_boot = false;
-		oplus_mms_get_item_data(chip->wired_topic, WIRED_ITEM_CHG_TYPE,
+		oplus_mms_get_item_data(chip->wired_topic, WIRED_ITEM_REAL_CHG_TYPE,
 					&data, true);
 		chip->chg_type = data.intval;
 		chg_info("chg_type=%s\n", oplus_wired_get_chg_type_str(chip->chg_type));
@@ -1719,6 +1732,10 @@ static int pd_manager_get_data_role(struct oplus_chg_ic_dev *ic_dev, int *role)
 		return -ENODEV;
 	}
 	chip = oplus_chg_ic_get_drvdata(ic_dev);
+	if (!chip) {
+		chg_err("chip is null\n");
+		return  -ENODEV;
+	}
 
 	*role = chip->data_role;
 
@@ -1890,6 +1907,7 @@ static void *oplus_chg_get_func(struct oplus_chg_ic_dev *ic_dev,
 struct oplus_chg_ic_virq pd_manager_virq_table[] = {
 	{ .virq_id = OPLUS_IC_VIRQ_ERR },
 	{ .virq_id = OPLUS_IC_VIRQ_CHG_TYPE_CHANGE },
+	{ .virq_id = OPLUS_IC_VIRQ_CC_DETECT },
 	{ .virq_id = OPLUS_IC_VIRQ_SVID },
 	{ .virq_id = OPLUS_IC_VIRQ_VOLTAGE_CHANGED },
 	{ .virq_id = OPLUS_IC_VIRQ_CURRENT_CHANGED },
@@ -2068,13 +2086,22 @@ err_init_extcon:
 	return ret;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+static void oplus_pd_manager_remove(struct platform_device *pdev)
+#else
 static int oplus_pd_manager_remove(struct platform_device *pdev)
+#endif
 {
 	int ret = 0;
 	struct pd_manager_chip *chip = platform_get_drvdata(pdev);
 
-	if (!chip)
+	if (!chip) {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 		return -EINVAL;
+#else
+		return;
+#endif
+	}
 
 	if (!IS_ERR_OR_NULL(chip->wired_subs))
 		oplus_mms_unsubscribe(chip->wired_subs);
@@ -2089,7 +2116,9 @@ static int oplus_pd_manager_remove(struct platform_device *pdev)
 		power_supply_put(chip->usb_psy);
 #endif /* (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0)) */
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	return ret;
+#endif
 }
 
 static const struct of_device_id oplus_pd_manager_of_match[] = {

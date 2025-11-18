@@ -55,7 +55,7 @@ static int __init sipa_tuning_if_init(void)
 	pr_info("[ info] %s: run\n", __func__);
 	priv = kzalloc(sizeof(sipa_turning_t), GFP_KERNEL);
 	if (priv == NULL) {
-		pr_err("[  err] %s: kmalloc failed \r\n", __func__);
+		pr_err("[  err] %s: kzalloc failed \r\n", __func__);
 		return -EFAULT;
 	}
 

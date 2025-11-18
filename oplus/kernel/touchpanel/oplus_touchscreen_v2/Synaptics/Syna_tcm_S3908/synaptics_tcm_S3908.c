@@ -3914,7 +3914,7 @@ static fw_check_state syna_fw_check(void *chip_data,
 			}
 			snprintf(dev_version, MAX_DEVICE_VERSION_LENGTH  - ver_len,
 				 "%s", (char *)tcm_info->app_info.customer_config_id);
-			strlcpy(&panel_data->manufacture_info.version[ver_len],
+			strncpy(&panel_data->manufacture_info.version[ver_len],
 				dev_version, MAX_DEVICE_VERSION_LENGTH - ver_len);
 		}
 	}
@@ -7103,24 +7103,24 @@ static int syna_glove_mode(void *chip_data, bool enable)
 
 	TP_INFO(tcm_info->tp_index, "%s: %s glove mode.\n", __func__, enable ? "Enter" : "Exit");
 
-	retval = syna_tcm_get_dynamic_config(tcm_info, DC_GLOVE_MODE_ENABLED, &regval);
+	retval = syna_tcm_get_dynamic_config(tcm_info, DC_LOW_TEMP_ENABLE, &regval);
 	if (retval < 0) {
 		TP_INFO(tcm_info->tp_index, "Failed to get glove mode config\n");
 		return retval;
 	}
 
 	if (enable)  {
-		regval = regval | 0x01;
+		regval = regval | 0x08;
 	} else {
-		regval = regval & 0xfe;
+		regval = regval & 0xf7;
 	}
-	retval = syna_tcm_set_dynamic_config(tcm_info, DC_GLOVE_MODE_ENABLED, regval);
+	retval = syna_tcm_set_dynamic_config(tcm_info, DC_LOW_TEMP_ENABLE, regval);
 	if (retval < 0) {
 		TP_INFO(tcm_info->tp_index, "Failed to set glove mode config\n");
 		return retval;
 	}
 
-	retval = syna_tcm_get_dynamic_config(tcm_info, DC_GLOVE_MODE_ENABLED, &regval);
+	retval = syna_tcm_get_dynamic_config(tcm_info, DC_LOW_TEMP_ENABLE, &regval);
 	if (retval < 0) {
 		TP_INFO(tcm_info->tp_index, "Failed to get glove mode config\n");
 		return retval;
@@ -8481,7 +8481,9 @@ static int syna_tcm_probe(struct spi_device *spi)
 	ts->s_client  = spi;
 	ts->irq = spi->irq;
 	ts->chip_data = tcm_info;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	ts->s_client->chip_select = 0; /*modify reg=0 for more tp vendor share same spi interface*/
+#endif
 	spi_set_drvdata(spi, ts);
 
 	ts->ts_ops = &syna_tcm_ops;

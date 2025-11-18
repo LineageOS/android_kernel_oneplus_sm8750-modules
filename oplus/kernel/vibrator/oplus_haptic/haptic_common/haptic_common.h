@@ -31,6 +31,7 @@
 #include <linux/mutex.h>
 
 #define VMAX_GAIN_NUM							17
+#define VMAX_GAIN_NUM_V2						25
 #define HAPTIC_NUM								2
 #define DEVICE_ID_0815							815
 #define DEVICE_ID_0832							832
@@ -38,6 +39,7 @@
 #define DEVICE_ID_81538							81538
 #define DEVICE_ID_0809							809
 #define DEVICE_ID_1419							1419
+#define DEVICE_ID_0816							816
 
 #define F0_VAL_MAX_0815							(1800)
 #define F0_VAL_MIN_0815							(1600)
@@ -49,6 +51,8 @@
 #define F0_VAL_MIN_0833							(2260)
 #define F0_VAL_MIN_1419							(1950)
 #define F0_VAL_MAX_1419							(2150)
+#define F0_VAL_MIN_0816							(1200)
+#define F0_VAL_MAX_0816							(1400)
 
 //0809 & 08015
 #define OPLUS_162HZ_F0							1640
@@ -63,6 +67,13 @@
 #define OPLUS_205HZ_F0							2060
 #define OPLUS_209HZ_F0							2100
 #define OPLUS_213HZ_F0							2150
+
+/* 0816 */
+#define OPLUS_124HZ_F0							1240
+#define OPLUS_128HZ_F0							1280
+#define OPLUS_132HZ_F0							1320
+#define OPLUS_136HZ_F0							1360
+#define OPLUS_140HZ_F0							1400
 
 #define OPLUS_161HZ_F0							1610
 #define OPLUS_163HZ_F0							1630
@@ -85,6 +96,17 @@
 #define OPLUS_210HZ_F0							2100
 #define OPLUS_212HZ_F0							2120
 #define OPLUS_214HZ_F0							2140
+
+#define OPLUS_121HZ_F0							1210
+#define OPLUS_123HZ_F0							1230
+#define OPLUS_125HZ_F0							1250
+#define OPLUS_127HZ_F0							1270
+#define OPLUS_129HZ_F0							1290
+#define OPLUS_131HZ_F0							1310
+#define OPLUS_133HZ_F0							1330
+#define OPLUS_135HZ_F0							1350
+#define OPLUS_137HZ_F0							1370
+#define OPLUS_139HZ_F0							1390
 
 #define SG_INPUT_DOWN_HIGH						302
 #define SG_INPUT_UP_HIGH						303
@@ -139,6 +161,10 @@
 
 #define OS14_NEW_RING_START						(371)
 #define OS14_NEW_RING_END						(410)
+#define OS15_ALARM_RING_START						(322)
+#define OS15_ALARM_RING_END						(333)
+#define OS15_OPERATOR_RING_START					(347)
+#define OS15_OPERATOR_RING_END						(354)
 #define ALCLOUDSCAPE_START						(94)
 #define ALCLOUDSCAPE_END						(99)
 #define RINGTONE_NOTIF_ALARM_START				(201)

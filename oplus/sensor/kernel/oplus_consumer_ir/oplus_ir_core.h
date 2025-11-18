@@ -10,6 +10,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/miscdevice.h>
 #include <linux/cdev.h>
+#include <linux/platform_device.h>
 
 #define IR_CALCUL_WAVE_GAIN       100000
 #define ONESECOND                 1000000

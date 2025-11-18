@@ -46,6 +46,7 @@
 #include <sound/control.h>
 #include <sound/soc.h>
 #include <linux/miscdevice.h>
+#include <linux/vmalloc.h>
 #include "aw87xxx.h"
 #include "aw87xxx_device.h"
 #include "aw87xxx_log.h"
@@ -55,15 +56,25 @@
 #include "aw87xxx_dsp.h"
 
 #if IS_ENABLED(CONFIG_SND_SOC_OPLUS_PA_MANAGER)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+#include "mtk/oplus_speaker_manager/oplus_speaker_manager.h"
+#include "mtk/oplus_speaker_manager/oplus_speaker_manager_platform.h"
+#include "mtk/oplus_speaker_manager/oplus_speaker_manager_codec.h"
+#else
 #include "../../mtk/oplus_speaker_manager/oplus_speaker_manager_platform.h"
 #include "../../mtk/oplus_speaker_manager/oplus_speaker_manager_codec.h"
+#endif
 #endif /* CONFIG_SND_SOC_OPLUS_PA_MANAGER */
 /*****************************************************************
  * aw87xxx marco
  ******************************************************************/
 #define AW87XXX_I2C_NAME	"aw87xxx_pa_2_x_0"
 #define AW87XXX_DRIVER_VERSION	"v2.12.0"
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 115))
+#define AW87XXX_FW_BIN_NAME "aw87xxx_acf.bin"
+#else
 #define AW87XXX_FW_BIN_NAME	"../../odm/firmware/awinic/aw87xxx_acf.bin"
+#endif
 #define AW87XXX_LOW_VOLUME_VOLTAGE 0x04
 #define AW87XXX_HIGH_VOLUME_VOLTAGE_DEFAULT 0x08
 
@@ -90,9 +101,15 @@ static struct aw_componet_codec_ops aw_componet_codec_ops = {
 #endif
 
 #if IS_ENABLED(CONFIG_SND_SOC_OPLUS_PA_MANAGER)
+/* 2024/12/17, add for 4 Analog PA control */
+static bool need_analog_4pa;
+
+/* for 4PA 0:LEFT TOP 1:RIGHT TOP 2:LEFT BOTTOM 3:RIGHT BOTTOM*/
 enum {
         AW87XXX_LEFT_CHANNEL = 0,
         AW87XXX_RIGHT_CHANNEL = 1,
+        AW87XXX_LEFTB_CHANNEL = 2,
+        AW87XXX_RIGHTB_CHANNEL = 3,
 };
 
 enum aw87xxx_scene_mode {
@@ -1025,6 +1042,14 @@ void aw87xxx_2_x_0_enable_l_pa(int enable, int mode){
 void aw87xxx_2_x_0_enable_r_pa(int enable, int mode){
         aw87xxx_2_x_0_enable_pa(enable, mode, AW87XXX_RIGHT_CHANNEL);
 }
+
+void aw87xxx_2_x_0_enable_lb_pa(int enable, int mode){
+        aw87xxx_2_x_0_enable_pa(enable, mode, AW87XXX_LEFTB_CHANNEL);
+}
+
+void aw87xxx_2_x_0_enable_rb_pa(int enable, int mode){
+        aw87xxx_2_x_0_enable_pa(enable, mode, AW87XXX_RIGHTB_CHANNEL);
+}
 //#define DEV_INDEX_0 0
 //#define DEV_INDEX_1 1
 #define VOL_STATUS_LOW 0
@@ -1033,10 +1058,18 @@ int ext_2_x_0_amp_low_voltage_set(struct snd_kcontrol *kcontrol, struct snd_ctl_
 	if (ucontrol->value.integer.value[0] >= 2) {
 		aw87xxx_set_boost_voltage( AW87XXX_LEFT_CHANNEL ,  VOL_STATUS_HIGH );
 		aw87xxx_set_boost_voltage( AW87XXX_RIGHT_CHANNEL ,  VOL_STATUS_HIGH );
+		if (need_analog_4pa) {
+			aw87xxx_set_boost_voltage( AW87XXX_LEFTB_CHANNEL ,  VOL_STATUS_HIGH );
+			aw87xxx_set_boost_voltage( AW87XXX_RIGHTB_CHANNEL ,  VOL_STATUS_HIGH );
+		}
 		//aw87xxx_audio_spk_low_voltage_status(0);
 	} else {
 		aw87xxx_set_boost_voltage( AW87XXX_LEFT_CHANNEL ,  VOL_STATUS_LOW );
 		aw87xxx_set_boost_voltage( AW87XXX_RIGHT_CHANNEL ,  VOL_STATUS_LOW );
+		if (need_analog_4pa) {
+			aw87xxx_set_boost_voltage( AW87XXX_LEFTB_CHANNEL ,  VOL_STATUS_LOW );
+			aw87xxx_set_boost_voltage( AW87XXX_RIGHTB_CHANNEL ,  VOL_STATUS_LOW );
+		}
 		//aw87xxx_audio_spk_low_voltage_status(1);
 	}
 
@@ -1093,11 +1126,19 @@ int aw87xxx_2_x_0_speaker_mute_set(struct snd_kcontrol *kcontrol, struct snd_ctl
 		//set pa to Off sence:mute
 		aw87xxx_set_profile(AW87XXX_RIGHT_CHANNEL, aw87xxx_profile[AW87XXX_OFF_MODE]);
 		aw87xxx_set_profile(AW87XXX_LEFT_CHANNEL, aw87xxx_profile[AW87XXX_OFF_MODE]);
+		if (need_analog_4pa) {
+			aw87xxx_set_profile(AW87XXX_RIGHTB_CHANNEL, aw87xxx_profile[AW87XXX_OFF_MODE]);
+			aw87xxx_set_profile(AW87XXX_LEFTB_CHANNEL, aw87xxx_profile[AW87XXX_OFF_MODE]);
+		}
 		is_mute_2_x_0_status = true;
 	}else{
 		//set pa to Music sence:ummute
 		aw87xxx_set_profile(AW87XXX_RIGHT_CHANNEL, aw87xxx_profile[aw_pa_mode_2_x_0]);
 		aw87xxx_set_profile(AW87XXX_LEFT_CHANNEL, aw87xxx_profile[aw_pa_mode_2_x_0]);
+		if (need_analog_4pa) {
+			aw87xxx_set_profile(AW87XXX_RIGHTB_CHANNEL, aw87xxx_profile[aw_pa_mode_2_x_0]);
+			aw87xxx_set_profile(AW87XXX_LEFTB_CHANNEL, aw87xxx_profile[aw_pa_mode_2_x_0]);
+		}
 		is_mute_2_x_0_status = false;
 	}
 
@@ -1841,6 +1882,7 @@ static int aw87xxx_dtsi_parse(struct aw87xxx *aw87xxx,
 				struct device_node *dev_node)
 {
 	int ret = -1;
+	int is_oplus_4pa = 0;
 	int32_t dev_index = -EINVAL;
 	int32_t voltage_min = -EINVAL;
 	int32_t low_volume_voltage = -EINVAL;
@@ -1855,6 +1897,16 @@ static int aw87xxx_dtsi_parse(struct aw87xxx *aw87xxx,
 		aw87xxx->dev_index = dev_index;
 		AW_DEV_LOGI(aw87xxx->dev, "parse dev_index=[%d]",
 				aw87xxx->dev_index);
+	}
+
+	is_oplus_4pa = of_property_read_bool(dev_node, "oplus_4pa");
+	if (is_oplus_4pa) {
+		need_analog_4pa = is_oplus_4pa;
+		AW_DEV_LOGI(aw87xxx->dev, "parse is_oplus_4pa=[%d]",
+				need_analog_4pa);
+	} else {
+		AW_DEV_LOGI(aw87xxx->dev, "is_oplus_4pa parse failed, user false, ret=%d", ret);
+		need_analog_4pa = false;
 	}
 
 	ret = of_property_read_u32(dev_node, "low_volume_voltage", &low_volume_voltage);
@@ -2051,7 +2103,29 @@ static int aw87xxx_i2c_probe(struct i2c_client *client,
 		speaker_device->boost_voltage_get = ext_2_x_0_amp_low_voltage_get;
 		speaker_device->spk_mode_set = aw87xxx_2_x_0_spk_mode_set;
 		speaker_device->spk_mode_get = aw87xxx_2_x_0_spk_mode_get;
-		speaker_device->speaker_mute_set = aw87xxx_2_x_0_speaker_mute_set;
+		if (!need_analog_4pa){
+			speaker_device->speaker_mute_set = aw87xxx_2_x_0_speaker_mute_set;
+		}
+		speaker_device->speaker_mute_get = aw87xxx_2_x_0_speaker_mute_get;
+	} else if ((speaker_device !=NULL) && (aw87xxx->dev_index == 2)) {
+		speaker_device->chipset = MFR_AWINIC;
+		speaker_device->type = LB_SPK;
+		speaker_device->vdd_need = 0;
+		speaker_device->speaker_enable_set = aw87xxx_2_x_0_enable_lb_pa;
+		speaker_device->boost_voltage_set = ext_2_x_0_amp_low_voltage_set;
+		speaker_device->boost_voltage_get = ext_2_x_0_amp_low_voltage_get;
+		speaker_device->spk_mode_set = aw87xxx_2_x_0_spk_mode_set;
+		speaker_device->spk_mode_get = aw87xxx_2_x_0_spk_mode_get;
+		speaker_device->speaker_mute_get = aw87xxx_2_x_0_speaker_mute_get;
+	} else if ((speaker_device !=NULL) && (aw87xxx->dev_index == 3)) {
+		speaker_device->chipset = MFR_AWINIC;
+		speaker_device->type = RB_SPK;
+		speaker_device->vdd_need = 0;
+		speaker_device->speaker_enable_set = aw87xxx_2_x_0_enable_rb_pa;
+		speaker_device->boost_voltage_set = ext_2_x_0_amp_low_voltage_set;
+		speaker_device->boost_voltage_get = ext_2_x_0_amp_low_voltage_get;
+		speaker_device->spk_mode_set = aw87xxx_2_x_0_spk_mode_set;
+		speaker_device->spk_mode_get = aw87xxx_2_x_0_spk_mode_get;
 		speaker_device->speaker_mute_get = aw87xxx_2_x_0_speaker_mute_get;
 	} else {
 		pr_info("%s():,oplus_register fail\r\n",  __func__);

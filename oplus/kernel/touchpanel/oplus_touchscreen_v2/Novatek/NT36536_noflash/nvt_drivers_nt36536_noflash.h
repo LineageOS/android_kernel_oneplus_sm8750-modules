@@ -103,6 +103,8 @@
 #define EVENTBUFFER_EXT_PEN_VIBRATOR_ON           0x16
 #define EVENTBUFFER_EXT_PEN_VIBRATOR_OFF          0x17
 #define EVENTBUFFER_EXT_PEN_MODE_5TH_ON           0x18       /*notify maxeye-3ND pencil connected*/
+#define EVENTBUFFER_EXT_PEN_JITTER_LEVEL          0x25
+#define EVENTBUFFER_EXT_NOTIFY_KEYBOARD_OPEN      0x26       /*notify keyboard open event during screenOn*/
 #define PEN_CTL_FEEDBACK                          0xffff
 
 #define NVT_TOUCH_FW_DEBUG_INFO (1)

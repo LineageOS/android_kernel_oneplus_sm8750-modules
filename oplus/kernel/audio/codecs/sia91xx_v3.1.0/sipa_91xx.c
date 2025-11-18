@@ -544,10 +544,15 @@ int sia91xx_mute(
 			}
 		} else {
 			si_pa->sipa_on = true;
+
+			if (true == sipa_regmap_get_chip_en(si_pa)) {
+				pr_info("[ info][%s] %s: chip_en is true, direct return!\n", LOG_FLAG, __func__);
+				return 0;
+			}
 #ifdef OPLUS_FEATURE_SPEAKER_MUTE
 // Add for spk mute ctrl
 			if (speaker_mute_control && (si_pa->scene != AUDIO_SCENE_RECEIVER || si_pa->channel_num != 0)) {
-				pr_info("[debug][%s] %s: pa is mute on, direct return!\n", LOG_FLAG, __func__);
+				pr_info("[ info][%s] %s: pa is mute on, direct return!\n", LOG_FLAG, __func__);
 				return 0;
 			}
 #endif /* OPLUS_FEATURE_SPEAKER_MUTE */

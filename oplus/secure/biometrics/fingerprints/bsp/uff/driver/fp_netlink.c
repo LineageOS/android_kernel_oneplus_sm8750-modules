@@ -148,7 +148,6 @@ int fp_netlink_init(void)
     netlink_cfg.groups = 0;
     netlink_cfg.flags = 0;
     netlink_cfg.input = fp_nl_data_ready;
-    netlink_cfg.cb_mutex = NULL;
 
     if (!nl_sk) {
         nl_sk = netlink_kernel_create(&init_net, NETLINKROUTE,

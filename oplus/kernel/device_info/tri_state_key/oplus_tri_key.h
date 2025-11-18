@@ -213,6 +213,7 @@ struct extcon_dev_data {
 	char        data_offect_name[8];
 	int         threeaxis_calib_data[9];
 	bool        threeaxis_hall_support;
+	bool        secondry_panel_notify;
 	bool        enable_esd_check;
 	bool        new_threshold_support; /*add for vip mode for new threshold*/
 	bool        updown_to_mid_support; /*add up to (mid of down and mid) support*/
@@ -243,10 +244,13 @@ struct extcon_dev_data {
 	/* framebuffer callbacks notifier */
 #if IS_ENABLED(CONFIG_DRM_OPLUS_PANEL_NOTIFY)
 	struct drm_panel *active_panel;
+	struct drm_panel *active_panel_sec;
 	struct notifier_block fb_notif; /*register to control suspend/resume*/
 #elif IS_ENABLED(CONFIG_QCOM_PANEL_EVENT_NOTIFIER)
 	struct drm_panel *active_panel;
+	struct drm_panel *active_panel_sec;
 	void *notifier_cookie;
+	void *notifier_cookie_sec;
 #elif IS_ENABLED(CONFIG_OPLUS_MTK_DRM_GKI_NOTIFY)
 	struct notifier_block disp_notifier;
 #elif IS_ENABLED(CONFIG_DRM_MSM) || IS_ENABLED(CONFIG_DRM_OPLUS_NOTIFY) \
@@ -281,6 +285,6 @@ extern int aw8697_op_haptic_stop(void);
 
 extern int oplus_hall_register_notifier(void);
 extern int oplus_hall_unregister_notifier(void);
-extern struct drm_panel *trikey_dev_get_panel(struct device_node *of_node);
+extern struct drm_panel *trikey_dev_get_panel(struct device_node *of_node, int panel_id);
 
 #endif /* __TRIKEY_H__ */
