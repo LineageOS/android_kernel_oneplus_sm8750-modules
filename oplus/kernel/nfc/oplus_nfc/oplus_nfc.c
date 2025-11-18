@@ -15,7 +15,6 @@
 #include <linux/of_gpio.h>
 #include <soc/oplus/system/oplus_project.h>
 #include <linux/io.h>
-#include <stdbool.h>
 #include <linux/slab.h>
 #include <linux/of_platform.h>
 #include <linux/pinctrl/pinctrl.h>
