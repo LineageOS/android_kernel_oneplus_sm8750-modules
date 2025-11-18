@@ -104,18 +104,22 @@ int iris_prepare_for_kickoff(void *phys_enc)
 		iris_check_kickoff_fps_cadence();
 	}
 #endif
-	mutex_lock(&pcfg->abyp_ctrl.abypass_mutex);
+	if (pcfg->rx_mode == IRIS_CMD_MODE) {
+		mutex_lock(&pcfg->abyp_ctrl.abypass_mutex);
+		mutex_unlock(&pcfg->abyp_ctrl.abypass_mutex);
+	}
 	if (pcfg->abyp_ctrl.pending_mode != MAX_MODE) {
+		mutex_lock(&pcfg->abyp_ctrl.abypass_mutex);
 		mode = pcfg->abyp_ctrl.pending_mode;
 		pcfg->abyp_ctrl.pending_mode = MAX_MODE;
 		mutex_unlock(&pcfg->abyp_ctrl.abypass_mutex);
+
 		if (pcfg->lightup_ops.acquire_panel_lock)
 			pcfg->lightup_ops.acquire_panel_lock();
 		iris_abyp_switch_proc(mode);
 		if (pcfg->lightup_ops.release_panel_lock)
 			pcfg->lightup_ops.release_panel_lock();
-	} else
-		mutex_unlock(&pcfg->abyp_ctrl.abypass_mutex);
+	}
 
 	iris_set_metadata(true);
 	iris_restore_capen();
@@ -244,3 +248,4 @@ int iris_prepare_commit(void *phys_enc)
 	}
 	return 0;
 }
+

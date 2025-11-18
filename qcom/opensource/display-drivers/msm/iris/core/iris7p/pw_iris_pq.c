@@ -32,6 +32,8 @@ static long nCSCCoffValue[18] = {
 
 void iris_quality_setting_off_i7p(void)
 {
+	struct iris_cfg *pcfg = iris_get_cfg();
+
 	iris_setting.quality_cur.al_bl_ratio = 0;
 	iris_setting.quality_cur.pq_setting.cmcolorgamut = 0;
 	iris_cm_color_gamut_set_i7p(
@@ -40,8 +42,10 @@ void iris_quality_setting_off_i7p(void)
 	iris_csc_para_reset();
 	iris_csc2_para_reset();
 	iris_dpp_precsc_enable_i7p(false, false);
+	if (pcfg->tx_mode == IRIS_VIDEO_MODE && iris_setting.quality_cur.scurvelevel != 0) {
+		iris_scurve_enable_set(iris_setting.quality_cur.scurvelevel);
+	}
 	iris_setting.quality_cur.scurvelevel = 0;
-	iris_scurve_enable_set(iris_setting.quality_cur.scurvelevel);
 }
 
 void iris_dpp_precsc_enable_i7p(u32 enable, bool bcommit)
@@ -61,15 +65,22 @@ void iris_dpp_precsc_enable_i7p(u32 enable, bool bcommit)
 	iris_init_update_ipopt_t(IRIS_IP_DPP, 0x30, 0x30, 0x01);
 
 	if (bcommit)
-		iris_end_dpp_i7p(true);
+		iris_end_dpp_i7p_v2(true, PATH_I2C);
 
 	IRIS_LOGD("dpp precsc enable =%d", enable);
 }
 
 void iris_end_dpp_i7p(bool bcommit)
 {
+	return iris_end_dpp_i7p_v2(bcommit, PATH_DSI);
+}
+
+void iris_end_dpp_i7p_v2(bool bcommit, uint8_t path)
+{
 	struct iris_cfg *pcfg = iris_get_cfg();
 
+	if (pcfg->tx_mode == IRIS_VIDEO_MODE && path == PATH_I2C)
+		iris_pq_update_path = PATH_I2C;
 	if (!iris_skip_dma) {
 		if (!iris_dynamic_power_get()) {
 			if (pcfg->frc_enabled || pcfg->pwil_mode == FRC_MODE)
@@ -81,6 +92,7 @@ void iris_end_dpp_i7p(bool bcommit)
 			iris_init_update_ipopt_t(IRIS_IP_DPP, 0x80, 0x80, !bcommit);
 		iris_update_pq_opt(iris_pq_update_path, bcommit);
 	}
+	iris_pq_update_path = PATH_DSI;
 }
 
 static void iris_end_pq(bool bcommit)
@@ -143,6 +155,7 @@ void iris_cm_ratio_set_i7p(void)
 	uint16_t coefBuff_start = 0;
 	uint32_t coefBuffIndex = pqlt_cur_setting->pq_setting.cmcolorgamut;
 	uint32_t  *payload = NULL;
+	struct iris_cfg *pcfg = iris_get_cfg();
 
 	//csc coef has 54 values + 27 precsc values + cct has 3 values.
 	switch (coefBuffIndex) {
@@ -176,10 +189,10 @@ void iris_cm_ratio_set_i7p(void)
 	value_default = iris_crstk_coef_buf[coefBuff_start+CRSTK_COEF_SIZE/2 + 1];
 	iris_max_color_temp = iris_crstk_coef_buf[coefBuff_start+CRSTK_COEF_SIZE/2 + 2];
 
-	if (iris_min_color_temp == 0)
-		iris_min_color_temp = 2500;
-	if (iris_max_color_temp == 0)
-		iris_max_color_temp = 11000;
+	if (iris_min_color_temp < pcfg->min_color_temp)
+		iris_min_color_temp = pcfg->min_color_temp;
+	if (iris_max_color_temp > pcfg->max_color_temp)
+		iris_max_color_temp = pcfg->max_color_temp;
 	if (value_default == 0)
 		value_default = 6500;
 
@@ -347,6 +360,7 @@ void iris_cm_color_gamut_set_i7p(u32 level, bool bcommit)
 	uint32_t lut3d_interp1, lut3d_interp2;
 	uint32_t interp1_src = 0, interp1_src2;
 	u16 aplstatus_value = iris_get_firmware_aplstatus_value();
+	struct iris_cfg *pcfg = iris_get_cfg();
 
 	regval.ip = IRIS_IP_DPP;
 	regval.opt_id = 0x50;
@@ -463,15 +477,17 @@ void iris_cm_color_gamut_set_i7p(u32 level, bool bcommit)
 	}
 
 	IRIS_LOGD("aplstauts: 0x%x, gammamctrl: %d, gammalevel: 0x%x", aplstatus_value, gammactrl, gammalevel);
-	iris_set_ipopt_payload_data(IRIS_IP_DPP, 0x20, 2, gammactrl);
-	iris_init_update_ipopt_t(IRIS_IP_DPP, 0x20, 0x20, 0x01);
-	iris_dpp_apl_enable(apl, 0x01);
-	iris_update_ip_opt(GAMMA_LUT, gammalevel, 0x01);
+	if (pcfg->tx_mode == IRIS_CMD_MODE) {
+		iris_set_ipopt_payload_data(IRIS_IP_DPP, 0x20, 2, gammactrl);
+		iris_init_update_ipopt_t(IRIS_IP_DPP, 0x20, 0x20, 0x01);
+		iris_dpp_apl_enable(apl, 0x01);
+		iris_update_ip_opt(GAMMA_LUT, gammalevel, 0x01);
 
-	iris_cm_ratio_set_i7p();
+		iris_cm_ratio_set_i7p();
+	}
 
 	if (bcommit)
-		iris_end_dpp_i7p(true);
+		iris_end_dpp_i7p_v2(true, PATH_I2C);
 	IRIS_LOGI("cm color gamut=%d", level);
 }
 
@@ -698,7 +714,7 @@ void iris_scurve_enable_set(u32 level)
 	scurvelevel = 0xe0 + level;
 	iris_init_update_ipopt_t(IRIS_IP_DPP, scurvelevel, scurvelevel, 0x01);
 
-	iris_end_dpp_i7p(true);
+	iris_end_dpp_i7p_v2(true, PATH_I2C);
 	IRIS_LOGD("scurve level=%d", level);
 }
 
@@ -717,6 +733,36 @@ void iris_scurve_update_i7p(u32 *buffer)
 		payload[i] = buffer[i];
 	iris_init_update_ipopt_t(IRIS_IP_DPP, 0xee, 0xee, 0x01);
 
-	iris_end_dpp_i7p(true);
+	iris_end_dpp_i7p_v2(true, PATH_I2C);
 	IRIS_LOGD("%s, payload[0] = 0x%x", __func__, payload[0]);
+}
+
+u32 iris_gamut_index_valid_i7p(u32 level)
+{
+	bool isValid = false;
+
+	switch (level) {
+		case 1:
+		case 2:
+		case 3:
+		case 4:
+		case 5:
+		case 6:
+			isValid = true;
+			break;
+		case 7:
+		case 8:
+		case 12:
+			isValid = true;
+			break;
+		default:
+			isValid = false;
+			break;
+	}
+
+	if (!isValid) {
+		IRIS_LOGW("gamut %d is invalid, use 1", level);
+		return 1;
+	}
+	return level;
 }

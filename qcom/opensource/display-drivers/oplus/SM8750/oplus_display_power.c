@@ -16,6 +16,7 @@
 #include "oplus_adfr.h"
 #include "oplus_display_pwm.h"
 #include "oplus_bl_ic_ktz8868.h"
+#include "oplus_display_dfte.h"
 
 #ifdef OPLUS_FEATURE_TP_BASIC
 #include "oplus_display_notify_tp.h"
@@ -1231,6 +1232,8 @@ int oplus_panel_power_off(struct dsi_panel *panel)
 	if (rc) {
 		OPLUS_DSI_ERR("[%s] failed set pinctrl state, rc=%d\n", panel->name, rc);
 	}
+
+	power_off_restore_dynamic_float_te_state();
 
 	return rc;
 }

@@ -66,6 +66,9 @@
 #include "oplus_bl_ic_ktz8868.h"
 #endif /* OPLUS_FEATURE_DISPLAY */
 
+#if defined(CONFIG_PXLW_IRIS) || defined(CONFIG_PXLW_SOFT_IRIS)
+#include "dsi_iris_api.h"
+#endif
 /*
  * MSM driver version:
  * - 1.0.0 - initial interface
@@ -1904,6 +1907,12 @@ static const struct drm_ioctl_desc msm_ioctls[] = {
 			DRM_UNLOCKED),
 	DRM_IOCTL_DEF_DRV(MSM_EARLY_EPT, msm_ioctl_display_early_ept,
 			DRM_UNLOCKED),
+#if defined(CONFIG_PXLW_IRIS) || defined(CONFIG_PXLW_SOFT_IRIS)
+	DRM_IOCTL_DEF_DRV(MSM_IRIS_OPERATE_CONF, msm_ioctl_iris_operate_conf,
+			DRM_UNLOCKED|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(MSM_IRIS_OPERATE_TOOL, msm_ioctl_iris_operate_tool,
+			DRM_UNLOCKED|DRM_RENDER_ALLOW),
+#endif
 };
 
 static const struct file_operations fops = {

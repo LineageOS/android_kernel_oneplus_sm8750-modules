@@ -25,6 +25,9 @@
 #define SDE_CONNECTOR_DHDR_MEMPOOL_MAX_SIZE	SZ_32
 #define MAX_CMD_RECEIVE_SIZE       256
 #define DNSC_BLUR_MAX_COUNT	1
+#if defined(CONFIG_PXLW_IRIS) || defined(CONFIG_PXLW_SOFT_IRIS)
+#define SDE_CONNECTOR_SYNC_DATA_NUM 3
+#endif
 
 struct sde_connector;
 struct sde_connector_state;
@@ -501,6 +504,7 @@ struct sde_connector_ops {
 	 * Returns: Zero on success
 	 */
 	int (*process_dcs_cmd_bitmask)(void *display, struct msm_display_conn_params *params);
+
 };
 
 /**

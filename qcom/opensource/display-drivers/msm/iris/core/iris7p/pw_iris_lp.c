@@ -69,34 +69,38 @@ void iris_global_var_init_i7p(void)
 	source -- trigger source selection
 	chain -- send command with chain or not
 */
-void _iris_dma_gen_ctrl(int channels, int source, bool chain, u8 opt)
+static void _iris_dma_gen_ctrl(int channels, int source, bool chain, u8 opt)
 {
 	int mask, dma_ctrl;
 	int value = 0;
 	u32 *payload = NULL;
+	mask = (BIT(3)|BIT(4));
+	int mask_tmp, i = 0;
 
-	if (channels & 0x1)
-		value |= (0x20 | source);
-	if (channels & 0x2)
-		value |= ((0x20 | source) << 7);
-	if (channels & 0x4)
-		value |= ((0x20 | source) << 14);
-	if (channels & 0x8)
-		value |= ((0x20 | source) << 21);
-
-	payload = iris_get_ipopt_payload_data(IRIS_IP_SYS, opt, 4);
-	if (!payload) {
+	payload = iris_get_ipopt_payload_data(IRIS_IP_SYS, opt, 2);
+	if (payload == NULL) {
 		IRIS_LOGE("%s(), can not get pwil SYS_DMA_GEN_CTRL property in sys setting", __func__);
 		return;
 	}
-	mask = 0x0cf9f3e7; //DMA_CH* ONE_TIME_TRIG_EN, SRC_SEL
-	dma_ctrl = payload[0] & (~mask);
-	dma_ctrl |= (value & mask);
+	payload[0] = payload[2];
 
-	IRIS_LOGD("%s: value 0x%x, dma_ctrl 0x%x",
-		__func__, value, dma_ctrl);
+	for (i = 0; i < 4; i++ ) {
+		mask_tmp = (0x01 << i);
+		if (channels & mask_tmp) {
+			value |= ((0x20 | source) << (7 * i));
+			dma_ctrl = payload[2] & (mask << (7 * i));
+			dma_ctrl |= value;
+			payload[0] &= ~(BIT(5) << (7 * i));
+			payload[2] = (payload[2] & ~(0x7f << (7 * i))) | dma_ctrl;
+		}
+	}
 
-	iris_set_ipopt_payload_data(IRIS_IP_SYS, opt, 4, dma_ctrl);
+	iris_set_ipopt_payload_data(IRIS_IP_SYS, opt, 2, payload[0]);
+
+	IRIS_LOGD("%s: payload[0] 0x%x, payload[2] 0x%x",
+				__func__, payload[0], payload[2]);
+
+	iris_set_ipopt_payload_data(IRIS_IP_SYS, opt, 4, payload[2]);
 	iris_init_update_ipopt_t(IRIS_IP_SYS, opt, opt, chain);
 }
 

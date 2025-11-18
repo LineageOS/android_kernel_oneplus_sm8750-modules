@@ -49,8 +49,6 @@ extern void iris_pre_switch(struct iris_mode_info *new_timing);
 extern void iris_register_osd_irq(void *disp);
 extern void iris_set_panel_timing(uint32_t index, const struct iris_mode_info *timing);
 
-EXPORT_SYMBOL(__traceiter_iris_tracing_mark_write);
-EXPORT_SYMBOL(__tracepoint_iris_tracing_mark_write);
 EXPORT_SYMBOL(_iris_dump_packet);
 EXPORT_SYMBOL(_iris_fw_parse_dts);
 EXPORT_SYMBOL(_iris_get_ctrl_seq_cs);

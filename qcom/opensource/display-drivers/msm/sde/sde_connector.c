@@ -40,11 +40,13 @@
 #include "oplus_display_interface.h"
 #include "oplus_display_sysfs_attrs.h"
 #include "oplus_display_dc_diming.h"
+#include "oplus_display_ext.h"
 #include <linux/sched.h>
 #include "sde_trace.h"
 #include <linux/list.h>
 #include <linux/list_sort.h>
 #include <drm/drm_modes.h>
+extern bool custom_fps_switch_send;
 #endif /* OPLUS_FEATURE_DISPLAY */
 
 #define BL_NODE_NAME_SIZE 32
@@ -107,6 +109,7 @@ static const struct drm_prop_enum_list e_frame_trigger_mode[] = {
 	{FRAME_DONE_WAIT_SERIALIZE, "serialize_frame_trigger"},
 	{FRAME_DONE_WAIT_POSTED_START, "posted_start"},
 };
+
 static const struct drm_prop_enum_list e_panel_mode[] = {
 	{MSM_DISPLAY_VIDEO_MODE, "video_mode"},
 	{MSM_DISPLAY_CMD_MODE, "command_mode"},
@@ -406,7 +409,6 @@ static int sde_backlight_device_update_status(struct backlight_device *bd)
 	display = _sde_connector_get_display(c_conn);
 	if (!display)
 		return 0;
-
 	if (brightness > display->panel->bl_config.brightness_max_level)
 		brightness = display->panel->bl_config.brightness_max_level;
 	if (brightness > c_conn->thermal_max_brightness)
@@ -1578,6 +1580,7 @@ int sde_connector_pre_kickoff(struct drm_connector *connector)
 	struct sde_connector *c_conn;
 	struct sde_connector_state *c_state;
 	struct msm_display_kickoff_params params;
+	struct drm_encoder *drm_enc;
 	struct dsi_display *display;
 	int rc;
 
@@ -1588,6 +1591,7 @@ int sde_connector_pre_kickoff(struct drm_connector *connector)
 
 	c_conn = to_sde_connector(connector);
 	c_state = to_sde_connector_state(connector->state);
+	drm_enc = c_conn->encoder;
 	if (!c_conn->display) {
 		SDE_ERROR("invalid connector display\n");
 		return -EINVAL;
@@ -1618,10 +1622,18 @@ int sde_connector_pre_kickoff(struct drm_connector *connector)
 			SDE_EVT32(connector->base.id, SDE_EVTLOG_ERROR);
 	}
 
+#ifdef OPLUS_FEATURE_DISPLAY
+	if (msm_is_mode_seamless_vrr(&c_state->msm_mode) &&
+			c_conn->ops.check_cmd_defined(c_conn->display,
+			DSI_CMD_SET_FPS_SWITCH) &&
+			!c_conn->vrr_caps.video_psr_support &&
+			!custom_fps_switch_send) {
+#else
 	if (msm_is_mode_seamless_vrr(&c_state->msm_mode) &&
 			c_conn->ops.check_cmd_defined(c_conn->display,
 			DSI_CMD_SET_FPS_SWITCH) &&
 			!c_conn->vrr_caps.video_psr_support) {
+#endif /* OPLUS_FEATURE_DISPLAY */
 		rc = sde_connector_update_cmd(connector, BIT(DSI_CMD_SET_FPS_SWITCH), true);
 		if (rc)
 			SDE_EVT32(connector->base.id, SDE_EVTLOG_ERROR);
@@ -2680,7 +2692,11 @@ static int sde_connector_atomic_set_property(struct drm_connector *connector,
 		msm_property_set_dirty(&c_conn->property_info, &c_state->property_state, idx);
 		break;
 #endif /* OPLUS_FEATURE_DISPLAY */
-
+#ifdef OPLUS_FEATURE_AP_UIR_DIMMING
+	case CONNECTOR_PROP_UIR_DS:
+		msm_property_set_dirty(&c_conn->property_info, &c_state->property_state, idx);
+		break;
+#endif /* OPLUS_FEATURE_AP_UIR_DIMMING */
 	default:
 		break;
 	}
@@ -3808,7 +3824,6 @@ static void sde_connector_check_status_work(struct work_struct *work)
 		}
 	}
 #endif /* OPLUS_FEATURE_DISPLAY */
-
 	rc = conn->ops.check_status(&conn->base, conn->display, false);
 	mutex_unlock(&conn->lock);
 
@@ -4310,7 +4325,9 @@ static int _sde_connector_install_properties(struct drm_device *dev,
 			CONNECTOR_PROP_BRIGHTNESS);
 		}
 	}
-
+#ifdef OPLUS_FEATURE_AP_UIR_DIMMING
+	msm_property_install_range(&c_conn->property_info, "uir_ds", 0x0, 0, ~0, 0, CONNECTOR_PROP_UIR_DS);
+#endif /* OPLUS_FEATURE_AP_UIR_DIMMING */
 	return 0;
 }
 
@@ -4659,8 +4676,13 @@ int sde_connector_register_custom_event(struct sde_kms *kms,
 		ret = 0;
 		break;
 	case DRM_EVENT_SDE_HW_RECOVERY:
+//#ifdef OPLUS_FEATURE_DISPLAY
+//		if (get_eng_version() == FACTORY || get_eng_version() == AGING || get_eng_version() == HIGH_TEMP_AGING) {
+//			break;
+//		}
+//#endif
 		ret = _sde_conn_enable_hw_recovery(conn_drm);
-		sde_dbg_update_dump_mode(val);
+		//sde_dbg_update_dump_mode(val);
 		break;
 #ifdef OPLUS_FEATURE_DISPLAY
 	case DRM_EVENT_TP_TOUCHDOWN:

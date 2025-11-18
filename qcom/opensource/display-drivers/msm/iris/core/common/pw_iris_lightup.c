@@ -2368,7 +2368,7 @@ static int32_t _iris_dsi_mult_addr_send(struct iris_cmd_comp *pcmd_comp)
 	uint32_t left_len, trans_len, trans_num = 0;
 	uint32_t total_payload_len_prev, total_payload_len;
 	uint8_t *ptr = NULL;
-	uint32_t split_len = 256;
+	uint32_t split_len = 1024;
 	const uint32_t pad_len = 12;
 	struct iris_cmd_desc *pdesc = NULL;
 	struct mipi_dsi_msg *pmsg = NULL;
@@ -2385,7 +2385,7 @@ static int32_t _iris_dsi_mult_addr_send(struct iris_cmd_comp *pcmd_comp)
 			trans_len = pcfg->dsi_trans_len[0][0];
 		else
 			trans_len = pcfg->dsi_trans_len[0][1];
-		split_len = 256;
+		split_len = 1024;
 	} else {
 		if (pcmd_comp->op_type == IRIS_LIGHTUP_OP)
 			trans_len = pcfg->dsi_trans_len[2][0];
@@ -2408,7 +2408,7 @@ static int32_t _iris_dsi_mult_addr_send(struct iris_cmd_comp *pcmd_comp)
 	link_state = pcmd_comp->link_state;
 	wait = pcmd_comp->cmd[pcmd_comp->cnt - 1].post_wait_ms;
 
-	memset(pcfg->dsi_trans_buf, 0x00, NON_EMBEDDED_BUF_SIZE);
+	memset(pcfg->dsi_trans_buf, 0xFF, NON_EMBEDDED_BUF_SIZE);
 	total_payload_len = 0;
 	ptr = pcfg->dsi_trans_buf;
 	for (i = 0; i < pcmd_comp->cnt; i++) {
@@ -2493,6 +2493,19 @@ static int32_t _iris_dsi_mult_addr_send(struct iris_cmd_comp *pcmd_comp)
 				pmsg->tx_buf = pcfg->dsi_trans_buf + i*trans_len;
 			}
 		}
+	}
+
+	if (pcmd_comp->send_mode == DSI_NON_EMBEDDED_MODE) {
+		if ((total_payload_len < split_len) && (total_payload_len > 256)) {
+			if (trans_num == 1) {
+				pmsg = &pdesc[0].msg;
+				IRIS_LOGD("%s(),%d: trans_num=%d, split_len=%d, pmsg->tx_len=%lu",
+					__func__, __LINE__, trans_num, split_len, pmsg->tx_len);
+				pmsg->tx_len = split_len + 4;
+				pmsg->tx_buf = pcfg->dsi_trans_buf;
+			}
+		}
+
 	}
 
 	/*add last for embedded w/ ma mode*/
@@ -2732,8 +2745,13 @@ static void _iris_update_mult_pkt_last(struct iris_cmd_desc *cmd,
 static int _iris_set_pkt_last(struct iris_cmd_desc *cmd, int32_t cmd_cnt,
 			uint32_t add_last_flag)
 {
+	struct iris_cfg *pcfg = iris_get_cfg();
+
 	if (add_last_flag == DSI_CMD_ONE_LAST_FOR_MULT_IPOPT) {
-		_iris_update_desc_last(cmd, cmd_cnt, false);
+		if (pcfg->tx_mode == IRIS_CMD_MODE)
+			_iris_update_desc_last(cmd, cmd_cnt, true);
+		else
+			_iris_update_desc_last(cmd, cmd_cnt, false);
 		_iris_update_desc_last(cmd + cmd_cnt - 1, 1, true);
 	} else {
 		_iris_update_mult_pkt_last(cmd, cmd_cnt, add_last_flag);
@@ -3539,6 +3557,12 @@ static struct iris_cmd_desc *_iris_get_desc_from_ipopt(uint8_t ip, uint8_t opt_i
 	if (popt == NULL) {
 		IRIS_LOGE("%s(), can't find i_p opt for i_p: 0x%02x, opt: 0x%02x.",
 				__func__, ip, opt_id);
+		return NULL;
+	}
+
+	if (pos > 0xff) {
+		IRIS_LOGE("%s(), can't find pos[0x%02x] in i_p opt for i_p: 0x%02x, opt: 0x%02x.",
+			__func__, pos, ip, opt_id);
 		return NULL;
 	}
 

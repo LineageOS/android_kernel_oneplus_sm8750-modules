@@ -115,6 +115,9 @@ static const struct panel_ioctl_desc panel_ioctls[] = {
 	PANEL_IOCTL_DEF(PANEL_IOCTL_GET_MIPI_ERR_CHECK, oplus_display_panel_get_mipi_err_check),
 	PANEL_IOCTL_DEF(PANEL_IOCTL_SET_WHITE_POINT_FLAG, oplus_display_panel_set_white_point_status),
 	PANEL_IOCTL_DEF(PANEL_IOCTL_GET_IGNORE_MODE, oplus_display_get_ignore_mode),
+	PANEL_IOCTL_DEF(PANEL_IOCTL_GET_BRIGHTNESS_TIME, oplus_display_get_brightness_time),
+	PANEL_IOCTL_DEF(PANEL_IOCTL_SET_DYNAMIC_FLOAT_TE, oplus_display_panel_set_dynamic_float_te),
+	PANEL_IOCTL_DEF(PANEL_IOCTL_GET_DYNAMIC_FLOAT_TE, oplus_display_panel_get_dynamic_float_te_state),
 };
 
 int oplus_display_fix_apollo_level(void)
@@ -324,6 +327,11 @@ long panel_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	}
 
 	ioctl = &panel_ioctls[nr];
+	if (!ioctl) {
+		OPLUS_DSI_ERR("invalid ioctl start\n");
+		return retcode;
+	}
+
 	func = ioctl->func;
 
 	if (unlikely(!func)) {
@@ -384,10 +392,6 @@ long panel_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	}
 
 err_panel:
-
-	if (!ioctl) {
-		OPLUS_DSI_ERR("invalid ioctl\n");
-	}
 
 	if (kdata != static_data) {
 		kfree(kdata);

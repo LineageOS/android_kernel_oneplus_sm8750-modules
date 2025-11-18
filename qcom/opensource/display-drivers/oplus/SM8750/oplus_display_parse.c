@@ -17,6 +17,10 @@
 #include "oplus_display_ffl.h"
 #include "oplus_debug.h"
 #include "oplus_display_ext.h"
+#include "oplus_display_dfte.h"
+#ifdef OPLUS_FEATURE_AP_UIR_DIMMING
+#include "oplus_apuirdim.h"
+#endif
 
 extern int dynamic_osc_clock;
 bool oplus_enhance_mipi_strength = false;
@@ -346,6 +350,16 @@ int oplus_panel_parse_features_config(struct dsi_panel *panel)
 	OPLUS_DSI_INFO("oplus,mipi-reset-enable: %s\n",
 		panel->oplus_panel.mipi_reset_enable ? "true" : "false");
 
+	panel->oplus_panel.enable_dsi_cmd_package = utils->read_bool(utils->data,
+		"oplus,enable_dsi_cmd_package");
+	OPLUS_DSI_INFO("oplus,enable_dsi_cmd_package: %s\n",
+		panel->oplus_panel.enable_dsi_cmd_package ? "true" : "false");
+
+	panel->oplus_panel.vid_fps_switch_compenstate_enable = utils->read_bool(utils->data,
+		"oplus,video-mode-fps-switch-compenstate-enable");
+	OPLUS_DSI_INFO("oplus,video-mode-fps-switch-compenstate-enable: %s\n",
+		panel->oplus_panel.vid_fps_switch_compenstate_enable ? "true" : "false");
+
 	return 0;
 }
 
@@ -378,7 +392,7 @@ int oplus_panel_parse_vsync_config(
 		OPLUS_DSI_DEBUG("panel async backlight delay to bottom of frame was disabled rc=%d\n", rc);
 		priv_info->oplus_priv_info.async_bl_delay = 0;
 	} else {
-		if(priv_info->oplus_priv_info.async_bl_delay >= priv_info->oplus_priv_info.vsync_period) {
+		if (priv_info->oplus_priv_info.async_bl_delay >= priv_info->oplus_priv_info.vsync_period) {
 			OPLUS_DSI_ERR("async backlight delay value was out of vsync period\n");
 			priv_info->oplus_priv_info.async_bl_delay = priv_info->oplus_priv_info.vsync_width;
 		}
@@ -391,6 +405,93 @@ int oplus_panel_parse_vsync_config(
 
 	return 0;
 }
+
+#ifdef OPLUS_FEATURE_AP_UIR_DIMMING
+void oplus_panel_parse_apuir_ds_list(struct dsi_panel *panel) {
+	int rc = 0;
+	struct dsi_parser_utils *utils = &panel->utils;
+	char payload[128] = "";
+	u32 cnt = 0;
+	int up800nit_ds_count = 0;
+	u32 *up800nit_ds_list = NULL;
+	int less800nit_ds_count = 0;
+	u32 *less800nit_ds_list = NULL;
+
+	/* get up800nit_ds_list */
+	up800nit_ds_count = utils->count_u32_elems(utils->data,
+		"oplus,apuir-up800nit-ds-list");
+	if (up800nit_ds_count < 1) {
+		OPLUS_DSI_INFO("aapuir puir-up800nit-ds-list is NULL! oplus_apuir_setenable 0\n");
+		up800nit_ds_count = 0;
+		oplus_apuir_setenable(0);
+		return;
+	} else {
+		oplus_apuir_setenable(1);
+	}
+
+	up800nit_ds_list = kcalloc(up800nit_ds_count,
+			sizeof(u32), GFP_KERNEL);
+	if (!up800nit_ds_list) {
+		kfree(up800nit_ds_list);
+		OPLUS_DSI_ERR("apuir oplus,apuir-less800nit-ds-list alloc failed!\n");
+		return;
+	}
+
+	rc = utils->read_u32_array(utils->data,
+		"oplus,apuir-up800nit-ds-list",
+		up800nit_ds_list,
+		up800nit_ds_count);
+
+	if (rc) {
+		kfree(up800nit_ds_list);
+		OPLUS_DSI_ERR("apuir up800nit_ds_list parse failed!\n");
+		return;
+	}
+	oplus_apuir_set_up800nit_ds_list(up800nit_ds_count, up800nit_ds_list);
+
+	cnt = 0;
+	for (int i = 0; i < up800nit_ds_count; i++) {
+		cnt += scnprintf(payload + cnt, sizeof(payload) - cnt, "[%u]", up800nit_ds_list[i]);
+	}
+	OPLUS_DSI_INFO("apuir up800nit_ds_list count: %d, mode_list: %s\n", up800nit_ds_count, payload);
+
+	/* get less800nit_ds_list */
+	less800nit_ds_count = utils->count_u32_elems(utils->data,
+		"oplus,apuir-less800nit-ds-list");
+	if (less800nit_ds_count < 1) {
+		OPLUS_DSI_INFO("apuir oplus,apuir-less800nit-ds-list is NULL!\n");
+		less800nit_ds_count = 0;
+		return;
+	}
+
+	less800nit_ds_list = kcalloc(less800nit_ds_count,
+			sizeof(u32), GFP_KERNEL);
+	if (!less800nit_ds_list) {
+		kfree(less800nit_ds_list);
+		OPLUS_DSI_ERR("apuir oplus,apuir-less800nit-ds-list alloc failed!\n");
+		return;
+	}
+
+	rc = utils->read_u32_array(utils->data,
+			"oplus,apuir-less800nit-ds-list",
+			less800nit_ds_list,
+			less800nit_ds_count);
+
+	if (rc) {
+		kfree(less800nit_ds_list);
+		OPLUS_DSI_ERR("apuir less800nit_ds_list parse failed!\n");
+		return;
+	}
+	oplus_apuir_set_less800nit_ds_list(less800nit_ds_count, less800nit_ds_list);
+
+	cnt = 0;
+	for (int i = 0; i < less800nit_ds_count; i++) {
+		cnt += scnprintf(payload + cnt, sizeof(payload) - cnt, "[%u]", less800nit_ds_list[i]);
+	}
+	OPLUS_DSI_INFO("apuir less800nit_ds_list count: %d, mode_list: %s\n", less800nit_ds_count, payload);
+	return;
+}
+#endif
 
 void oplus_panel_parse_ignore_mode_config(struct dsi_panel *panel)
 {
@@ -456,6 +557,11 @@ int oplus_panel_parse_config(struct dsi_panel *panel)
 	oplus_dsi_panel_parse_pcd(panel);
 	oplus_dsi_panel_parse_lvd(panel);
 	oplus_panel_parse_ignore_mode_config(panel);
+	oplus_dsi_panel_parse_lut(panel);
+#ifdef OPLUS_FEATURE_AP_UIR_DIMMING
+	oplus_panel_parse_apuir_ds_list(panel);
+#endif
+	oplus_panel_dynamic_float_te_config(panel);
 
 	return 0;
 }

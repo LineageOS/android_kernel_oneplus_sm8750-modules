@@ -660,6 +660,7 @@ enum {
  * @SDE_CTL_CESTA_FLUSH         CTL supports display cesta flush programming
  * @SDE_CTL_HYP_CTL_RESERVE     CTL supports Hypervisor Lockdown
  * @SDE_CTL_REG_DMA             CTL supports REG_DMA block
+ * @SDE_CTL_HYP_CTL_RESERVE     VM resource reservation
  * @SDE_CTL_MAX
  */
 enum {

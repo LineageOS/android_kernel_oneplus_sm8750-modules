@@ -59,6 +59,9 @@
 
 #include "sde_power_handle.h"
 
+#if defined(CONFIG_PXLW_IRIS) || defined(CONFIG_PXLW_SOFT_IRIS)
+#include "pw_iris_uapi.h"
+#endif
 #define GET_MAJOR_REV(rev)		((rev) >> 28)
 #define GET_MINOR_REV(rev)		(((rev) >> 16) & 0xFFF)
 #define GET_STEP_REV(rev)		((rev) & 0xFFFF)
@@ -288,6 +291,9 @@ enum msm_mdp_conn_property {
 	CONNECTOR_PROP_WB_ROT_TYPE,
 	CONNECTOR_PROP_WB_ROT_BYTES_PER_CLK,
 	CONNECTOR_PROP_BPP_MODE,
+#ifdef OPLUS_FEATURE_AP_UIR_DIMMING
+	CONNECTOR_PROP_UIR_DS,
+#endif
 
 	/* total # of properties */
 	CONNECTOR_PROP_COUNT

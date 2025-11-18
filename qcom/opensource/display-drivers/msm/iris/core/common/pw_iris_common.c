@@ -8,7 +8,6 @@
 
 #include <linux/of_device.h>
 
-#define CREATE_TRACE_POINTS
 #include "pw_iris_api.h"
 #include "pw_iris_log.h"
 #include "pw_iris_def.h"

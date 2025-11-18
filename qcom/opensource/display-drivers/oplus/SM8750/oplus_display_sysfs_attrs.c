@@ -26,6 +26,9 @@
 #include <linux/notifier.h>
 #include <soc/oplus/device_info.h>
 #include "dsi_pwr.h"
+#ifdef OPLUS_FEATURE_AP_UIR_DIMMING
+#include "oplus_apuirdim.h"
+#endif
 #ifdef OPLUS_TRACKPOINT_REPORT
 #include <soc/oplus/oplus_trackpoint_report.h>
 #endif /* OPLUS_TRACKPOINT_REPORT */
@@ -1232,12 +1235,24 @@ static ssize_t oplus_display_set_hbm_max_debug(struct kobject *obj,
 		}
 	}
 	else {
-		rc = dsi_display_set_backlight(display->drm_conn,
+		if (panel->cur_mode->priv_info->cmd_sets[DSI_CMD_EXIT_HBM_MAX].count) {
+			mutex_lock(&panel->panel_lock);
+			rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_EXIT_HBM_MAX, false);
+			mutex_unlock(&panel->panel_lock);
+		} else {
+			rc = dsi_display_set_backlight(display->drm_conn,
 				display, last_bl);
+		}
 	}
 	panel->oplus_panel.hbm_max_state = hbm_max_state;
 
 	mutex_unlock(&display->display_lock);
+
+	if (!hbm_max_state) {
+		if (panel->oplus_panel.bl_cfg.hbm_max_exit_restore_gir) {
+			dsi_display_seed_mode_lock(get_main_display(), seed_mode);
+		}
+	}
 
 	return count;
 }
@@ -2773,6 +2788,7 @@ static OPLUS_ATTR(longrui_aod, S_IRUGO | S_IWUSR, oplus_ofp_get_longrui_aod_conf
 static OPLUS_ATTR(trackpoint_test, S_IRUGO | S_IWUSR, oplus_get_trackpoint_test_attr, oplus_set_trackpoint_test_attr);
 #endif /* OPLUS_TRACKPOINT_REPORT */
 static OPLUS_ATTR(panel_apl_value, S_IRUGO | S_IWUSR, oplus_display_get_panel_apl_value, NULL);
+static OPLUS_ATTR(dynamic_float_te, S_IRUGO | S_IWUSR, oplus_get_dynamic_float_te_debug_attr, oplus_set_dynamic_float_te_debug_attr);
 
 /*
  * Create a group of attributes so that we can create and destroy them all
@@ -2841,6 +2857,7 @@ static struct attribute *oplus_display_attrs[] = {
 	&oplus_attr_trackpoint_test.attr,
 #endif /* OPLUS_TRACKPOINT_REPORT */
 	&oplus_attr_panel_apl_value.attr,
+	&oplus_attr_dynamic_float_te.attr,
 	NULL,	/* need to NULL terminate the list of attributes */
 };
 

@@ -33,6 +33,10 @@
 #include "oplus_display_notify_tp.h"
 #endif /* OPLUS_FEATURE_TP_BASIC */
 
+#ifdef OPLUS_FEATURE_AP_UIR_DIMMING
+#include "oplus_apuirdim.h"
+#endif
+
 #define OPLUS_BACKLIGHT_WINDOW_SIZE 5
 
 extern bool is_lhbm_panel;
@@ -223,6 +227,9 @@ void oplus_display_enable_pre(struct dsi_display *display)
 			OPLUS_DSI_ERR("panel gamma compensation failed\n");
 		}
 	}
+#ifdef OPLUS_FEATURE_AP_UIR_DIMMING
+	oplus_apuir_init(display->panel);
+#endif
 
 	return;
 }
@@ -295,6 +302,7 @@ int oplus_panel_enable_post(struct dsi_panel *panel)
 void oplus_panel_switch_pre(struct dsi_panel *panel)
 {
 	panel->oplus_panel.ts_timestamp = ktime_get();
+	oplus_panel_timing_switch_lut_set(panel);
 
 	return;
 }
@@ -303,6 +311,7 @@ void oplus_panel_switch_post(struct dsi_panel *panel)
 {
 	/* pwm switch due to timming switch */
 	oplus_panel_pwm_switch_timing_switch(panel);
+	oplus_panel_timing_switch_wait_te(panel);
 
 	return;
 }
@@ -341,14 +350,13 @@ void oplus_panel_disable_post(struct dsi_panel *panel)
 void oplus_encoder_kickoff(struct drm_encoder *drm_enc, struct sde_encoder_virt *sde_enc)
 {
 	/* Add for backlight smooths */
-	if ((is_support_apollo_bk(sde_enc->cur_master->connector) == true) && backlight_smooth_enable && !dc_apollo_sync_hbmon(get_main_display())) {
+	if (sde_enc->cur_master && (is_support_apollo_bk(sde_enc->cur_master->connector) == true)
+        && backlight_smooth_enable && !dc_apollo_sync_hbmon(get_main_display())) {
 		if (sde_enc->num_phys_encs > 0) {
 			oplus_sync_panel_brightness(OPLUS_POST_KICKOFF_METHOD, drm_enc);
 		}
 	} else {
 		oplus_sync_panel_brightness_v2(drm_enc);
-
-		__oplus_vid_sync_backlight_thread_ctl(true);
 	}
 	oplus_set_osc_status(drm_enc);
 
@@ -357,6 +365,8 @@ void oplus_encoder_kickoff(struct drm_encoder *drm_enc, struct sde_encoder_virt 
 
 void oplus_encoder_kickoff_post(struct drm_encoder *drm_enc, struct sde_encoder_virt *sde_enc)
 {
+	__oplus_vid_sync_backlight_thread_ctl(true);
+
 	oplus_sync_panel_brightness_video(drm_enc);
 
 	return;
@@ -524,6 +534,7 @@ void oplus_panel_tx_cmd_set_pre(struct dsi_panel *panel,
 {
 	oplus_panel_cmd_switch(panel, type);
 	oplus_panel_cmdq_sync_handle(panel, *type, true);
+	oplus_panel_vid_cmdp_handle(panel, *type);
 	oplus_panel_cmd_print(panel, *type);
 
 	return;
@@ -836,7 +847,7 @@ int oplus_display_validate_status(struct dsi_display *display)
 	}
 
 	sde_conn = to_sde_connector(display->drm_conn);
-	if (g_oplus_send_fps_code || atomic_read(&sde_conn->oplus_conn.bl_need_update)) {
+	if (g_oplus_send_fps_code || atomic_read(&sde_conn->oplus_conn.dsi_cmd_need_update)) {
 		OPLUS_DSI_INFO("Set other dsi cmd, skip esd check!\n");
 		return true;
 	}

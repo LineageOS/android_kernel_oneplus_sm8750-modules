@@ -67,7 +67,7 @@ static int _iris_configure(u32 display, u32 type, u32 value)
 		if (gamut_update == false)
 			gamut_update = (dpp_precsc_enable != m_dpp_precsc_enable) ? 1 : 0;
 
-		pqlt_cur_setting->pq_setting.cmcolorgamut = value & 0x7f;
+		pqlt_cur_setting->pq_setting.cmcolorgamut = iris_gamut_index_valid_i7p(value & 0x7f);
 		if (pqlt_cur_setting->pq_setting.cmcolorgamut == 0)
 			dpp_precsc_enable = 0;
 
@@ -105,6 +105,10 @@ static int _iris_configure(u32 display, u32 type, u32 value)
 		iris_reading_mode_set(pqlt_cur_setting->pq_setting.readingmode);
 		break;
 	case IRIS_COLOR_TEMP_VALUE:
+		if (value < pcfg->min_color_temp || value > pcfg->max_color_temp) {
+			IRIS_LOGE("Color temp value=%d. not valid", value);
+			return -EINVAL;
+		}
 		pqlt_cur_setting->colortempvalue = value;
 		if (pqlt_cur_setting->pq_setting.cmcolortempmode == IRIS_COLOR_TEMP_MANUL)
 			iris_cm_color_temp_set();
@@ -366,7 +370,7 @@ static int _iris_configure_ex(u32 display, u32 type, u32 count, u32 *values)
 	int len = 0;
 	const u32 MAX_READ_CNT = 100;
 
-	if (!iris_is_valid_type(display, type))
+	if (!iris_is_valid_type(display, type) || IS_ERR_OR_NULL(values) || count == 0)
 		return -EPERM;
 
 	switch (type) {
@@ -407,6 +411,10 @@ static int _iris_configure_ex(u32 display, u32 type, u32 count, u32 *values)
 		//iris_cm_csc_level_set(IRIS_IP_DPP, &values[0]);
 		break;
 	case IRIS_COLOR_TEMP_VALUE:
+		if (values[0] < pcfg->min_color_temp || values[0] > pcfg->max_color_temp) {
+			IRIS_LOGE("Color temp Value=%d. not valid", values[0]);
+			return -EINVAL;
+		}
 		is_phone = (count > 1) ? (values[1] == 0) : true;
 		pqlt_cur_setting->colortempvalue = values[0];
 

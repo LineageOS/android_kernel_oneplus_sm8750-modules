@@ -34,6 +34,7 @@
 #include <linux/init.h>
 #include <drm/drm_mipi_dsi.h>
 #include "oplus_display_utils.h"
+#include "oplus_display_dfte.h"
 
 #define DISPLAY_TOOL_CMD_KEYWORD "[display:sh]"
 

@@ -1151,7 +1151,6 @@ static void _sde_dbg_dump_bus_entry(struct sde_dbg_sde_debug_bus *bus,
 							bus, entry->wr_addr, block_id, test_id))))
 					SDE_DBG_LOG_ENTRY(0, wr_addr, block_id,
 							test_id, status, true);
-
 				if (entry->analyzer) {
 					entry->analyzer(wr_addr, i, j, status);
 					continue;
@@ -1172,6 +1171,7 @@ static void _sde_dbg_dump_bus_entry(struct sde_dbg_sde_debug_bus *bus,
 						*(dump_addr + 2), *(dump_addr + 3));
 					dump_addr += 4;
 				}
+
 			}
 		}
 		/* Disable debug bus once we are done */

@@ -514,7 +514,6 @@ static void sde_hw_intr_dispatch_irq(struct sde_hw_intr *intr,
 				 */
 				if (cbfunc)
 					cbfunc(arg, irq_idx);
-
 				/*
 				 * When callback finish, clear the irq_status
 				 * with the matching mask. Once irq_status

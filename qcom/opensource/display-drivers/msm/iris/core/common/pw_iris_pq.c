@@ -202,12 +202,17 @@ void iris_set_skip_dma(bool skip)
 	iris_skip_dma = skip;
 }
 
-static void iris_end_dpp(bool bcommit)
+static void iris_end_dpp_v2(bool bcommit, uint8_t path)
 {
 	struct iris_cfg *pcfg = iris_get_cfg();
 
 	if (pcfg->pw_chip_func_ops.iris_end_dpp_)
-		pcfg->pw_chip_func_ops.iris_end_dpp_(bcommit);
+		pcfg->pw_chip_func_ops.iris_end_dpp_(bcommit, path);
+}
+
+static void iris_end_dpp(bool bcommit)
+{
+	iris_end_dpp_v2(bcommit, PATH_DSI);
 }
 
 void iris_init_ipopt_t(void)
@@ -223,6 +228,11 @@ void iris_init_ipopt_t(void)
 
 u32 iris_color_temp_x_get(u32 index)
 {
+	u32 size = ARRAY_SIZE(iris_color_x_buf);
+
+	if (index >= size)
+		return iris_color_x_buf[size - 1];
+
 	return iris_color_x_buf[index];
 }
 
@@ -444,7 +454,7 @@ void iris_cm_colortemp_mode_set(u32 mode, bool bcommit)
 	}
 
 	if (bcommit)
-		iris_end_dpp(true);
+		iris_end_dpp_v2(true, PATH_I2C);
 	IRIS_LOGD("cm color temperature mode=%d", mode);
 }
 
@@ -508,7 +518,7 @@ void iris_dpp_3dlut_gain(u32 count, u32 *values, bool bcommit)
 	}
 	len = iris_init_update_ipopt_t(IRIS_IP_DPP, 0x52, 0x52, 0x01);
 	if (bcommit)
-		iris_end_dpp(true);
+		iris_end_dpp_v2(true, PATH_I2C);
 	IRIS_LOGD("3dlut interpolation, interp=0x%08x, len=%d", lut3d_interp3, len);
 }
 

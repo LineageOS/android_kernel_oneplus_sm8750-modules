@@ -78,6 +78,10 @@ extern void oplus_sde_cp_crtc_pcc_change(struct drm_crtc *crtc_drm);
 /* Wait for at most 2 vsync for spec fence bind */
 #define SPEC_FENCE_TIMEOUT_MS 84
 
+#if defined(CONFIG_PXLW_IRIS)
+#include "dsi_iris_api.h"
+#endif
+
 struct sde_crtc_custom_events {
 	u32 event;
 	int (*func)(struct drm_crtc *crtc, bool en,
@@ -1266,24 +1270,12 @@ static int _sde_crtc_set_roi_v1(struct drm_crtc_state *state,
 			 * it will have the same behavior with before.
 			 */
 			cstate->user_roi_list.spr_roi[i] = roi_v1.roi[i];
-		SDE_DEBUG("crtc%d: roi%d: roi (%d,%d) (%d,%d)\n",
-				DRMID(crtc), i,
+		SDE_EVT32(DRMID(crtc),
 				cstate->user_roi_list.roi[i].x1,
 				cstate->user_roi_list.roi[i].y1,
 				cstate->user_roi_list.roi[i].x2,
 				cstate->user_roi_list.roi[i].y2);
-		SDE_EVT32_VERBOSE(DRMID(crtc),
-				cstate->user_roi_list.roi[i].x1,
-				cstate->user_roi_list.roi[i].y1,
-				cstate->user_roi_list.roi[i].x2,
-				cstate->user_roi_list.roi[i].y2);
-		SDE_DEBUG("crtc%d, roi_feature_flags %d: spr roi%d: spr roi (%d,%d) (%d,%d)\n",
-				DRMID(crtc), roi_v1.roi_feature_flags, i,
-				roi_v1.spr_roi[i].x1,
-				roi_v1.spr_roi[i].y1,
-				roi_v1.spr_roi[i].x2,
-				roi_v1.spr_roi[i].y2);
-		SDE_EVT32_VERBOSE(DRMID(crtc), roi_v1.roi_feature_flags,
+		SDE_EVT32(DRMID(crtc), roi_v1.roi_feature_flags,
 				roi_v1.spr_roi[i].x1,
 				roi_v1.spr_roi[i].y1,
 				roi_v1.spr_roi[i].x2,
@@ -4028,7 +4020,7 @@ static int _sde_crtc_check_dest_scaler_cfg(struct drm_crtc *crtc,
 	c_conn_state = _sde_crtc_get_sde_connector_state(crtc, crtc_state->state);
 
 	if (c_conn_state == NULL)
-		return -EINVAL;
+		return 0;
 
 	if (c_conn_state->rois.num_rects || cstate->user_roi_list.num_rects) {
 		sde_kms_rect_merge_rectangles(&c_conn_state->rois, &conn_roi);
@@ -4276,6 +4268,12 @@ static int _sde_crtc_check_dest_scaler_data(struct drm_crtc *crtc,
 		goto err;
 
 disable:
+#if defined(CONFIG_PXLW_IRIS)
+	if (iris_is_chip_supported() && (iris_get_pq_disable_val() & 0x01) > 0) {
+		//need to disable detail enhancer in dual memc
+		_sde_crtc_check_dest_scaler_data_disable(crtc, cstate, 0);
+	} else
+#endif /* CONFIG_PXLW_IRIS */
 	_sde_crtc_check_dest_scaler_data_disable(crtc, cstate, num_ds_enable);
 	goto end;
 
@@ -4927,6 +4925,12 @@ static void _sde_crtc_atomic_begin(struct drm_crtc *crtc,
 		encoder = NULL;
 		drm_for_each_encoder_mask(encoder, dev, crtc->state->encoder_mask) {
 			if (sde_encoder_in_clone_mode(encoder))
+				continue;
+			/* For cmd mode, with cesta immediate mode enablement, update perf votes
+			* during crtc commit kickoff. This will delay the new vote request and
+			* allows intra frame idle entry.
+			*/
+			if (sde_encoder_check_curr_mode(encoder, MSM_DISPLAY_CMD_MODE))
 				continue;
 
 			/* For cmd mode, with cesta immediate mode enablement, update perf votes

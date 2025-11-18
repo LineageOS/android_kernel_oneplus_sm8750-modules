@@ -2695,7 +2695,7 @@ static int sde_intf_parse_dt(struct device_node *np,
 			set_bit(SDE_INTF_WD_LTJ_CTL, &intf->features);
 			set_bit(SDE_INTF_TE_DEASSERT_DETECT, &intf->features);
 			set_bit(SDE_INTF_VSYNC_TS_SRC_EN, &intf->features);
-			set_bit(SDE_INTF_TE_LEVEL_TRIGGER, &intf->features);
+			//set_bit(SDE_INTF_TE_LEVEL_TRIGGER, &intf->features); //disable qsync level te mode
 			set_bit(SDE_INTF_PERIPHERAL_FLUSH, &intf->features);
 		}
 
@@ -2704,7 +2704,7 @@ static int sde_intf_parse_dt(struct device_node *np,
 
 		if (SDE_HW_MAJOR(sde_cfg->hw_rev) >= SDE_HW_MAJOR(SDE_HW_VER_C00)) {
 			set_bit(SDE_INTF_ESYNC, &intf->features);
-			set_bit(SDE_INTF_TEAR_TE_LEVEL_MODE, &intf->features);
+			// set_bit(SDE_INTF_TEAR_TE_LEVEL_MODE, &intf->features); //disable qsync level te mode
 			set_bit(SDE_INTF_PROG_DYNREF, &intf->features);
 		}
 	}

@@ -43,6 +43,9 @@ int mca_mode = 1;
 int dcc_flags = 0;
 
 extern int dither_enable;
+extern int seed_mode;
+char brightness_time[32];
+EXPORT_SYMBOL(brightness_time);
 EXPORT_SYMBOL(oplus_debug_max_brightness);
 EXPORT_SYMBOL(oplus_dither_enable);
 EXPORT_SYMBOL(dcc_flags);
@@ -208,6 +211,15 @@ int oplus_display_panel_get_vendor(void *buf)
 	strncpy(p_info->version, vendor, sizeof(p_info->version));
 	strncpy(p_info->manufacture, manu_name, sizeof(p_info->manufacture));
 
+	return 0;
+}
+
+int oplus_display_get_brightness_time(void *data) {
+	struct panel_brightness_time *p_time = data;
+
+	strncpy(p_time->brightness_time, brightness_time, sizeof(p_time->brightness_time));
+
+	OPLUS_DSI_INFO("get brightness time: brightness_time[%s] l\n", p_time->brightness_time);
 	return 0;
 }
 
@@ -1903,6 +1915,12 @@ int oplus_display_panel_set_hbm_max(void *data)
 	panel->oplus_panel.hbm_max_state = hbm_max_state;
 
 	mutex_unlock(&display->display_lock);
+
+	if (!hbm_max_state) {
+		if (panel->oplus_panel.bl_cfg.hbm_max_exit_restore_gir) {
+			dsi_display_seed_mode_lock(get_main_display(), seed_mode);
+		}
+	}
 
 	return rc;
 }

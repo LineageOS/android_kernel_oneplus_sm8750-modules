@@ -2339,6 +2339,12 @@ static int _sde_encoder_phys_wb_wait_for_idle(struct sde_encoder_phys *phys_enc,
 			phys_enc->in_clone_mode);
 		SDE_EVT32(DRMID(phys_enc->parent), WBID(wb_enc),
 			atomic_read(&phys_enc->pending_kickoff_cnt), SDE_EVTLOG_ERROR);
+#ifdef OPLUS_FEATURE_DISPLAY
+		oplus_sde_evtlog_dump_all();
+		if (get_eng_version() == FACTORY || get_eng_version() == AGING || get_eng_version() == HIGH_TEMP_AGING) {
+			SDE_DBG_DUMP(SDE_DBG_BUILT_IN_ALL, "panic");
+		}
+#endif /* OPLUS_FEATURE_DISPLAY */
 		goto frame_done;
 	}
 

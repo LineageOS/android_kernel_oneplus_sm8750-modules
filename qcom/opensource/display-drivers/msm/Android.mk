@@ -45,7 +45,7 @@ endif
 
 ###########################################################
 include $(CLEAR_VARS)
-LOCAL_SRC_FILES   := $(wildcard $(LOCAL_PATH)/**/*) $(wildcard $(LOCAL_PATH)/*)
+LOCAL_SRC_FILES   := $(wildcard $(LOCAL_PATH)/**/*) $(wildcard $(LOCAL_PATH)/*) $(wildcard $(LOCAL_PATH)/**/**/*) $(wildcard $(LOCAL_PATH)/**/**/**/*)
 LOCAL_MODULE              := msm_drm.ko
 LOCAL_MODULE_KBUILD_NAME  := msm_drm.ko
 LOCAL_MODULE_TAGS         := optional

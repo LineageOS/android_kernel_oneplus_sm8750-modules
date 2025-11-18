@@ -706,7 +706,7 @@ static int _sde_rm_hw_blk_create(
 		break;
 	case SDE_HW_BLK_CTL:
 		hw = sde_hw_ctl_init(id, mmio, cat, sde_kms->dev->primary->index,
-					&sde_kms->hw_ctl_0);
+			&sde_kms->hw_ctl_0);
 		break;
 	case SDE_HW_BLK_CDM:
 		hw = sde_hw_cdm_init(id, mmio, cat, hw_mdp);

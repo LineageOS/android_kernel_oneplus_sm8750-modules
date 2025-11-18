@@ -150,6 +150,7 @@ struct dsi_backlight_config {
 	u32 bl_min_level;
 	u32 bl_max_level;
 	u32 brightness_max_level;
+
 	/* current brightness value */
 	u32 brightness;
 	u32 bl_level;
@@ -316,6 +317,11 @@ struct dsi_panel {
 	enum dsi_panel_physical_type panel_type;
 
 	struct dsi_panel_ops panel_ops;
+#if defined(CONFIG_PXLW_IRIS)
+	bool is_secondary;
+	int hbm_mode;
+	u32 qsync_mode;
+#endif /* CONFIG_PXLW_IRIS */
 };
 
 static inline bool dsi_panel_ulps_feature_enabled(struct dsi_panel *panel)

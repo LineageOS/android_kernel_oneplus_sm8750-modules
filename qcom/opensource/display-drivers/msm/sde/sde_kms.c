@@ -71,6 +71,10 @@
 #include <linux/gunyah/gh_irq_lend.h>
 #endif
 
+#if defined(CONFIG_PXLW_IRIS) || defined(CONFIG_PXLW_SOFT_IRIS)
+#include "dsi_iris_api.h"
+#endif
+
 #define CREATE_TRACE_POINTS
 #include "sde_trace.h"
 #ifdef OPLUS_FEATURE_DISPLAY
@@ -1389,7 +1393,7 @@ static void sde_kms_prepare_commit(struct msm_kms *kms,
 	}
 
 	if (sde_kms->first_kickoff) {
-		/* find if it's power on commit */
+		/* find if it's power on commit as max regbus vote is not needed in power on*/
 		for_each_new_crtc_in_state(state, crtc, cstate, i) {
 			if (!crtc->state->active || !crtc->state->active_changed)
 				power_on_commit = false;
@@ -4710,6 +4714,9 @@ static const struct msm_kms_funcs kms_funcs = {
 	.get_dsc_count = sde_kms_get_dsc_count,
 	.in_trusted_vm = sde_kms_in_trusted_vm,
 	.in_loopback_mode = sde_kms_in_loopback_mode,
+#if defined(CONFIG_PXLW_IRIS) || defined(CONFIG_PXLW_SOFT_IRIS)
+	.iris_operate = iris_sde_kms_iris_operate,
+#endif
 };
 
 static int _sde_kms_mmu_destroy(struct sde_kms *sde_kms)

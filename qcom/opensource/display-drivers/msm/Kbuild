@@ -88,6 +88,13 @@ LINUX_INC +=	-I$(DISPLAY_ROOT) \
 	-I$(DISPLAY_ROOT)/../synx-kernel/msm/synx \
 	-I$(DISPLAY_ROOT)/include/uapi/display \
 
+ifeq (${CONFIG_PXLW_IRIS},y)
+PWATOP=$(DISPLAY_ROOT)/msm/iris
+LINUX_INC +=	-I$(PWATOP)/core/include \
+	-I$(PWATOP)/core \
+	-I$(PWATOP)/vendor
+endif
+
 CDEFINES +=	-DANI_LITTLE_BYTE_ENDIAN \
 	-DANI_LITTLE_BIT_ENDIAN \
 	-DDOT11F_LITTLE_ENDIAN_HOST \
@@ -276,6 +283,11 @@ msm_drm-$(CONFIG_DRM_MSM_DSI) += dsi/dsi_phy.o \
 				 dsi/dsi_panel.o \
 				 dsi/dsi_clk_manager.o \
 				 dsi/dsi_display_test.o
+
+ifeq (${CONFIG_PXLW_IRIS},y)
+include $(PWATOP)/core/Kbuild
+include $(PWATOP)/vendor/Kbuild
+endif
 
 msm_drm-$(CONFIG_DSI_PARSER) += dsi/dsi_parser.o
 

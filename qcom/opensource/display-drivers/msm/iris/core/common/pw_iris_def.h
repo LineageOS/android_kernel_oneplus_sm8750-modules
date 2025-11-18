@@ -555,6 +555,7 @@ struct iris_memc_info {
 	u32 mv_vres;
 	u32 latencyValue[64];
 	u32 OSDProtection[64];
+	u32 mBorderWidth;
 };
 
 enum low_latency_mode {
@@ -1227,6 +1228,7 @@ struct iris_mode_info {
 #define CHIP_VERSION_IS_I7P   2
 
 #define IRIS_EXT_CLK // use for external gpio clk
+#define IRIS_EXT_CLK_NAME "divclk"
 
 /* iris ip option, it will create according to opt_id.
  *  link_state will be create according to the last cmds
@@ -1476,7 +1478,7 @@ typedef int (*iris_change_dpp_lutrgb_type_addr_i7_cb)(void);
 typedef int (*iris_parse_lut_cmds_cb)(uint32_t flag);
 typedef int (*iris_get_hdr_enable_cb)(void);
 typedef void (*iris_quality_setting_off_cb)(void);
-typedef void (*iris_end_dpp_cb)(bool bcommit);
+typedef void (*iris_end_dpp_cb)(bool bcommitm, uint8_t path);
 typedef void (*iris_pq_parameter_init_cb)(void);
 typedef void (*iris_init_tm_points_lut_cb)(void);
 typedef void (*iris_init_lut_buf_cb)(void);

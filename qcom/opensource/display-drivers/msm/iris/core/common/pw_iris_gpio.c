@@ -68,6 +68,11 @@ void iris_reset_sys_domain(void)
 }
 EXPORT_SYMBOL(iris_reset_sys_domain);
 
+void iris_mipi_domain_power_down(void)
+{
+	iris_send_one_wired_cmd(IRIS_POWER_DOWN_MIPI);
+}
+
 int iris_set_pinctrl_state(bool enable)
 {
 	int rc = 0;
