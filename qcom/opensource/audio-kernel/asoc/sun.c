@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -165,6 +165,10 @@ static int dmic_6_7_gpio_cnt;
 #if IS_ENABLED(CONFIG_AUDIO_EXTEND_DRV)
 /*Add for oplus extend aduio*/
 extern void extend_codec_i2s_be_dailinks(struct device *dev, struct snd_soc_dai_link *dailink, size_t size);
+#endif /* CONFIG_AUDIO_EXTEND_DRV */
+
+#ifdef OPLUS_ARCH_EXTENDS
+extern void oplus_set_sound_card_init_done(void);
 #endif /* CONFIG_AUDIO_EXTEND_DRV */
 
 static void *def_wcd_mbhc_cal(void);
@@ -2935,7 +2939,7 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "property %s not detected in node %s\n",
 			"wcd939x-i2c-handle", pdev->dev.of_node->full_name);
 
-	if (pdata->wcd_usbss_handle)
+	if ((pdata->wcd_usbss_handle) || (pdata->fsa_handle))
 		wcd_mbhc_cfg.swap_gnd_mic = msm_usbc_swap_gnd_mic;
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
@@ -2997,6 +3001,10 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 			__func__, ret);
 
 	is_initial_boot = true;
+
+#ifdef OPLUS_ARCH_EXTENDS
+	oplus_set_sound_card_init_done();
+#endif /* OPLUS_ARCH_EXTENDS */
 
 	/* change card status to ONLINE */
 	dev_dbg(&pdev->dev, "%s: setting snd_card to ONLINE\n", __func__);

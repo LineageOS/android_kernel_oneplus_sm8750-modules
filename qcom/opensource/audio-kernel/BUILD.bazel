@@ -94,6 +94,12 @@ ddk_headers(
         "oplus/qcom/oplus_speaker_manager/*.h"
     ])
 )
+ddk_headers(
+    name = "aw87xxx_headers",
+    hdrs = glob([
+        "oplus/codecs/aw87xxx/*.h"
+    ])
+)
 #endif /* OPLUS_ARCH_EXTENDS */
 
 load(":build/sun.bzl", "define_sun")

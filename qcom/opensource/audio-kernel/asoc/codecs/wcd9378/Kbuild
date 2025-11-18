@@ -74,10 +74,15 @@ ifdef CONFIG_SND_SOC_WCD9378
 	WCD9378_OBJS += wcd9378-regmap.o
 	WCD9378_OBJS += wcd9378-tables.o
 	WCD9378_OBJS += wcd9378-mbhc.o
+	WCD9378_OBJS += sdca-registers-api.o
 endif
 
 ifdef CONFIG_SND_SOC_WCD9378_SLAVE
 	WCD9378_SLAVE_OBJS += wcd9378-slave.o
+endif
+
+ifdef CONFIG_SND_SOC_SDCA_REGISTERS
+	SDCA_REGISTERS_OBJS += sdca-registers-api.o
 endif
 
 LINUX_INC +=	-Iinclude/linux

@@ -399,10 +399,7 @@ static int hap_enable_swr_dac_port(struct snd_soc_dapm_widget *w,
 		if (rc < 0) {
 			dev_err_ratelimited(swr_hap->dev, "%s: Enable hpwr_vreg failed, rc=%d\n",
 					__func__, rc);
-#ifdef OPLUS_ARCH_EXTENDS
-// request/release swr device wakeup votes properly. CR3681638
 			swr_device_wakeup_unvote(swr_hap->swr_slave);
-#endif /* OPLUS_ARCH_EXTENDS */
 			return rc;
 		}
 
@@ -414,10 +411,7 @@ static int hap_enable_swr_dac_port(struct snd_soc_dapm_widget *w,
 			dev_err_ratelimited(swr_hap->dev, "%s: Enable SWR_PLAY failed, rc=%d\n",
 						__func__, rc);
 			swr_hap_disable_hpwr_vreg(swr_hap);
-#ifdef OPLUS_ARCH_EXTENDS
-// request/release swr device wakeup votes properly. CR3681638
 			swr_device_wakeup_unvote(swr_hap->swr_slave);
-#endif /* OPLUS_ARCH_EXTENDS */
 			mutex_unlock(&swr_hap->play_lock);
 			return rc;
 		}
@@ -436,10 +430,7 @@ static int hap_enable_swr_dac_port(struct snd_soc_dapm_widget *w,
 				rc = 0;
 			}
 		}
-#ifdef OPLUS_ARCH_EXTENDS
-// request/release swr device wakeup votes properly. CR3681638
 		swr_device_wakeup_unvote(swr_hap->swr_slave);
-#endif /* OPLUS_ARCH_EXTENDS */
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		/* stop SWR play */
@@ -451,16 +442,11 @@ static int hap_enable_swr_dac_port(struct snd_soc_dapm_widget *w,
 			if (rc) {
 				dev_err_ratelimited(swr_hap->dev, "%s: Enable SWR_PLAY failed, rc=%d\n",
 					__func__, rc);
-#ifdef OPLUS_ARCH_EXTENDS
-// request/release swr device wakeup votes properly. CR3681638
 				swr_device_wakeup_unvote(swr_hap->swr_slave);
-#endif /* OPLUS_ARCH_EXTENDS */
 				mutex_unlock(&swr_hap->play_lock);
 				return rc;
 			}
-#ifdef OPLUS_ARCH_EXTENDS
 			swr_device_wakeup_unvote(swr_hap->swr_slave);
-#endif /* OPLUS_ARCH_EXTENDS */
 		} else {
 			dev_dbg(swr_hap->dev, "%s skip stopping swr_play during SSR\n", __func__);
 		}
@@ -470,10 +456,7 @@ static int hap_enable_swr_dac_port(struct snd_soc_dapm_widget *w,
 		if (rc < 0) {
 			dev_err_ratelimited(swr_hap->dev, "%s: Disable hpwr_vreg failed, rc=%d\n",
 					__func__, rc);
-#ifdef OPLUS_ARCH_EXTENDS
-// request/release swr device wakeup votes properly. CR3681638
 			swr_device_wakeup_unvote(swr_hap->swr_slave);
-#endif /* OPLUS_ARCH_EXTENDS */
 			return rc;
 		}
 		break;

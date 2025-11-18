@@ -34,6 +34,11 @@
 #define WCD_MBHC_FAKE_INS_RETRY         4
 
 #ifdef OPLUS_ARCH_EXTENDS
+/* Add for wcd9378 dio switch plug in pop noise */
+#define WCD9378_MBHC_MIN_HS_MICB_MV     1050
+#endif /* OPLUS_ARCH_EXTENDS */
+
+#ifdef OPLUS_ARCH_EXTENDS
 /* Add for adsp ssr */
 extern bool oplus_daemon_adsp_ssr(void);
 static void oplus_mbhc_adsp_ssr_work_fn(struct work_struct *work)
@@ -668,6 +673,7 @@ static void wcd_mbhc_adc_detect_plug_type(struct wcd_mbhc *mbhc)
 #ifdef OPLUS_ARCH_EXTENDS
 /* Add for micbias2 */
 	bool micbias2 = false;
+	bool micbias_enable = false;
 #endif /* OPLUS_ARCH_EXTENDS */
 
 	pr_debug("%s: enter\n", __func__);
@@ -684,16 +690,31 @@ static void wcd_mbhc_adc_detect_plug_type(struct wcd_mbhc *mbhc)
 	WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_DETECTION_DONE, 0);
 #ifdef OPLUS_ARCH_EXTENDS
 /* Add for dio switch plug in pop noise */
-	/* change micbias to 1v first */
 	if (mbhc->need_cross_conn && mbhc->mbhc_cfg && mbhc->mbhc_cfg->swap_gnd_mic) {
-		pr_debug("%s: change micbias to 1v\n", __func__);
-		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_MICB2_VOUT, 0x00);
+		if (mbhc->mbhc_cb->get_micbias_val && mbhc->mbhc_cb->mbhc_micbias_adjust_voltage) {
+			pr_debug("%s:change micbias to 1.05v\n", __func__);
+			mbhc->mbhc_cb->mbhc_micbias_adjust_voltage(component, MIC_BIAS_2, WCD9378_MBHC_MIN_HS_MICB_MV);
+			micbias_enable = true;
+		} else {
+			pr_debug("%s: change micbias to 1v\n", __func__);
+			WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_MICB2_VOUT, 0x00);
+		}
 	}
 #endif /* OPLUS_ARCH_EXTENDS */
 
 	if (mbhc->mbhc_cb->mbhc_micbias_control) {
+#ifdef OPLUS_ARCH_EXTENDS
+/* Add for wcd9378 dio switch plug in pop noise */
+		if (mbhc->mbhc_cb->get_micbias_val && micbias_enable) {
+			pr_debug("%s: Mic Bias already enabled\n", __func__);
+		} else {
+			mbhc->mbhc_cb->mbhc_micbias_control(component, MIC_BIAS_2, MICB_ENABLE);
+		}
+#else /* OPLUS_ARCH_EXTENDS */
 		mbhc->mbhc_cb->mbhc_micbias_control(component, MIC_BIAS_2,
 						    MICB_ENABLE);
+#endif /* OPLUS_ARCH_EXTENDS */
+
 #ifdef OPLUS_ARCH_EXTENDS
 /* workaround to fix headset recording pop noise */
 		if (mbhc->headset_micbias_alwayon) {
@@ -703,7 +724,7 @@ static void wcd_mbhc_adc_detect_plug_type(struct wcd_mbhc *mbhc)
 #endif /* OPLUS_ARCH_EXTENDS */
 
 #ifdef OPLUS_ARCH_EXTENDS
-/* Add for micbias2 */
+/* Add for micbias2, wcd9378 is not supported */
 		if (mbhc->mbhc_cb->micbias_enable_status) {
 			micbias2 = mbhc->mbhc_cb->micbias_enable_status(mbhc, MIC_BIAS_2);
 			if (!micbias2) {
@@ -942,15 +963,25 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 
 		/* close micbias before switch gnd and mic for pop noise issue */
 		pr_debug("%s: close micbias before switch gnd and mic for pop noise issue.\n", __func__);
-		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_MICB_CTRL, 0);
+		if (mbhc->mbhc_cb->get_micbias_val && mbhc->mbhc_cb->mbhc_micbias_control) {
+			mbhc->mbhc_cb->mbhc_micbias_control(component, MIC_BIAS_2, MICB_DISABLE);
+		} else {
+			WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_MICB_CTRL, 0);
+		}
 		usleep_range(10000, 10100);
 
 		if (cross_conn > 0 && mbhc->mbhc_cfg->swap_gnd_mic) {
 			mbhc->mbhc_cfg->swap_gnd_mic(component, true);
 		}
 
-		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_MICB2_VOUT, 0x22);
-		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_MICB_CTRL, 1);
+		/* open micbias after switch gnd and mic for pop noise issue */
+		if (mbhc->mbhc_cb->get_micbias_val && mbhc->mbhc_cb->mbhc_micbias_control) {
+			mbhc->mbhc_cb->mbhc_micbias_control(component, MIC_BIAS_2, MICB_ENABLE);
+		} else {
+			WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_MICB2_VOUT, 0x22);
+			WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_MICB_CTRL, 1);
+		}
+
 		/* Add 10ms delay for micbias to settle */
 		usleep_range(10000, 10100);
 		/* After micbias change, reget value for micbias_mv/hs_threshold */

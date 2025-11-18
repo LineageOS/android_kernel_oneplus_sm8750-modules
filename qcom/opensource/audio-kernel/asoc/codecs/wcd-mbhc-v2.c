@@ -1096,11 +1096,6 @@ static void wcd_mbhc_swch_irq_handler(struct wcd_mbhc *mbhc)
 	int extdev_type = 0;
 
 #ifdef OPLUS_ARCH_EXTENDS
-/* Add for micbias2 */
-	bool micbias2 = false;
-#endif /* OPLUS_ARCH_EXTENDS */
-
-#ifdef OPLUS_ARCH_EXTENDS
 /* Add for Headset detect */
 	if (!mbhc->mbhc_cfg->enable_usbc_analog) {
 	    cancel_delayed_work_sync(&mbhc->hp_detect_work);
@@ -1288,21 +1283,6 @@ static void wcd_mbhc_swch_irq_handler(struct wcd_mbhc *mbhc)
 		mbhc->extn_cable_hph_rem = false;
 		wcd_mbhc_report_plug(mbhc, 0, jack_type);
 		extcon_set_state_sync(mbhc->extdev, extdev_type, 0);
-
-#ifdef OPLUS_ARCH_EXTENDS
-/*Add for force micbias2 disable after report plug out, reduce recording or voice-call noise.*/
-		if (mbhc->mbhc_cb->micbias_enable_status) {
-			micbias2 = mbhc->mbhc_cb->micbias_enable_status(mbhc, MIC_BIAS_2);
-		}
-
-		if (micbias2) {
-			if (mbhc->mbhc_cb->mbhc_micbias_control) {
-				//for wcd93xx codec
-				pr_info("%s: *** micbias2 force disable! ***\n", __func__);
-				WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_MICB_CTRL, 0);
-			}
-		}
-#endif /* OPLUS_ARCH_EXTENDS */
 
 #ifndef OPLUS_ARCH_EXTENDS
 		if (mbhc->mbhc_cfg->enable_usbc_analog) {

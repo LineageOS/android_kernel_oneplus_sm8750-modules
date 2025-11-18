@@ -26,6 +26,7 @@ def define_sun():
             "swr_dmic_dlkm",
             "wcd9xxx_dlkm",
             "swr_haptics_dlkm",
+	    "sdca_registers_dlkm",
             "stub_dlkm",
             "hdmi_dlkm",
             "lpass_cdc_dlkm",
@@ -50,6 +51,8 @@ def define_sun():
             "oplus_audio_sipa",
             "oplus_audio_sipa_tuning",
             "oplus_audio_pa_manager",
+#add for oplus audio aw87xxx driver
+            "oplus_audio_aw87xxx",
 #endif /* OPLUS_ARCH_EXTENDS */
 #ifdef CONFIG_AUDIO_DAEMON_KERNEL_QCOM
 #add for oplus audio daemon kernel
@@ -78,6 +81,7 @@ def define_sun():
             "CONFIG_AUDIO_BTFM_PROXY",
             "CONFIG_MSM_EXT_DISPLAY",
             "CONFIG_SND_SOC_QMP",
+	    "CONFIG_SND_SOC_SDCA_REGISTERS",
 #ifdef OPLUS_ARCH_EXTENDS
 #add for oplus audio extends driver
             "OPLUS_ARCH_EXTENDS",

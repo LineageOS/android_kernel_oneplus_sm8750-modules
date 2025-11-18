@@ -395,6 +395,35 @@ static int wcd9378_mbhc_micb_ctrl_threshold_mic(
 	return rc;
 }
 
+#ifdef OPLUS_ARCH_EXTENDS
+/* Add for dio switch plug in pop noise */
+static int wcd9378_mbhc_micbias_adjust_voltage(
+						struct snd_soc_component *component,
+						int micb_num, u32 mb_mv)
+{
+	int rc, micb_mv;
+
+	if (NULL == component)
+		return -EINVAL;
+
+	if (micb_num != MIC_BIAS_2)
+		return -EINVAL;
+
+	dev_dbg(component->dev, "%s: mb_mv: %d\n",__func__, mb_mv);
+
+	if (mb_mv > WCD_MBHC_THR_HS_MICB_MV) {
+		pr_debug("%s:mb_mv is invalid!", __func__);
+		return 0;
+	}
+
+	micb_mv = mb_mv;
+
+	rc = wcd9378_mbhc_micb_adjust_voltage(component, micb_mv, MIC_BIAS_2);
+
+	return rc;
+}
+#endif /* OPLUS_ARCH_EXTENDS */
+
 static inline void wcd9378_mbhc_get_result_params(struct wcd9378_priv *wcd9378,
 						s16 *d1_a, u16 noff,
 						int32_t *zdet)
@@ -892,6 +921,10 @@ static const struct wcd_mbhc_cb mbhc_cb = {
 	.bcs_enable = wcd9378_mbhc_bcs_enable,
 	.mbhc_button_debounce_set = wcd9378_mbhc_debounce_time_set,
 	.mbhc_force_micbias_disable = wcd9378_mbhc_force_micbias_disable,
+#ifdef OPLUS_ARCH_EXTENDS
+/* Add for dio switch plug in pop noise  */
+	.mbhc_micbias_adjust_voltage = wcd9378_mbhc_micbias_adjust_voltage,
+#endif /* OPLUS_ARCH_EXTENDS */
 };
 
 static int wcd9378_get_hph_type(struct snd_kcontrol *kcontrol,
@@ -1089,11 +1122,14 @@ void wcd9378_mbhc_hs_detect_exit(struct snd_soc_component *component)
 	}
 	wcd_mbhc_stop(&wcd9378_mbhc->wcd_mbhc);
 
+#ifdef OPLUS_ARCH_EXTENDS
+/* disable micbias2 during ssr. CR#4097496 */
 	if (wcd9378_mbhc->wcd_mbhc.micbias_enable) {
 		wcd9378_micbias_control(component,
 				MIC_BIAS_2, MICB_DISABLE, false);
 		wcd9378_mbhc->wcd_mbhc.micbias_enable = false;
 	}
+#endif /* OPLUS_ARCH_EXTENDS */
 }
 EXPORT_SYMBOL_GPL(wcd9378_mbhc_hs_detect_exit);
 

@@ -539,6 +539,11 @@ struct wcd_mbhc_cb {
 	bool (*extn_use_mb)(struct snd_soc_component *component);
 	int (*mbhc_micb_ctrl_thr_mic)(struct snd_soc_component *component,
 			int micb_num, bool req_en);
+#ifdef OPLUS_ARCH_EXTENDS
+/* Add for dio switch plug in pop noise */
+	int (*mbhc_micbias_adjust_voltage)(struct snd_soc_component *component,
+			int micb_num, u32 mb_mv);
+#endif /* OPLUS_ARCH_EXTENDS */
 	void (*mbhc_gnd_det_ctrl)(struct snd_soc_component *component,
 			bool enable);
 	void (*hph_pull_down_ctrl)(struct snd_soc_component *component,

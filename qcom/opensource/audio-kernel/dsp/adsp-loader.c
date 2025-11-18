@@ -107,6 +107,11 @@ static void adsp_loader_unload(struct platform_device *pdev);
 static enum adsp_rproc_state rproc_state = RPROC_ADSP_NULL;
 #endif /* OPLUS_ARCH_EXTENDS */
 
+#ifdef OPLUS_ARCH_EXTENDS
+/* Add for The sound card is not registered yet, so adsp ssr cannot be executed. case 07926814 */
+static bool is_initial_boot = false;
+#endif /* OPLUS_ARCH_EXTENDS */
+
 static void adsp_load_fw(struct work_struct *adsp_ldr_work)
 {
 	struct platform_device *pdev = adsp_private;
@@ -337,6 +342,10 @@ bool oplus_daemon_adsp_ssr(void)
 
 	pr_err("%s: enter\n", __func__);
 	mutex_lock(&oplus_ssr_lock);
+	if (!is_initial_boot) {
+		pr_err("%s: The sound card is not registered\n", __func__);
+		goto exit;
+	}
 	if (ktime_after(ktime_get(), ktime_add_ms(ssr_time, ADSP_SSR_LIMIT_MS))) {
 		// ssr request
 	} else {
@@ -387,6 +396,13 @@ exit:
 	return ret;
 }
 EXPORT_SYMBOL(oplus_daemon_adsp_ssr);
+
+void oplus_set_sound_card_init_done(void)
+{
+	is_initial_boot = true;
+	pr_err("%s: Sound card registered: is_initial_boot: %d\n", __func__, is_initial_boot);
+}
+EXPORT_SYMBOL(oplus_set_sound_card_init_done);
 #endif /* OPLUS_ARCH_EXTENDS */
 
 static ssize_t adsp_boot_store(struct kobject *kobj,

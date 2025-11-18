@@ -85,6 +85,7 @@
 #define WCD9378_ECID_ENTRY_SIZE 36
 
 #define NUM_ATTEMPTS 20
+extern const u32 wcd9378_reg_array[];
 
 #define WCD9378_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |\
 			SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_48000 |\
@@ -901,8 +902,13 @@ int wcd9378_mbhc_micb_adjust_voltage(struct snd_soc_component *component,
 			micb_usage, micb_mask, req_vout_ctl);
 
 	if (micb_num == MIC_BIAS_2) {
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+		dev_err_not_fb(component->dev,
+			"%s: sj micbias set\n", __func__);
+#else
 		dev_err(component->dev,
 			"%s: sj micbias set\n", __func__);
+#endif
 		snd_soc_component_update_bits(component,
 				WCD9378_IT31_MICB,
 				WCD9378_IT31_MICB_IT31_MICB_MASK,
@@ -1024,9 +1030,13 @@ static int wcd9378_sys_usage_auto_udpate(struct snd_soc_component *component,
 				goto exit;
 			}
 		}
-
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+		dev_err(component->dev, "%s: cannot find sys_usage, current: %d, usage_status: %ld, usage_bit: %d\n",
+				__func__, wcd9378->sys_usage, wcd9378->sys_usage_status, sys_usage_bit);
+#else
 		dev_err(component->dev, "%s: cannot find sys_usage\n",
 				__func__);
+#endif
 	} else {
 		clear_bit(sys_usage_bit, &wcd9378->sys_usage_status);
 	}
@@ -4404,6 +4414,22 @@ static int wcd9378_soc_codec_probe(struct snd_soc_component *component)
 		}
 	}
 
+	wcd9378->debugfs_info = devm_kzalloc(component->dev,
+				sizeof(struct sdca_debugfs_info),
+				GFP_KERNEL);
+
+	wcd9378->regdump_info = devm_kzalloc(component->dev,
+				sizeof(struct sdca_regdump_info),
+				GFP_KERNEL);
+
+	wcd9378->regdump_info->reg_array = wcd9378_reg_array;
+	wcd9378->regdump_info->reg_num = WCD9378_REGISTERS_ARRAY_NUM;
+	wcd9378->regdump_info->component = component;
+	wcd9378->regdump_info->sdca_readable_register = wcd9378_sdca_readable_register;
+	wcd9378->regdump_info->sdca_writeable_register = wcd9378_sdca_writeable_register;
+
+	sdca_devices_debugfs_dentry_create(wcd9378->debugfs_info,
+				wcd9378->regdump_info);
 exit:
 	return ret;
 }
@@ -4421,6 +4447,7 @@ static void wcd9378_soc_codec_remove(struct snd_soc_component *component)
 		wcd9378->register_notifier(wcd9378->handle,
 						&wcd9378->nblock,
 						false);
+	sdca_devices_debugfs_dentry_remove(wcd9378->debugfs_info);
 }
 
 static int wcd9378_soc_codec_suspend(struct snd_soc_component *component)
