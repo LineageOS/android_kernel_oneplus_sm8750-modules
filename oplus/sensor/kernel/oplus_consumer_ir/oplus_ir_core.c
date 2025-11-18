@@ -13,6 +13,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/of_gpio.h>
 #include <linux/gpio.h>
+#include <linux/version.h>
 #include "oplus_ir_core.h"
 
 #define IR_BYTE_POS_INDEX                0
@@ -598,7 +599,11 @@ static int ir_core_probe(struct platform_device *pdev)
 	return 0;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+static void ir_core_remove(struct platform_device *pdev)
+#else  /* KERNEL_VERSION(6, 1, 0) */
 static int ir_core_remove(struct platform_device *pdev)
+#endif /* KERNEL_VERSION(6, 1, 0) */
 {
 	struct ir_core *ir = platform_get_drvdata(pdev);
 
@@ -608,7 +613,9 @@ static int ir_core_remove(struct platform_device *pdev)
 		ir = NULL;
 	}
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	return 0;
+#endif /* KERNEL_VERSION(6, 1, 0) */
 }
 
 static struct of_device_id ir_core_of_match_table[] = {

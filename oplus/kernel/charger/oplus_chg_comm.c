@@ -11,6 +11,7 @@
 #include <linux/of_platform.h>
 #include <linux/iio/consumer.h>
 #include <linux/power_supply.h>
+#include <soc/oplus/system/oplus_project.h>
 #ifdef CONFIG_OPLUS_CHG_OOS
 #include <linux/oem/oplus_chg.h>
 #include <linux/oem/boot_mode.h>
@@ -2157,8 +2158,11 @@ parse_dt_err:
 	devm_kfree(&pdev->dev, comm_dev);
 	return rc;
 }
-
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+static void oplus_chg_comm_driver_remove(struct platform_device *pdev)
+#else
 static int oplus_chg_comm_driver_remove(struct platform_device *pdev)
+#endif
 {
 	struct oplus_chg_comm *comm_dev = platform_get_drvdata(pdev);
 
@@ -2172,7 +2176,10 @@ static int oplus_chg_comm_driver_remove(struct platform_device *pdev)
 	if (!IS_ERR_OR_NULL(comm_dev->skin_therm_chan))
 		iio_channel_release(comm_dev->skin_therm_chan);
 	devm_kfree(&pdev->dev, comm_dev);
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	return 0;
+#endif
 }
 
 static const struct of_device_id oplus_chg_comm_match[] = {

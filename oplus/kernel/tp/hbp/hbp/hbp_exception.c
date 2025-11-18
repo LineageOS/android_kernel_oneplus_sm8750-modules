@@ -115,7 +115,7 @@ free_exp:
 }
 
 #else
-static  int tp_olc_raise_exception(tp_excep_type excep_tpye, void *summary, unsigned int summary_size)
+static  int tp_olc_raise_exception(hbp_excep_type excep_tpye, void *summary, unsigned int summary_size)
 {
 	return 0;
 }

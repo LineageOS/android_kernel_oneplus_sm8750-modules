@@ -2501,7 +2501,7 @@ static fw_check_state fts_fw_check(void *chip_data,
 
 	if (panel_data->manufacture_info.version) {
 		sprintf(dev_version, "%04x", panel_data->tp_fw);
-		strlcpy(&(panel_data->manufacture_info.version[7]), dev_version, 5);
+		strncpy(&(panel_data->manufacture_info.version[7]), dev_version, 5);
 
 	} else {
 		TPD_INFO("manufacture_info.version not exist");
@@ -4169,7 +4169,8 @@ static struct oplus_touchpanel_operations fts_ops = {
 	.freq_hop_trigger           = fts_freq_hop_trigger,
 	.force_water_mode           = fts_force_water_mode,
 	.rate_white_list_ctrl       = fts_rate_white_list_ctrl,
-	.fingerprint_health_info    = fts_fod_fingerprint_health_info
+	.fingerprint_health_info    = fts_fod_fingerprint_health_info,
+	.get_water_mode             = NULL
 };
 
 static struct focal_auto_test_operations ft3681_test_ops = {
@@ -4250,7 +4251,9 @@ static int fts_tp_probe(struct spi_device *spi)
 
 	spi->mode = SPI_MODE_0;
 	spi->bits_per_word = 8;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	spi->chip_select = 0; /*modify reg=0 for more tp vendor share same spi interface*/
+#endif
 
 #ifdef CONFIG_TOUCHPANEL_MTK_PLATFORM
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0))

@@ -19,8 +19,9 @@
 #include "mtk_disp_notify.h"
 #endif
 
+#ifndef CONFIG_DISABLE_OPLUS_FUNCTION
 #include "kernelFwUpdate.h"
-
+#endif
 
 #ifdef OPLUS_FEATURE_CHG_BASIC
 #include <oplus_chg_ic.h>
@@ -383,6 +384,10 @@ struct mtk_charger {
 	struct mms_subscribe *wls_subs;
 	bool wls_online;
 	bool wls_charging_disable;
+	struct oplus_mms *wired_topic;
+	struct mms_subscribe *wired_subs;
+	bool wired_online;
+	bool wired_charging_disable;
 #endif
 
 	struct platform_device *pdev;
@@ -578,6 +583,7 @@ struct mtk_charger {
 	struct delayed_work hvdcp_detect_work;
 	struct delayed_work detach_clean_work;
 	struct delayed_work wls_chg_check_work;
+	struct delayed_work wired_chg_check_work;
 	struct wakeup_source *status_wake_lock;
 	bool status_wake_lock_on;
 	bool hvdcp_disable;
@@ -650,7 +656,6 @@ extern void _wake_up_charger(struct mtk_charger *info);
 
 /* functions for other */
 extern int mtk_chg_enable_vbus_ovp(bool enable);
-extern int oplus_chg_set_dischg_enable(bool en);
 
 
 #ifdef OPLUS_FEATURE_CHG_BASIC

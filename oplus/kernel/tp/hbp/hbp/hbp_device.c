@@ -10,6 +10,8 @@
 #include <linux/platform_device.h>
 #include <linux/input.h>
 #include <linux/input/mt.h>
+#include <linux/clk.h>
+#include <linux/clk-provider.h>
 
 #include "hbp_core.h"
 #include "hbp_tui.h"
@@ -19,25 +21,29 @@
 #define CREATE_TRACE_POINTS
 #include "hbp_trace.h"
 
-#define HBP_IOCTRL_GROUP 0xC5
-#define HBP_IOCTRL_START		 		_IO(HBP_IOCTRL_GROUP, 0x03)
-#define HBP_IOCTRL_SET_PARAM	 		_IO(HBP_IOCTRL_GROUP, 0x04)
-#define HBP_IOCTRL_NOTIFY				_IO(HBP_IOCTRL_GROUP, 0x08)
-#define HBP_IOCTRL_SYNC_KERNEL			_IO(HBP_IOCTRL_GROUP, 0x09)
-#define HBP_IOCTRL_IRQ_ENABLE			_IO(HBP_IOCTRL_GROUP, 0x0A)
-#define HBP_IOCTRL_RESET				_IO(HBP_IOCTRL_GROUP, 0x0B)
-#define HBP_IOCTRL_POWER				_IO(HBP_IOCTRL_GROUP, 0x0C)
-#define HBP_IOCTRL_WRITE				_IO(HBP_IOCTRL_GROUP, 0x0D)
-#define HBP_IOCTRL_READ					_IO(HBP_IOCTRL_GROUP, 0x0E)
-#define HBP_IOCTRL_SPI_SYNC				_IO(HBP_IOCTRL_GROUP, 0x0F)
-#define HBP_IOCTRL_GET_FRAME			_IO(HBP_IOCTRL_GROUP, 0x10)
-#define HBP_IOCTRL_SET_FRAMESIZE		_IO(HBP_IOCTRL_GROUP, 0x11)
-#define HBP_IOCTRL_TRIGGER_IFP			_IO(HBP_IOCTRL_GROUP, 0x12)
-#define HBP_IOCTRL_CLEAR_FIFO			_IO(HBP_IOCTRL_GROUP, 0x13)
-#define HBP_IOCTRL_SET_DEBUG_LEVEL		_IO(HBP_IOCTRL_GROUP, 0x14)
-#define HBP_IOCTRL_SET_BS_DATA_RECORD	_IO(HBP_IOCTRL_GROUP, 0x15)
-#define HBP_IOCTRL_SPI_SET_PARA			_IO(HBP_IOCTRL_GROUP, 0x16)
-#define HBP_IOCTRL_SPI_GET_PARA			_IO(HBP_IOCTRL_GROUP, 0x17)
+#define HBP_IOCTRL_GROUP                                         0xC5
+#define HBP_IOCTRL_START                   _IO(HBP_IOCTRL_GROUP, 0x03)
+#define HBP_IOCTRL_SET_PARAM               _IO(HBP_IOCTRL_GROUP, 0x04)
+#define HBP_IOCTRL_NOTIFY                  _IO(HBP_IOCTRL_GROUP, 0x08)
+#define HBP_IOCTRL_SYNC_KERNEL             _IO(HBP_IOCTRL_GROUP, 0x09)
+#define HBP_IOCTRL_IRQ_ENABLE              _IO(HBP_IOCTRL_GROUP, 0x0A)
+#define HBP_IOCTRL_RESET                   _IO(HBP_IOCTRL_GROUP, 0x0B)
+#define HBP_IOCTRL_POWER                   _IO(HBP_IOCTRL_GROUP, 0x0C)
+#define HBP_IOCTRL_WRITE                   _IO(HBP_IOCTRL_GROUP, 0x0D)
+#define HBP_IOCTRL_READ	                   _IO(HBP_IOCTRL_GROUP, 0x0E)
+#define HBP_IOCTRL_SPI_SYNC                _IO(HBP_IOCTRL_GROUP, 0x0F)
+#define HBP_IOCTRL_GET_FRAME               _IO(HBP_IOCTRL_GROUP, 0x10)
+#define HBP_IOCTRL_SET_FRAMESIZE           _IO(HBP_IOCTRL_GROUP, 0x11)
+#define HBP_IOCTRL_TRIGGER_IFP             _IO(HBP_IOCTRL_GROUP, 0x12)
+#define HBP_IOCTRL_CLEAR_FIFO              _IO(HBP_IOCTRL_GROUP, 0x13)
+#define HBP_IOCTRL_SET_DEBUG_LEVEL         _IO(HBP_IOCTRL_GROUP, 0x14)
+#define HBP_IOCTRL_SET_BS_DATA_RECORD      _IO(HBP_IOCTRL_GROUP, 0x15)
+#define HBP_IOCTRL_SPI_SET_PARA            _IO(HBP_IOCTRL_GROUP, 0x16)
+#define HBP_IOCTRL_SPI_GET_PARA            _IO(HBP_IOCTRL_GROUP, 0x17)
+#define HBP_IOCTRL_SYNC_INPUT_TIME         _IO(HBP_IOCTRL_GROUP, 0x18)
+#define HBP_IOCTRL_UPDATE_FILM_INFO        _IO(HBP_IOCTRL_GROUP, 0x19)
+
+#define HBP_IOCTRL_PEN_STATUS              _IO(HBP_IOCTRL_GROUP, 0x21)
 
 extern void hbp_state_notify(struct hbp_core *hbp, int id, hbp_panel_event event);
 extern int hbp_register_notify_cb(struct hbp_device *hbp_dev, struct device *dev);
@@ -88,6 +94,7 @@ static int init_input_device(struct hbp_device *hbp_dev, int id)
 	set_bit(EV_ABS, hbp_dev->i_dev->evbit);
 	set_bit(EV_KEY, hbp_dev->i_dev->evbit);
 	set_bit(ABS_MT_TOUCH_MAJOR, hbp_dev->i_dev->absbit);
+	set_bit(ABS_MT_TOUCH_MINOR, hbp_dev->i_dev->absbit);
 	set_bit(ABS_MT_WIDTH_MAJOR, hbp_dev->i_dev->absbit);
 	set_bit(ABS_MT_POSITION_X, hbp_dev->i_dev->absbit);
 	set_bit(ABS_MT_POSITION_Y, hbp_dev->i_dev->absbit);
@@ -102,6 +109,7 @@ static int init_input_device(struct hbp_device *hbp_dev, int id)
 
 	input_mt_init_slots(hbp_dev->i_dev, TOUCH_MAX_FINGERS, INPUT_MT_DIRECT);
 	input_set_abs_params(hbp_dev->i_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
+	input_set_abs_params(hbp_dev->i_dev, ABS_MT_TOUCH_MINOR, 0, 255, 0, 0);
 	input_set_abs_params(hbp_dev->i_dev, ABS_MT_POSITION_X, 0,
 			     hbp_dev->hw.resolution.x - 1, 0, 0);
 	input_set_abs_params(hbp_dev->i_dev, ABS_MT_POSITION_Y, 0,
@@ -169,6 +177,7 @@ static int hbp_device_dt_parse(struct hbp_core *hbp, struct hbp_device *hbp_dev)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0))
 	int buf[3] = {0, 0, 0};
 #endif
+	const char *clock_name;
 
 	hbp_info("%s start.\n", dev->of_node->name);
 
@@ -192,6 +201,7 @@ static int hbp_device_dt_parse(struct hbp_core *hbp, struct hbp_device *hbp_dev)
 	}
 
 	hbp_dev->frame_insert_support = of_property_read_bool(np, "device,frame_insert_support");
+
 	hbp_info("frame_insert_support:%d\n", hbp_dev->frame_insert_support);
 
 	hbp_dev->pen_support = of_property_read_bool(np, "pen_support");
@@ -199,6 +209,15 @@ static int hbp_device_dt_parse(struct hbp_core *hbp, struct hbp_device *hbp_dev)
 
 	hbp_dev->create_with_power_on_support = of_property_read_bool(np, "create_with_power_on_support");
 	hbp_info("create_with_power_on_support:%d\n", hbp_dev->create_with_power_on_support);
+	memset(hbp_dev->clk_name, 0, 16);
+	ret = of_property_read_string(np, "clock-names", &clock_name);
+	if (ret < 0) {
+		hbp_err("clock-names not defined, use default\n");
+		strncpy(hbp_dev->clk_name, "bb_clk4", 16);
+	} else {
+		hbp_err("got clk name : %s.\n", clock_name);
+		strncpy(hbp_dev->clk_name, clock_name, 16);
+	}
 	/*for interrupts*/
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0))
 	hbp_dev->hw.irq_gpio = of_get_named_gpio(np, "irq-gpio", 0);
@@ -376,6 +395,12 @@ struct hbp_device *hbp_device_create(void *priv,
 		hbp_power_ctrl(hbp_dev, power_on_default);
 	}
 
+	/*clk*/
+	hbp_dev->pen_ck = devm_clk_get(hbp_dev->dev, hbp_dev->clk_name);
+	if (IS_ERR(hbp_dev->pen_ck)) {
+		hbp_err("failed to get %s.\n", hbp_dev->clk_name);
+	}
+
 	return hbp_dev;
 
 exit:
@@ -439,6 +464,17 @@ static int sync_with_driver(struct hbp_device *hbp_dev)
 	return ret;
 }
 
+static void hbp_film_info_update(struct hbp_device *hbp_dev, struct film_info *film_info)
+{
+	mutex_lock(&hbp_dev->mifp);
+
+	hbp_info("film info update: %u, %d, %u\n", film_info->filmed, film_info->level, film_info->trusty);
+
+	hbp_event_call_notifier(EVENT_ACTION_FOR_FILM, (void *)film_info);
+
+	mutex_unlock(&hbp_dev->mifp);
+}
+
 static void hbp_fingerprint_report(struct hbp_device *hbp_dev, struct gesture_info *gesture, int source)
 {
 	struct fp_event fp_ev;
@@ -448,11 +484,27 @@ static void hbp_fingerprint_report(struct hbp_device *hbp_dev, struct gesture_in
 	fp_ev.id = hbp_dev->id;
 	fp_ev.x = gesture->Point_start.x;
 	fp_ev.y = gesture->Point_start.y;
-	fp_ev.touch_state = gesture->type == FingerprintDown?1:0;
+	if (!source) {
+		fp_ev.tp_firmware_time = gesture->tp_firmware_time * FP_FRAME_TIME;
+	} else {
+		fp_ev.tp_firmware_time = gesture->tp_firmware_time;
+	}
+
+	fp_ev.touch_state = (gesture->type == FingerprintDown || gesture->type == FingerprintEarlyDown)?1:0;
+
+	if (gesture->type == FingerprintEarlyDown) {
+		fp_ev.touch_early_down_flag = 1;
+	}
+	fp_ev.fp_down_time = ktime_get();
+	fp_ev.touch_fp_area_time = hbp_dev->touch_fp_area_time;
+	fp_ev.is_touch_fp_area_cnt = hbp_dev->is_touch_fp_area_cnt;
+
+	hbp_debug("touch_fp_area_time:%lld, is_touch_fp_area_cnt:%ld, fp_down_time:%lld, touch_early_down_flag:%d, tp_firmware_time:%d\n",
+		fp_ev.touch_fp_area_time, fp_ev.is_touch_fp_area_cnt, fp_ev.fp_down_time, fp_ev.touch_early_down_flag, fp_ev.tp_firmware_time);
 
 	/*screen off source*/
 	if (!source) {
-		hbp_dev->screenoff_ifp = gesture->type == FingerprintDown?true:false;
+		hbp_dev->screenoff_ifp = (gesture->type == FingerprintDown || gesture->type == FingerprintEarlyDown)?true:false;
 	}
 
 	hbp_info("screen %s fingerprint %s:(%d, %d)(screenoff_ifp = %d)\n",
@@ -474,6 +526,7 @@ static void hbp_gesture_report(struct hbp_device *hbp_dev, struct gesture_info *
 {
 
 	if (gesture->type == FingerprintDown ||
+		gesture->type == FingerprintEarlyDown ||
 	    gesture->type == FingerprintUp) {
 		hbp_fingerprint_report(hbp_dev, gesture, 0);
 	} else {
@@ -493,6 +546,7 @@ static void hbp_gesture_report(struct hbp_device *hbp_dev, struct gesture_info *
 			gesture->type == Mgestrue? "(M)" :
 			gesture->type == Wgestrue? "(W)" :
 			gesture->type == FingerprintDown? "(fingerprintdown)" :
+			gesture->type == FingerprintEarlyDown? "(fingerprintdownearly)" :
 			gesture->type == FingerprintUp? "(fingerprintup)" :
 			gesture->type == SingleTap? "single tap" :
 			gesture->type == Heart? "heart" :
@@ -658,6 +712,9 @@ static irqreturn_t hbp_irq_threaded_fn(int irq, void *dev_id)
 	ret = hbp_dev->dev_ops->get_irq_reason(hbp_dev->priv, &reason);
 	if (ret < 0) {
 		hbp_err("failed to get irq type\n");
+		if (hbp_dev->hw.irq_gpio > 0) {
+			hbp_err("gpio level = %d.\n", gpio_get_value(hbp_dev->hw.irq_gpio));
+		}
 	} else {
 		if (reason == IRQ_REASON_RESET_WDT
 				|| reason == IRQ_REASON_RESET_PWR
@@ -759,10 +816,10 @@ static int hbp_register_irq_func(struct hbp_device *hbp_dev)
 		ret = request_threaded_irq(hbp_dev->irq,
 					   hbp_irq_handler,
 					   hbp_irq_threaded_fn,
-#ifdef CONFIG_TOUCHPANEL_MTK_PLATFORM
-					   hbp_dev->irq_flags | IRQF_ONESHOT | IRQF_NO_SUSPEND,
-#else
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0))
 					   hbp_dev->irq_flags | IRQF_ONESHOT,
+#else
+					   hbp_dev->irq_flags | IRQF_ONESHOT | IRQF_NO_SUSPEND,
 #endif
 					   irq_name,
 					   hbp_dev);
@@ -781,13 +838,13 @@ static int hbp_register_irq_func(struct hbp_device *hbp_dev)
 
 static int hbp_alloc_spi_buffer(struct hbp_device *hbp_dev)
 {
-	hbp_dev->_wr = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	hbp_dev->_wr = kzalloc(PAGE_SIZE, GFP_DMA);
 	if (!hbp_dev->_wr) {
 		hbp_err("failed to alloc spi write buffer\n");
 		return -ENOMEM;
 	}
 
-	hbp_dev->_rd = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	hbp_dev->_rd = kzalloc(PAGE_SIZE, GFP_DMA);
 	if (!hbp_dev->_rd) {
 		hbp_err("failed to alloc spi read buffer\n");
 		kfree(hbp_dev->_wr);
@@ -829,6 +886,12 @@ copy_err:
 	ret = -EINVAL;
 	trace_hbp(hbp_dev->id, "spi-sync", TRACE_END);
 	return ret;
+}
+
+static int hbp_sync_input_time(struct hbp_device *hbp_dev, int64_t time)
+{
+	input_set_timestamp(hbp_dev->i_dev, time);
+	return 0;
 }
 
 static int hbp_dev_spi_set_para(struct hbp_device *hbp_dev, int cmd, union usr_data *usr)
@@ -910,12 +973,31 @@ static void hbp_queue_clear(struct frame_queue *queue)
 	frame_clear(queue);
 }
 
+void pen_resume(struct hbp_device *hbp_dev){
+	hbp_info("pen connect resume\n");
+
+	if (hbp_dev->pen_ck) {
+		hbp_info("enable pen clk.\n");
+		clk_prepare_enable(hbp_dev->pen_ck);
+	}
+}
+
+void pen_suspend(struct hbp_device *hbp_dev){
+	hbp_info("pen connect suspend\n");
+
+	if (hbp_dev->pen_ck) {
+		hbp_info("disable pen clk.\n");
+		clk_disable_unprepare(hbp_dev->pen_ck);
+	}
+}
+
 static long hbp_ctrl_unlocked_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	int ret = 0;
 	struct hbp_device *hbp_dev = (struct hbp_device *)filp->private_data;
 	union usr_data usr;
 	struct gesture_info gesture;
+	struct film_info film_info;
 	char __user *user_data = (char __user *)arg;
 
 	if (copy_from_user(&usr, (void *)arg, sizeof(union usr_data))) {
@@ -983,23 +1065,52 @@ static long hbp_ctrl_unlocked_ioctl(struct file *filp, unsigned int cmd, unsigne
 			gesture.type = FingerprintDown;
 			gesture.Point_start.x = usr.ifp.x;
 			gesture.Point_start.y = usr.ifp.y;
+			gesture.tp_firmware_time = usr.ifp.tp_firmware_time;
+			hbp_fingerprint_report(hbp_dev, &gesture, 1);
+		} else if (usr.ifp.state == 2) {
+			hbp_dev->touch_fp_area_time = ktime_get();
+			hbp_dev->touch_early_down_flag = usr.ifp.touch_early_down_flag;
+			hbp_dev->is_touch_fp_area_cnt = usr.ifp.is_touch_fp_area_Cnt;
+			hbp_debug("%d,%d,%d,%d,%ld, %lld.\n", usr.ifp.state, usr.ifp.x, usr.ifp.y,
+				hbp_dev->touch_early_down_flag, hbp_dev->is_touch_fp_area_cnt, hbp_dev->touch_fp_area_time);
 		} else {
 			gesture.type = FingerprintUp;
 			gesture.Point_start.x = 0;
 			gesture.Point_start.y = 0;
+			gesture.tp_firmware_time = 0;
+			hbp_fingerprint_report(hbp_dev, &gesture, 1);
 		}
-		hbp_fingerprint_report(hbp_dev, &gesture, 1);
+		break;
+	case HBP_IOCTRL_UPDATE_FILM_INFO:
+		film_info.filmed = usr.film.filmed;
+		film_info.level = usr.film.level;
+		film_info.trusty = usr.film.trusty;
+		hbp_film_info_update(hbp_dev, &film_info);
 		break;
 	case HBP_IOCTRL_CLEAR_FIFO:
 		hbp_queue_clear(&hbp_dev->frame_queue);
 		break;
 	case HBP_IOCTRL_SET_DEBUG_LEVEL:
 		set_debug_level(usr.val);
-		hbp_info("debug_level:%d\n", usr.val);
+		hbp_info("debug_level:%lld\n", usr.val);
 		break;
 	case HBP_IOCTRL_SET_BS_DATA_RECORD:
 		hbp_dev->debug.report_gesture_frm = (LOG_LEVEL_DEBUG == usr.val) ? true : false;
-		hbp_info("report_gesture_frm:%d\n", usr.val);
+		hbp_info("report_gesture_frm:%lld\n", usr.val);
+		break;
+	case HBP_IOCTRL_SYNC_INPUT_TIME:
+		ret = hbp_sync_input_time(hbp_dev, usr.val);
+		if (ret < 0) {
+			hbp_err("failed to write");
+			return ret;
+		}
+		break;
+	case HBP_IOCTRL_PEN_STATUS:
+		if (usr.val > 0) {
+			pen_resume(hbp_dev);
+		} else {
+			pen_suspend(hbp_dev);
+		}
 		break;
 	default:
 		hbp_err("invalid cmd\n");

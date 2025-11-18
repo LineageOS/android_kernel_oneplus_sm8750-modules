@@ -2,7 +2,7 @@
 
 
 #define KEYBOARD_NUM_KEYS   256
-#define KEYBOARD_MM_NUM_KEYS 21
+#define KEYBOARD_MM_NUM_KEYS 23
 #define unk	KEY_UNKNOWN
 
 
@@ -51,6 +51,8 @@ static const unsigned short mm_pogo_keyboard[KEYBOARD_MM_NUM_KEYS][2] = {
     {0xb5,   KEY_NEXTSONG},
     {0xb6,   KEY_PREVIOUSSONG},
     {0x244,   KEY_APPSELECT},
+    {0x2fa,   KEY_AI},
+    {0x1d0,   KEY_FN},
     {unk,   unk},
 };
 
@@ -61,7 +63,7 @@ int pogo_keyboard_input_wakeup_init(void)
     struct input_dev *input_dev = input_allocate_device();
 
     if (!input_dev) {
-        kb_err("%s %d input_allocate_device err \n", __func__, __LINE__);
+        kb_err("input_allocate_device err \n");
         return -ENOMEM;
     }
     input_dev->name = WAKEUP_NAME;
@@ -78,13 +80,11 @@ int pogo_keyboard_input_wakeup_init(void)
     if (ret) {
         input_unregister_device(input_dev);
         input_free_device(input_dev);
-        kb_err("%s %d input_register_device err \n", __func__, __LINE__);
+        kb_err("input_register_device err \n");
         return ret;
     }
     pogo_keyboard_client->input_wakeup = input_dev;
-
-
-    kb_debug("%s %d ok \n", __func__, __LINE__);
+    kb_info("ok \n");
     return 0;
 }
 
@@ -99,7 +99,7 @@ static int pogo_keyboard_event_hander(struct input_dev *dev,
         case EV_MSC:
             break;
         default:
-            kb_err("%s %d no type  err \n", __func__, __LINE__);
+            kb_err("no type  err \n");
             ret = -1;
     }
     return ret;
@@ -111,11 +111,11 @@ int pogo_keyboard_input_init(char *keyboard_name)
     struct input_dev *pogo_keyboard_input = input_allocate_device();
 
     if (pogo_keyboard_client == NULL) {
-        kb_err("%s %d pogo_keyboard_client is null!!!\n", __func__, __LINE__);
+        kb_err("pogo_keyboard_client is null!!!\n");
         return -EINVAL;
     }
     if (!pogo_keyboard_input) {
-        kb_err("%s %d input_allocate_device err \n", __func__, __LINE__);
+        kb_err("input_allocate_device err \n");
         return -ENOMEM;
     }
 
@@ -152,13 +152,11 @@ int pogo_keyboard_input_init(char *keyboard_name)
     ret = input_register_device(pogo_keyboard_input);
     if (ret) {
         input_free_device(pogo_keyboard_input);
-        kb_err("%s %d input_register_device err \n", __func__, __LINE__);
+        kb_err("input_register_device err \n");
         return ret;
     }
     pogo_keyboard_client->input_pogo_keyboard = pogo_keyboard_input;
-
-
-    kb_debug("%s %d ok \n", __func__, __LINE__);
+    kb_info("ok \n");
     return 0;
 
 }
@@ -172,8 +170,6 @@ int pogo_keyboard_input_report(char *buf)
         return -EINVAL;
     if (!input_dev)
         return -EINVAL;
-    //sprintf(TAG,"%s  %d",__func__,__LINE__);
-   // pogo_keyboard_show_buf(pogo_keyboard_client->new,8);
 
     // 8 bytes key data: 1 ctrl byte + 1 reserved byte + 6 key codes.
     memcpy(pogo_keyboard_client->new, &buf[1], 8);
@@ -192,9 +188,9 @@ int pogo_keyboard_input_report(char *buf)
                 input_report_key(input_dev, pogo_keyboard[kbd->old[i]], 0);
                 kbd->is_down = false;
                 pogo_keyboard_led_report(pogo_keyboard[kbd->old[i]]);
-                kb_debug("%s %d key:%d \n", __func__, __LINE__, pogo_keyboard[kbd->old[i]]);
+                kb_info("key:%d up\n", pogo_keyboard[kbd->old[i]]);
             } else
-                kb_debug("Unknown key (scancode %#x) released.\n", kbd->old[i]);
+                kb_err("Unknown key (scancode %#x) released.\n", kbd->old[i]);
         }
 
 
@@ -204,15 +200,13 @@ int pogo_keyboard_input_report(char *buf)
                 input_report_key(input_dev, pogo_keyboard[kbd->new[i]], 1);
                 kbd->is_down = true;
                 kbd->down_code = pogo_keyboard[kbd->new[i]];
-
-                kb_debug("%s %d key:%d \n", __func__, __LINE__, pogo_keyboard[kbd->new[i]]);
+                kb_info("key:%d down\n", pogo_keyboard[kbd->new[i]]);
             } else
-                kb_debug("Unknown key (scancode %#x) pressed.\n", kbd->new[i]);
+                kb_err("Unknown key (scancode %#x) pressed.\n", kbd->new[i]);
         }
     }
 
     input_sync(input_dev);
-    kb_debug("%s %d input end\n", __func__, __LINE__);
     memcpy(kbd->old, kbd->new, 8);
     return 0;
 
@@ -243,14 +237,7 @@ int pogo_keyboard_mm_input_report(char *buf)
     if (!input_dev)
         return -EINVAL;
 
-    //sprintf(TAG,"%s  %d",__func__,__LINE__);
-    //pogo_keyboard_show_buf(pogo_keyboard_client->mm_old,4);
-    //pogo_keyboard_show_buf(pogo_keyboard_client->mm_new,4);
     memcpy(pogo_keyboard_client->mm_new, &buf[1], 4);
-    //keywords = kbd->mm_new[2*i] | kbd->mm_new[2*i+1] << 8;
-    //kb_debug("%s %d key:0x%x \n",__func__,__LINE__,keywords);
-
-
     for (i = 0; i < 2; i++) {
 
         // previous key DOES NOT appear in current key list, meaning this key has been released.
@@ -261,18 +248,17 @@ int pogo_keyboard_mm_input_report(char *buf)
                     if (keywords == mm_pogo_keyboard[j][0])
                         break;
                 }
-                kb_debug("%s %d i:%d j:%d %p!=%p keywords:0x%x\n", __func__, __LINE__, i, j, memscan_ex(kbd->mm_new, keywords, 4), kbd->mm_new + 4, keywords);
                 if (j < KEYBOARD_MM_NUM_KEYS) {
                     input_report_key(input_dev, mm_pogo_keyboard[j][1], 0);
                     kbd->is_mmdown = false;
-                    kb_debug("%s %d key:0x%x \n", __func__, __LINE__, keywords);
+                    kb_info("key:%d up\n", keywords);
                     pogo_keyboard_led_report(mm_pogo_keyboard[j][1]);
                 } else {
-                    kb_debug("Unknown key (scancode %#x) %d released.\n", kbd->mm_old[0], __LINE__);
+                    kb_err("Unknown key (scancode %#x) released.\n", kbd->mm_old[0]);
                 }
 
             } else
-                kb_debug("Unknown key (scancode %#x) %d released.\n", kbd->mm_old[0], __LINE__);
+                kb_err("Unknown key (scancode %#x) released.\n", kbd->mm_old[0]);
         }
 
         // current key DOES NOT appear in previous key list, meaning a new key has been pressed.
@@ -283,18 +269,17 @@ int pogo_keyboard_mm_input_report(char *buf)
                     if (keywords == mm_pogo_keyboard[j][0])
                         break;
                 }
-                kb_debug("%s %d i:%d j:%d %p!=%p keywords:0x%x\n", __func__, __LINE__, i, j, memscan_ex(kbd->mm_old, keywords, 4), kbd->mm_new + 4, keywords);
                 if (j < KEYBOARD_MM_NUM_KEYS) {
                     input_report_key(input_dev, mm_pogo_keyboard[j][1], 1);
                     kbd->is_mmdown = true;
                     kbd->down_mmcode = mm_pogo_keyboard[j][1];
 
-                    kb_debug("%s %d key:%x \n", __func__, __LINE__, keywords);
+                    kb_info("key:%d down\n", keywords);
                 } else {
-                    kb_debug("Unknown key (scancode %#x) %d  pressed.\n", kbd->mm_new[0], __LINE__);
+                    kb_err("Unknown key (scancode %#x) pressed.\n", kbd->mm_new[0]);
                 }
             } else
-                kb_debug("Unknown key (scancode %#x) pressed.\n", kbd->mm_new[0]);
+                kb_err("Unknown key (scancode %#x) pressed.\n", kbd->mm_new[0]);
         }
     }
 

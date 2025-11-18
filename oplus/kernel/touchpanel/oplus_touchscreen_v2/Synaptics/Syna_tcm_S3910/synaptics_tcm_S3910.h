@@ -700,6 +700,7 @@ struct syna_tcm_data {
 	/*normal config for oplus grip*/
 	int normal_config_version;
 	int gesture_state;
+	int finger_state;
 	bool black_gesture_indep;
 	int block_delay_us;
 	int byte_delay_us;

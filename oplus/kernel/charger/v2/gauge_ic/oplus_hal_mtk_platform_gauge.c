@@ -18,7 +18,12 @@
 #include <linux/kobject.h>
 #include <linux/platform_device.h>
 #include <asm/atomic.h>
+#include <linux/version.h>
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+#include <linux/unaligned.h>
+#else
 #include <asm/unaligned.h>
+#endif
 #include <linux/module.h>
 #include <linux/power_supply.h>
 #include <linux/gpio.h>
@@ -48,7 +53,6 @@
 #include <linux/proc_fs.h>
 #include <linux/soc/qcom/smem.h>
 #endif
-#include <linux/version.h>
 #include<linux/gfp.h>
 
 #ifdef OPLUS_SHA1_HMAC
@@ -66,10 +70,15 @@
 #include <linux/build_bug.h>
 
 #include "oplus_hal_mtk_platform_gauge.h"
-#include "../../oplus_gauge.h"
 #include <oplus_chg_wls.h>
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
+#include "../../oplus_gauge.h"
 extern struct oplus_gauge_chip *g_gauge_chip;
+#else
+#include "oplus_gauge.h"
+struct oplus_gauge_chip *g_gauge_chip = NULL;
+#endif
 static struct chip_mt6375_gauge *g_mt6375_chip;
 
 enum oplus_track_item_idx {
@@ -196,28 +205,28 @@ static int oplus_mt6375_pack_cali_info(struct gauge_track_cali_info_s *pre,
 	unsigned int pattern;
 
 	pattern = oplus_chg_track_pattern[reason];
-	index = snprintf(buf, OPLUS_CHG_TRACK_MTK_CALI_INFO_LEN,
+	index = scnprintf(buf, OPLUS_CHG_TRACK_MTK_CALI_INFO_LEN,
 			"$$track_reason@@%d$$err_scene@@%s$$info@@(", reason, "gauge_cali");
 	for (i = TRACK_ITEM_START; i < TRACK_ITEM_END; i++) {
 		if (i != TRACK_ITEM_START)
-			index += snprintf(buf + index, OPLUS_CHG_TRACK_MTK_CALI_INFO_LEN - index, ",");
+			index += scnprintf(buf + index, OPLUS_CHG_TRACK_MTK_CALI_INFO_LEN - index, ",");
 		if((pattern & BIT(i)) == 0)
 			continue;
 
 		if (i == TRACK_BATT_CC) {
 			offset++;
-			index += snprintf(buf + index, OPLUS_CHG_TRACK_MTK_CALI_INFO_LEN - index,
+			index += scnprintf(buf + index, OPLUS_CHG_TRACK_MTK_CALI_INFO_LEN - index,
 				"%d", oplus_mt6375_cali_info_item_to_val(cur, i));
 			continue;
 		}
 		if ((offset + i) % 2 == 0)
-			index += snprintf(buf + index, OPLUS_CHG_TRACK_MTK_CALI_INFO_LEN - index,
+			index += scnprintf(buf + index, OPLUS_CHG_TRACK_MTK_CALI_INFO_LEN - index,
 				"%d", oplus_mt6375_cali_info_item_to_val(pre, i));
 		else
-			index += snprintf(buf + index, OPLUS_CHG_TRACK_MTK_CALI_INFO_LEN - index,
+			index += scnprintf(buf + index, OPLUS_CHG_TRACK_MTK_CALI_INFO_LEN - index,
 				"%d", oplus_mt6375_cali_info_item_to_val(cur, i));
 	}
-	index += snprintf(buf + index, OPLUS_CHG_TRACK_MTK_CALI_INFO_LEN - index, ")");
+	index += scnprintf(buf + index, OPLUS_CHG_TRACK_MTK_CALI_INFO_LEN - index, ")");
 
 	if (index > OPLUS_CHG_TRACK_MTK_CALI_INFO_LEN) {
 		chg_err("track info exceeds length limit.");
@@ -689,7 +698,13 @@ static int oplus_mt6375_guage_get_afi_update_done(struct oplus_chg_ic_dev *ic_de
 
 static int oplus_mt6375_guage_get_batt_hmac(struct oplus_chg_ic_dev *ic_dev, bool *pass)
 {
-	*pass = true;
+	if (g_gauge_chip &&
+	    g_gauge_chip->gauge_ops &&
+	    g_gauge_chip->gauge_ops->get_battery_hmac)
+		*pass = g_gauge_chip->gauge_ops->get_battery_hmac();
+	else
+		*pass = true;
+
 	chg_info("*pass = %d\n", *pass);
 	return 0;
 }
@@ -1267,6 +1282,9 @@ static int mt6375_guage_driver_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+	g_gauge_chip = oplus_mtk_gauge_init();
+#endif
 	g_mt6375_chip = chip;
 	chip->dev = &pdev->dev;
 	platform_set_drvdata(pdev, chip);
@@ -1345,14 +1363,20 @@ error:
 	return rc;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+static void mt6375_guage_driver_remove(struct platform_device *pdev)
+#else
 static int mt6375_guage_driver_remove(struct platform_device *pdev)
+#endif
 {
 	struct mt6375_device *chip = platform_get_drvdata(pdev);
 
 	platform_set_drvdata(pdev, NULL);
 	devm_kfree(&pdev->dev, chip);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	return 0;
+#endif
 }
 /**********************************************************
   *

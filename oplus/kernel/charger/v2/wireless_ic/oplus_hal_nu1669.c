@@ -225,6 +225,7 @@ struct oplus_nu1669 {
 	int event_code;
 
 	struct mutex i2c_lock;
+	struct mutex pinctrl_lock;
 
 	struct pinctrl *pinctrl;
 	struct pinctrl_state *rx_con_default;
@@ -256,6 +257,8 @@ static struct oplus_nu1669 *g_nu1669_chip = NULL;
 static int nu1669_get_running_mode(struct oplus_nu1669 *chip);
 static int nu1669_get_power_cap(struct oplus_nu1669 *chip);
 static int nu1669_set_rx_enable(struct oplus_chg_ic_dev *dev, bool en);
+static bool nu1669_ic_fw_is_valid(struct oplus_nu1669 *chip);
+static u8 nu1669_checksum_fw(struct oplus_nu1669 *chip);
 
 __maybe_unused static bool is_nor_ic_available(struct oplus_nu1669 *chip)
 {
@@ -644,15 +647,18 @@ static int nu1669_set_rx_enable_raw(struct oplus_chg_ic_dev *dev, bool en)
 	}
 	chip = oplus_chg_ic_get_drvdata(dev);
 
+	mutex_lock(&chip->pinctrl_lock);
 	if (IS_ERR_OR_NULL(chip->pinctrl) ||
 	    IS_ERR_OR_NULL(chip->rx_en_active) ||
 	    IS_ERR_OR_NULL(chip->rx_en_sleep)) {
 		chg_err("rx_en pinctrl error\n");
+		mutex_unlock(&chip->pinctrl_lock);
 		return -ENODEV;
 	}
 
 	rc = pinctrl_select_state(chip->pinctrl,
 		en ? chip->rx_en_active : chip->rx_en_sleep);
+	mutex_unlock(&chip->pinctrl_lock);
 	return rc;
 }
 
@@ -1086,14 +1092,17 @@ static int nu1669_set_mode_sw_default(struct oplus_nu1669 *chip)
 		return -ENODEV;
 	}
 
+	mutex_lock(&chip->pinctrl_lock);
 	if (IS_ERR_OR_NULL(chip->pinctrl) ||
 	    IS_ERR_OR_NULL(chip->mode_sw_active) ||
 	    IS_ERR_OR_NULL(chip->mode_sw_sleep)) {
 		chg_err("mode_sw pinctrl error\n");
+		mutex_unlock(&chip->pinctrl_lock);
 		return -ENODEV;
 	}
 
 	rc = pinctrl_select_state(chip->pinctrl, chip->mode_sw_sleep);
+	mutex_unlock(&chip->pinctrl_lock);
 	if (rc < 0)
 		chg_err("can't set mode_sw active, rc=%d\n", rc);
 	else
@@ -1134,6 +1143,7 @@ static int nu1669_set_tx_start(struct oplus_chg_ic_dev *dev, bool start)
 {
 	struct oplus_nu1669 *chip;
 	int rc;
+	u8 fw_version = 0;
 
 	if (dev == NULL) {
 		chg_err("oplus_chg_ic_dev is NULL\n");
@@ -1144,6 +1154,16 @@ static int nu1669_set_tx_start(struct oplus_chg_ic_dev *dev, bool start)
 	if (start) {
 		nu1669_disable_standby(chip);
 		msleep(10);
+		if (nu1669_ic_fw_is_valid(chip)) {
+			fw_version = nu1669_checksum_fw(chip);
+			if (fw_version == INVALID_FW_VERSION1) {
+				chg_info("check tx_fw fail\n");
+				chip->event_code = WLS_EVENT_FORCE_UPGRADE;
+				oplus_chg_ic_virq_trigger(chip->ic_dev, OPLUS_IC_VIRQ_EVENT_CHANGED);
+				nu1669_track_upload_wls_ic_err_info(chip, WLS_ERR_SCENE_TX, WLS_IC_ERR_VAC_ACDRV);
+				return -ENODEV;
+			}
+		}
 		chip->info.cusr_cmd = TX_ENABLE;
 	} else {
 		chip->info.cusr_cmd = 0;
@@ -1770,13 +1790,13 @@ static u8 nu1669_get_fw_version(struct oplus_nu1669 *chip)
 
 static u8 nu1669_checksum_fw(struct oplus_nu1669 *chip)
 {
-	u8  fw_version = 0;
+	u8 fw_version = 0;
 
 	/*ap send fw check cmd*/
 	nu1669_req_checksum(chip);
 
-	/*wait 500ms for fw checking*/
-	msleep(500);
+	/*wait 100ms for fw checking*/
+	msleep(100);
 
 	/*ap read fw version*/
 	fw_version = nu1669_get_fw_version(chip);
@@ -1827,13 +1847,25 @@ static u8 nu1669_get_customer_id(struct oplus_nu1669 *chip)
 	}
 }
 
+static bool nu1669_ic_fw_is_valid(struct oplus_nu1669 *chip)
+{
+	u16 chip_id = 0;
+	u8 hw_version = 0;
+	u8 customer_id = 0;
+
+	chip_id = nu1669_get_chip_id(chip);
+	hw_version = nu1669_get_hw_version(chip);
+	customer_id = nu1669_get_customer_id(chip);
+	/*If !(chip_id&&hw_version&&customer_id), the ic maybe empty*/
+	if (chip_id == NU1669_CHIP_ID && hw_version == NU1669_HW_VERSION && customer_id == NU1669_CUSTOMER_ID)
+		return true;
+	return false;
+}
+
 static int nu1669_upgrade_firmware(struct oplus_nu1669 *chip, unsigned char *fw_buf, int fw_size)
 {
 	int rc;
 	u8 fw_version = 0;
-	u16 chip_id = 0;
-	u8 hw_version = 0;
-	u8 customer_id = 0;
 
 	if (fw_buf == NULL) {
 		chg_err("fw_buf is NULL\n");
@@ -1875,11 +1907,7 @@ static int nu1669_upgrade_firmware(struct oplus_nu1669 *chip, unsigned char *fw_
 		chg_info("<FW UPDATE> i2c success!\n");
 	}
 
-	chip_id = nu1669_get_chip_id(chip);
-	hw_version = nu1669_get_hw_version(chip);
-	customer_id = nu1669_get_customer_id(chip);
-	/*If !(chip_id&&hw_version&&customer_id), the ic maybe empty*/
-	if (chip_id == NU1669_CHIP_ID && hw_version == NU1669_HW_VERSION && customer_id == NU1669_CUSTOMER_ID) {
+	if (nu1669_ic_fw_is_valid(chip)) {
 		fw_version = nu1669_checksum_fw(chip);
 		if (fw_version != INVALID_FW_VERSION0 && fw_version != INVALID_FW_VERSION1 &&
 		    fw_version == (~fw_buf[fw_size - FW_VERSION_OFFSET] & 0xFF)) {
@@ -2152,7 +2180,7 @@ static void nu1669_event_process(struct oplus_nu1669 *chip)
 			rx_err_reason = chip->debug_force_ic_err;
 			chip->debug_force_ic_err = WLS_IC_ERR_NONE;
 		}
-		if (rx_err_reason != WLS_IC_ERR_NONE)
+		if (rx_err_reason != WLS_IC_ERR_NONE && rx_err_reason != WLS_IC_ERR_CLAMPOVP)
 			nu1669_track_upload_wls_ic_err_info(chip, WLS_ERR_SCENE_RX, rx_err_reason);
 	}
 
@@ -2269,15 +2297,18 @@ static int nu1669_set_insert_disable(struct oplus_chg_ic_dev *dev, bool en)
 	}
 	chip = oplus_chg_ic_get_drvdata(dev);
 
+	mutex_lock(&chip->pinctrl_lock);
 	if (IS_ERR_OR_NULL(chip->pinctrl) ||
 	    IS_ERR_OR_NULL(chip->insert_dis_active) ||
 	    IS_ERR_OR_NULL(chip->insert_dis_sleep)) {
 		chg_err("insert_dis pinctrl error\n");
+		mutex_unlock(&chip->pinctrl_lock);
 		return -ENODEV;
 	}
 
 	rc = pinctrl_select_state(chip->pinctrl,
 		en ? chip->insert_dis_active : chip->insert_dis_sleep);
+	mutex_unlock(&chip->pinctrl_lock);
 	if (rc < 0)
 		chg_err("can't %s insert_dis\n", en ? "enable" : "disable");
 	else
@@ -3207,6 +3238,7 @@ static int nu1669_driver_probe(struct i2c_client *client,
 	INIT_DELAYED_WORK(&chip->check_ldo_on_work, nu1669_check_ldo_on_work);
 	INIT_DELAYED_WORK(&chip->rx_mode_work, nu1669_rx_mode_work);
 	mutex_init(&chip->i2c_lock);
+	mutex_init(&chip->pinctrl_lock);
 	init_completion(&chip->ldo_on);
 	init_completion(&chip->resume_ack);
 	complete_all(&chip->resume_ack);

@@ -6,6 +6,6 @@
 #ifndef _DEVICE_INFO_H
 #define _DEVICE_INFO_H
 
-void save_dump_reason_to_device_info(char *buf);
+void write_device_info(const char *key, const char *value);
 
 #endif

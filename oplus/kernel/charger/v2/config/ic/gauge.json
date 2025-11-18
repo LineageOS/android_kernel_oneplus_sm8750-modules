@@ -1687,8 +1687,8 @@
             "desc": {
                 "zh": "设置深度放电次数"
             },
-            "auto_debug_code": false,
-            "parameter_list": ["int *"],
+            "auto_debug_code": true,
+            "parameter_list": ["int"],
             "parameter_desc": [
                 {
                     "range": "0-10000",
@@ -1719,8 +1719,8 @@
             "desc": {
                 "zh": "设置深度电压"
             },
-            "auto_debug_code": false,
-            "parameter_list": ["int *"],
+            "auto_debug_code": true,
+            "parameter_list": ["int"],
             "parameter_desc": [
                 {
                     "range": "0-*",
@@ -2608,8 +2608,8 @@
             "desc": {
                 "zh": "设置记录CC"
             },
-            "auto_debug_code": false,
-            "parameter_list": ["int *"],
+            "auto_debug_code": true,
+            "parameter_list": ["int"],
             "parameter_desc": [
                 {
                     "range": "0-*",
@@ -2621,8 +2621,18 @@
             ],
             "vict": {
                 "read": false,
-                "write": false,
-                "overwrite": false
+                "write": {
+                    "cmd": "vict -f {id} -G vic-*",
+                    "desc": {
+                        "zh": "N/A"
+                    }
+                },
+                "overwrite": {
+                    "cmd": "vict -f {id} -O {val} vic-*",
+                    "desc": {
+                        "zh": "N/A"
+                    }
+                }
             }
         },
         {
@@ -2983,7 +2993,110 @@
                     }
                 }
             }
+        },
+        {
+            "lable": "OPLUS_IC_FUNC_GAUGE_SET_CUV_STATE",
+            "desc": {
+                "zh": "设置两级过放保护点CUV电压切换"
+            },
+            "auto_debug_code": true,
+            "parameter_list": ["int"],
+            "parameter_desc": [
+                {
+                    "range": "0-1",
+                    "type": "in",
+                    "desc": {
+                        "zh": "两级过放保护点CUV电压切换cuv_state"
+                    }
+                }
+            ],
+            "vict": {
+                "read": false,
+                "write": {
+                    "cmd": "vict -f {id} -S{val} vic-*",
+                    "desc": {
+                        "zh": "N/A"
+                    }
+                },
+                "overwrite": {
+                    "cmd": "vict -f {id} -O {val} vic-*",
+                    "desc": {
+                        "zh": "N/A"
+                    }
+                }
+            }
+        },
+        {
+            "lable": "OPLUS_IC_FUNC_GAUGE_GET_CUV_STATE",
+            "desc": {
+                "zh": "获取两级过放保护点CUV电压切换状态"
+            },
+            "auto_debug_code": true,
+            "parameter_list": ["int *"],
+            "parameter_desc": [
+                {
+                    "range": "0-*",
+                    "type": "out",
+                    "desc": {
+                        "zh": "两级CUV电压切换"
+                    }
+                }
+            ],
+            "vict": {
+                "read": {
+                    "cmd": "vict -f {id} -G vic-*",
+                    "desc": {
+                        "zh": "N/A"
+                    }
+                },
+                "write": false,
+                "overwrite": {
+                    "cmd": "vict -f {id} -O {val} vic-*",
+                    "desc": {
+                        "zh": "N/A"
+                    }
+                }
+            }
+        },
+        {
+            "lable": "OPLUS_IC_FUNC_GAUGE_GET_GAUGE_R_INFO",
+            "desc": {
+                "zh": "获取R寄存器信息"
+            },
+            "auto_debug_code": false,
+            "parameter_list": ["unsigned char *", "int"],
+            "parameter_desc": [
+                {
+                    "range": "字符串",
+                    "type": "out",
+                    "desc": {
+                        "zh": "用于接收输出结果的buf"
+                    }
+                },
+                {
+                    "range": "N/A",
+                    "type": "in",
+                    "desc": {
+                        "zh": "参数0对应的buf长度"
+                    }
+                }
+            ],
+            "vict": {
+                "read": {
+                    "cmd": "vict -f {id} -G vic-*",
+                    "desc": {
+                        "zh": "返回寄存器字符串"
+                    }
+                },
+                "write": false,
+                "overwrite": {
+                    "cmd": "vict -f {id} -O {val} vic-*",
+                    "desc": {
+                        "zh": "N/A"
+                    }
+                }
+            }
         }
     ],
-    "version": "V4.9:97:d4cd5c7dbab644ace1b095a8b1e7329d0b2aa77140b58f3a73bdae2f62f203f5"
+    "version": "V5.1:100:55f55de9b11dfe43def37720d5b5342c8242f3950858ae97798333ca626c6d4a"
 }

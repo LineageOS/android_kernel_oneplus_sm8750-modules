@@ -1,5 +1,5 @@
 /**************************************************************
- * Copyright (c)  2008- 2030  Oplus Mobile communication Corp.ltd.
+ * Copyright (c)  2008- 2030  Oppo Mobile communication Corp.ltd.
  * File       : goodix_drivers_brl.c
  * Description: Source file for Goodix GT9897 driver
  * Version   : 1.0
@@ -650,6 +650,30 @@ static int goodix_enable_charge_mode(struct chip_data_brl *chip_info, bool enabl
 	return ret;
 }
 
+static int goodix_scene_handle(struct chip_data_brl *chip_info)
+{
+	uint16_t package_type = 0;
+	int ret = 0;
+
+	if (chip_info->ts == NULL) {
+		TPD_INFO("GT:%s, chip_info->ts == NULL\n", __func__);
+		return -1;
+	}
+	package_type = chip_info->ts->scene_info.set_package_type;
+
+	switch (package_type) {
+	case GTP_SCENE_TYPE_MASK:
+		TPD_INFO("GT:%s, TYPE:%d send %d to game in scene mode\n", __func__, GTP_SCENE_TYPE_MASK, GTP_HIGH_LOCK_GAME);
+		ret = goodix_send_cmd_simple(chip_info, GTP_CMD_GAME_MODE, GTP_HIGH_LOCK_GAME);
+		break;
+	default:
+		ret = goodix_send_cmd_simple(chip_info, GTP_CMD_GAME_MODE, GTP_MASK_ENABLE);
+		break;
+	}
+
+	return ret;
+}
+
 static int goodix_enable_game_mode(struct chip_data_brl *chip_info, bool enable)
 {
 	int ret = 0;
@@ -660,7 +684,7 @@ static int goodix_enable_game_mode(struct chip_data_brl *chip_info, bool enable)
 		goodix_check_bit_set(chip_info, GAME_MODE_ENABLE, true);
 		goodix_state_verify(chip_info);
 		msleep(10);
-		ret = goodix_send_cmd_simple(chip_info, GTP_CMD_GAME_MODE, GTP_MASK_ENABLE);
+		ret = goodix_scene_handle(chip_info);
 		TPD_INFO("GT:%s: GTP_CMD_ENTER_GAME_MODE\n", __func__);
 	} else {
 		ret = goodix_send_cmd_simple(chip_info, GTP_CMD_GAME_MODE, GTP_MASK_DISABLE);
@@ -1404,7 +1428,7 @@ static fw_check_state goodix_fw_check(void *chip_data,
 			TPD_INFO("GT:%s,one panel[tpFw:%2x][fwVersion:0x%x][version:%s]\n",
 				__func__, panel_data->tp_fw, fw_ver_num, dev_version);
 		}
-		strlcpy(&(panel_data->manufacture_info.version[5]), dev_version, 5);
+		strncpy(&(panel_data->manufacture_info.version[5]), dev_version, 5);
 	}
 #endif
 	return FW_NORMAL;
@@ -3634,7 +3658,7 @@ static void goodix_register_info_read(void *chip_data,
 {
 	/*struct chip_data_brl *chip_info = (struct chip_data_brl *)chip_data;
 
-	TODO need change oplus framework to support u32 address*/
+	TODO need change oppo framework to support u32 address*/
 }
 
 static void goodix_set_touch_direction(void *chip_data, uint8_t dir)
@@ -3938,7 +3962,7 @@ struct oplus_touchpanel_operations goodix_ops = {
 	.communicate_test            = goodix_communicate_test,
 	.freq_hop_trigger	     = goodix_freq_hop_trigger,
 };
-/********* End of implementation of oplus_touchpanel_operations callbacks**********************/
+/********* End of implementation of oppo_touchpanel_operations callbacks**********************/
 
 static void gt_fw_status_in_differ(struct chip_data_brl *chip_info, bool on)
 {
@@ -4737,7 +4761,7 @@ static int brl_clk_test(struct seq_file *s,
 
 	TPD_INFO("GT:%s IN\n", __func__);
 
-	if (cd->pen_support == false) {
+	if (cd->pen_support == false || cd->no_need_osctest) {
 		TPD_INFO("GT:%s pen_support disable, no need do OSC test!!\n", __func__);
 		return 0;
 	}
@@ -6225,6 +6249,7 @@ static int goodix_gt9966_ts_probe(struct spi_device *spi)
 	chip_info->max_y = ts->resolution_info.max_y;
 	chip_info->pen_support = ts->pen_support;
 	chip_info->pen_support_opp = ts->pen_support_opp;
+	chip_info->no_need_osctest = ts->no_need_osctest;
 	chip_info->game_enable =      false;
 	chip_info->gesture_enable =   false;
 	chip_info->pen_enable =       false;

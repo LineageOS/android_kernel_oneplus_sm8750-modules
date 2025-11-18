@@ -9,6 +9,8 @@
 
 #include "magcvr_notify.h"
 
+static int g_magcvr_current_pos = -1;
+
 static BLOCKING_NOTIFIER_HEAD(magcvr_notifier_list);
 
 int magcvr_event_register_notifier(struct notifier_block *nb)
@@ -29,6 +31,18 @@ int magcvr_event_call_notifier(unsigned long action, void *data)
 	return 0;
 }
 EXPORT_SYMBOL(magcvr_event_call_notifier);
+
+void magcvr_set_current_pos(int magcvr_pos)
+{
+	g_magcvr_current_pos = magcvr_pos;
+}
+EXPORT_SYMBOL(magcvr_set_current_pos);
+
+int magcvr_get_current_pos(void)
+{
+	return g_magcvr_current_pos;
+}
+EXPORT_SYMBOL(magcvr_get_current_pos);
 
 MODULE_DESCRIPTION("magcvr Event Notify Driver");
 MODULE_LICENSE("GPL");

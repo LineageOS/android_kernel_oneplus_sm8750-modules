@@ -18,6 +18,8 @@
 #include "aw882xx_monitor.h"
 #include "aw882xx_dsp.h"
 
+#define AW882XX_CALI_DISABLE_CONFIG
+
 #define AW_VOLUME_STEP_DB	(6 * 2)
 #define AW_REG_NONE		(0xFF)
 #define AW_NAME_MAX		(50)
@@ -294,6 +296,9 @@ struct aw_device {
 	int bop_en;
 	int efuse_check;
 	int fade_en;
+#ifdef AW882XX_CALI_DISABLE_CONFIG
+	int cali_disable;
+#endif
 	unsigned int mute_st;
 	unsigned int amppd_st;
 	unsigned int dither_st;

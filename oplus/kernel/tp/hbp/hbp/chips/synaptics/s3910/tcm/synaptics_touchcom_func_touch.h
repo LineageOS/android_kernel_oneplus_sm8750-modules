@@ -82,6 +82,7 @@ enum gesture_classification {
 #define S_UNICODE       0x73
 #define W_UNICODE       0x77
 
+#define TOUCH_HOLD_EARLY_DOWN 0x7f
 #define TOUCH_HOLD_DOWN 0x80
 #define TOUCH_HOLD_UP   0x81
 #define FINGERPRINT_ERR_REPORT   0x84

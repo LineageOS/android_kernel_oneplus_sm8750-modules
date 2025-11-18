@@ -29,7 +29,7 @@
 #endif
 const char *cs_driver_ver = "1.13";
 
-#define PROC_FOPS_NUM  29
+#define PROC_FOPS_NUM  28
 #define PROC_NAME_LEN  32
 
 #ifndef ALIENTEK
@@ -933,25 +933,25 @@ void report_camera_key(void)
             g_cs_press.mode_switch_waiting_up = false;
         }
     } else */
+
+    if (rbuf[0] & BIT_ACTION_TAP_DOWN) {
+        action = ACTION_DOWN;
+    } else if (rbuf[0] & BIT_ACTION_TAP_UP) {
+        action = ACTION_UP;
+    }
+    if (rbuf[4]) {
+        level = rbuf[4];
+    }
     if (g_cs_press.camera_key_mode == CAMERA_KEY_CAMERA_MODE) {
         //LOG_DEBUG("in REALTIME_EVENT_MODE\n");
         /* Tap Event */
-        if (rbuf[0] & BIT_ACTION_TAP_DOWN) {
-            action = ACTION_DOWN;
-        } else if (rbuf[0] & BIT_ACTION_TAP_UP) {
-            action = ACTION_UP;
-        }
-        if (rbuf[4]) {
-            level = rbuf[4];
-        }
-
-        if (((rbuf[1] & BIT_ACTION_LIFT_PHYSICAL_DOWN)
+        /*if (((rbuf[1] & BIT_ACTION_LIFT_PHYSICAL_DOWN)
                 || (rbuf[0] & BIT_ACTION_PHYSICAL_TOUCHING)) && !g_cs_press.is_physical_tap_down) {
             LOG_INFO("[REPORT_KEY]KEY_PHYSICAL_TAP down\n");
             input_report_key(cs_input_dev, KEY_PHYSICAL_TAP, 1);
             input_sync(cs_input_dev);
             g_cs_press.is_physical_tap_down = true;
-        }
+        }*/
         if (action != ACTION_UNKNOWN
                 && level != BIT_LEVEL_UNKNOWN) {
             if (action) {
@@ -1033,7 +1033,7 @@ void report_camera_key(void)
             is_swipe = true;
         }
         if (g_cs_press.is_physical_tap_down && (((action == ACTION_UP) && (level & BIT_LEVEL_TOUCH))
-                    || (!(rbuf[1] & BIT_ACTION_LIFT_PHYSICAL_DOWN) && !(rbuf[0] & BIT_ACTION_PHYSICAL_TOUCHING)))) {
+                    /*|| (!(rbuf[1] & BIT_ACTION_LIFT_PHYSICAL_DOWN) && !(rbuf[0] & BIT_ACTION_PHYSICAL_TOUCHING))*/)) {
             LOG_INFO("[REPORT_KEY]KEY_PHYSICAL_TAP up\n");
             input_report_key(cs_input_dev, KEY_PHYSICAL_TAP, 0);
             input_sync(cs_input_dev);
@@ -1065,15 +1065,38 @@ void report_camera_key(void)
         }
     } else {
         //LOG_DEBUG("in DELAY_EVENT_MODE\n");
-        if (((rbuf[1] & BIT_ACTION_LIFT_PHYSICAL_DOWN)
+        /*if (((rbuf[1] & BIT_ACTION_LIFT_PHYSICAL_DOWN)
                 || (rbuf[0] & BIT_ACTION_PHYSICAL_TOUCHING)) && !g_cs_press.is_physical_tap_down) {
             LOG_INFO("[REPORT_KEY]KEY_PHYSICAL_TAP down(ignore)\n");
             g_cs_press.is_physical_tap_down = true;
         } else if (!(rbuf[1] & BIT_ACTION_LIFT_PHYSICAL_DOWN)
                 && !(rbuf[0] & BIT_ACTION_PHYSICAL_TOUCHING)
                 && g_cs_press.is_physical_tap_down) {
-            LOG_INFO("[REPORT_KEY]KEY_PHYSICAL_TAP up(ignore)\n");
+            LOG_INFO("[REPORT_KEY]KEY_PHYSICAL_TAP up at DELAY_EVENT_MODE\n");
+            input_report_key(cs_input_dev, KEY_PHYSICAL_TAP, 0);
+            input_sync(cs_input_dev);
             g_cs_press.is_physical_tap_down = false;
+        }*/
+        if (action == ACTION_UP
+                && level != BIT_LEVEL_UNKNOWN) {
+            if ((level & BIT_LEVEL_HEAVY) && g_cs_press.is_heavy_tap_down) {
+                LOG_INFO("[REPORT_KEY]KEY_HEAVY_TAP up at DELAY_EVENT_MODE\n");
+                input_report_key(cs_input_dev, KEY_HEAVY_TAP, 0);
+                input_sync(cs_input_dev);
+                g_cs_press.is_heavy_tap_down = false;
+            }
+            if ((level & BIT_LEVEL_LIGHT) && g_cs_press.is_light_tap_down) {
+                LOG_INFO("[REPORT_KEY]KEY_LIGHT_TAP up at DELAY_EVENT_MODE\n");
+                input_report_key(cs_input_dev, KEY_LIGHT_TAP, 0);
+                input_sync(cs_input_dev);
+                g_cs_press.is_light_tap_down = false;
+            }
+            if ((level & BIT_LEVEL_TOUCH) && g_cs_press.is_physical_tap_down) {
+                LOG_INFO("[REPORT_KEY]KEY_PHYSICAL_TAP up at DELAY_EVENT_MODE\n");
+                input_report_key(cs_input_dev, KEY_PHYSICAL_TAP, 0);
+                input_sync(cs_input_dev);
+                g_cs_press.is_physical_tap_down = false;
+            }
         }
         /* Tap Event */
         if (rbuf[0] & BIT_ACTION_DOUBLE_TAP) {
@@ -1616,52 +1639,135 @@ int cs_press_get_noise_var(int32_t *noise_std)
     int16_t adc_delta[CH_COUNT][NOISE_TEST_COUNT] = {0};
     int32_t sum[CH_COUNT] = {0};
     int32_t avg[CH_COUNT] = {0};
+    unsigned char enter_test_cmd[2] = {0x46, 0xBA};
+    unsigned char exit_test_cmd[2] = {0x47, 0xB9};
+    unsigned char debug_data = 0x00;
 
+    /* 1. switch to test mode */
+    ret = cs_press_iic_write(AP_DEVICE_ID_REG, enter_test_cmd, 2);
+    if (ret < 0) {
+        LOG_ERR("enter test mode error %d\n", ret);
+        return ret;
+    }
+
+    while ((enter_test_cmd[0] || enter_test_cmd[1]) && retry_times) {
+        retry_times--;
+        cs_press_delay_ms(50);
+        ret = cs_press_iic_read(AP_DEVICE_ID_REG, enter_test_cmd, 2);
+        if (ret < 0) {
+            LOG_ERR("%s: IIC read AP_DEVICE_ID_REG failed!!\n", __func__);
+            return ret;
+        }
+        LOG_INFO("read AP_DEVICE_ID_REG [0x%02x 0x%02x]\n", enter_test_cmd[0], enter_test_cmd[1]);
+    }
+    if (!retry_times) {
+        LOG_ERR("%s: IIC read AP_DEVICE_ID_REG retry over times!!\n", __func__);
+    }
+
+    /* 2. read ADC2Uv convert */
     ret = cs_press_iic_read(AP_DAC_UV_CONVER_REG, rbuf, 2);
     if (ret < 0) {
         LOG_ERR("read reg=0x%02x error, ret = %d\n", AP_OFFSET_REG, ret);
         return -1;
     }
     dac_conver = (int16_t)(rbuf[0] + (rbuf[1] << 8));
-retry:
+    LOG_INFO("read dac_conver %d\n", dac_conver);
+
+    /* 3. read data */
+    /* 3.1 */
+    ret = cs_press_iic_write(DEBUG_MODE_V2_REG, &debug_data, 1);
+    if (ret < 0) {
+        LOG_ERR("write DEBUG_MODE_V2_REG error %d\n", ret);
+        return ret;
+    }
+    /* 3.2 */
+    ret = cs_press_iic_write(DEBUG_READY_V2_REG, &debug_data, 1);
+    if (ret < 0) {
+        LOG_ERR("write DEBUG_READY_V2_REG error %d\n", ret);
+        return ret;
+    }
+    /* 3.3 */
+    debug_data = 0x14;
+    ret = cs_press_iic_write(DEBUG_MODE_V2_REG, &debug_data, 1);
+    if (ret < 0) {
+        LOG_ERR("write DEBUG_MODE_V2_REG error %d\n", ret);
+        return ret;
+    }
+
     for (i = 0; i < NOISE_TEST_COUNT + 1; i++) {
-        ret = cs_press_iic_read(AP_FORCEDATA_REG, rbuf, AP_FORCEDATA_LEN);
+        debug_data = 0;
+        retry_times = 5;
+        /* 3.4 */
+        cs_press_delay_ms(10);
+        ret = cs_press_iic_read(DEBUG_READY_V2_REG, &debug_data, 1);
         if (ret < 0) {
-            LOG_ERR("read reg=0x%02x error, ret = %d\n", AP_FORCEDATA_REG, ret);
-            if (retry_times) {
-                retry_times--;
-                msleep(20);
-                goto retry;
+            LOG_ERR("%s: IIC read DEBUG_READY_V2_REG failed!!\n", __func__);
+            return ret;
+        }
+        while (!debug_data && retry_times) {
+            retry_times--;
+            cs_press_delay_ms(5);
+            ret = cs_press_iic_read(DEBUG_READY_V2_REG, &debug_data, 1);
+            if (ret < 0) {
+                LOG_ERR("%s: IIC read DEBUG_READY_V2_REG failed!!\n", __func__);
+                return ret;
             }
+            LOG_INFO("read DEBUG_READY_V2_REG [0x%02x]\n", debug_data);
+        }
+        if (!retry_times) {
+            LOG_ERR("%s: IIC read DEBUG_READY_V2_REG retry over times!!\n", __func__);
             return -1;
         }
-        if (rbuf[36] == 0xEE && rbuf[37] == 0xEE) {
-            if (retry_times) {
-                LOG_ERR("read reg=0x%02x 0xEE\n", AP_FORCEDATA_REG);
-                retry_times--;
-                msleep(20);
-                goto retry;
-            } else {
-                noise_std[0] = 0xEE;
-                noise_std[1] = 0xEE;
-                LOG_INFO("noise_std0=%d, noise_std1=%d", noise_std[0], noise_std[1]);
-                return -1;
-            }
+        if (debug_data < 4) {
+            LOG_ERR("%s: debug data len is %u, not correct\n", __func__, debug_data);
+            return -1;
+        }
+        /* 3.5 */
+        memset(rbuf, 0, AP_FORCEDATA_LEN);
+        ret = cs_press_iic_read(DEBUG_DATA_V2_REG, rbuf, 4);
+        if (ret < 0) {
+            LOG_ERR("read reg=0x%02x error, ret = %d\n", DEBUG_DATA_V2_REG, ret);
+            return ret;
         }
         if (!i) {
-            pre_adc[0] = (int16_t)(rbuf[36] + (rbuf[37] << 8));
-            pre_adc[1] = (int16_t)(rbuf[38] + (rbuf[39] << 8));
+            pre_adc[0] = (int16_t)(rbuf[0] + (rbuf[1] << 8));
+            pre_adc[1] = (int16_t)(rbuf[2] + (rbuf[3] << 8));
+            LOG_INFO("%d:pre_adc[0]=%d[%02x %02x], pre_adc[1]=%d[%02x %02x]",
+                        i, pre_adc[0], rbuf[0], rbuf[1], pre_adc[1], rbuf[2], rbuf[3]);
         } else {
-            adc_delta[0][i - 1] = (int16_t)(rbuf[36] + (rbuf[37] << 8)) - pre_adc[0];
-            adc_delta[1][i - 1] = (int16_t)(rbuf[38] + (rbuf[39] << 8)) - pre_adc[1];
-            pre_adc[0] = (int16_t)(rbuf[36] + (rbuf[37] << 8));
-            pre_adc[1] = (int16_t)(rbuf[38] + (rbuf[39] << 8));
+            adc_delta[0][i - 1] = (int16_t)(rbuf[0] + (rbuf[1] << 8)) - pre_adc[0];
+            adc_delta[1][i - 1] = (int16_t)(rbuf[2] + (rbuf[3] << 8)) - pre_adc[1];
+            pre_adc[0] = (int16_t)(rbuf[0] + (rbuf[1] << 8));
+            pre_adc[1] = (int16_t)(rbuf[2] + (rbuf[3] << 8));
             sum[0] += adc_delta[0][i - 1];
             sum[1] += adc_delta[1][i - 1];
             LOG_INFO("%d:adc_delta[0]=%d[%02x %02x](sum=%d), adc_delta[1]=%d[%02x %02x](sum=%d)",
-                        i, adc_delta[0][i - 1], rbuf[36], rbuf[37], sum[0], adc_delta[1][i - 1], rbuf[38], rbuf[39], sum[1]);
+                        i, adc_delta[0][i - 1], rbuf[0], rbuf[1], sum[0], adc_delta[1][i - 1], rbuf[2], rbuf[3], sum[1]);
+        }
+        /* 3.6 */
+        debug_data = 0x00;
+        ret = cs_press_iic_write(DEBUG_READY_V2_REG, &debug_data, 1);
+        if (ret < 0) {
+            LOG_ERR("write DEBUG_READY_V2_REG error %d\n", ret);
+            return ret;
         }
     }
+    /* 3.8 */
+    debug_data = 0x00;
+    ret = cs_press_iic_write(DEBUG_MODE_V2_REG, &debug_data, 1);
+    if (ret < 0) {
+        LOG_ERR("write DEBUG_MODE_V2_REG error %d\n", ret);
+        return ret;
+    }
+    /* 3.9 */
+    debug_data = 0x00;
+    ret = cs_press_iic_write(DEBUG_READY_V2_REG, &debug_data, 1);
+    if (ret < 0) {
+        LOG_ERR("write DEBUG_READY_V2_REG error %d\n", ret);
+        return ret;
+    }
+
+    /* 4. calculate noise std */
     avg[0] = sum[0] / NOISE_TEST_COUNT;
     avg[1] = sum[1] / NOISE_TEST_COUNT;
 
@@ -1676,7 +1782,110 @@ retry:
     noise_std[1] = sum[1] * dac_conver * dac_conver / NOISE_TEST_COUNT;
     LOG_INFO("noise_std0=%d, noise_std1=%d", noise_std[0], noise_std[1]);
 
+    /* 5. switch to normal mode */
+    ret = cs_press_iic_write(AP_DEVICE_ID_REG, exit_test_cmd, 2);
+    if (ret < 0) {
+        LOG_ERR("enter test mode error %d\n", ret);
+        return ret;
+    }
+    retry_times = 5;
+    while ((exit_test_cmd[0] || exit_test_cmd[1]) && retry_times) {
+        retry_times--;
+        cs_press_delay_ms(50);
+        ret = cs_press_iic_read(AP_DEVICE_ID_REG, exit_test_cmd, 2);
+        if (ret < 0) {
+            LOG_ERR("%s: IIC read AP_DEVICE_ID_REG failed!!\n", __func__);
+            return ret;
+        }
+        LOG_INFO("read AP_DEVICE_ID_REG [0x%02x 0x%02x]\n", exit_test_cmd[0], exit_test_cmd[1]);
+    }
+    if (!retry_times) {
+        LOG_ERR("%s: IIC read AP_DEVICE_ID_REG retry over times!!\n", __func__);
+    }
+
     return ret;
+}
+
+int cs_press_fw_write(const unsigned char *fw_code_start, unsigned int fw_code_length)
+{
+    unsigned int fw_count = 0;
+    int ret = 0, i = 0;
+    unsigned int fw_block_num_w = 0;
+    unsigned char boot_fw_write_cmd[BOOT_CMD_LENGTH] = BOOT_FW_WRITE_CMD;
+
+    fw_block_num_w = fw_code_length / FW_ONE_BLOCK_LENGTH_W;
+    /* send fw write cmd */
+    cs_press_iic_write_double_reg(BOOT_CMD_REG ,boot_fw_write_cmd, BOOT_CMD_LENGTH);
+    cs_press_delay_ms(1500);    /* waiting flash erase*/
+    /* send fw code */
+    fw_count = 0;
+    for(i = 0; i < fw_block_num_w; i++)
+    {
+        ret = cs_press_iic_write_double_reg(i * FW_ONE_BLOCK_LENGTH_W, (unsigned char*)fw_code_start + fw_count, FW_ONE_BLOCK_LENGTH_W);
+        fw_count += FW_ONE_BLOCK_LENGTH_W;
+        if(ret < 0)
+        {
+            LOG_ERR("ERR:iic write failed\n");
+            return ret;
+        }
+        cs_press_delay_ms(10);
+    }
+    return 0;
+}
+
+int cs_press_fw_read_check(const unsigned char *fw_code_start, unsigned int fw_code_length)
+{
+    unsigned int fw_count = 0;
+    int ret = 0, i = 0, j = 0;
+    unsigned int fw_block_num_r = 0;
+    unsigned char fw_read_code[FW_ONE_BLOCK_LENGTH_R] = {0};
+    unsigned char page_end = 0;
+
+    fw_block_num_r = fw_code_length / FW_ONE_BLOCK_LENGTH_R;
+    page_end = fw_code_length % 256;
+    /* read & check fw code */
+    for(i = 0; i < fw_block_num_r; i++)
+    {
+        /* read code data */
+        ret = cs_press_iic_read_double_reg(i * FW_ONE_BLOCK_LENGTH_R, fw_read_code, FW_ONE_BLOCK_LENGTH_R);
+        if(ret < 0)
+        {
+            LOG_ERR("ERR:iic write failed\n");
+            return ret;
+        }
+        /* check code data */
+        for(j = 0; j < FW_ONE_BLOCK_LENGTH_R; j++)
+        {
+            if(fw_read_code[j] != fw_code_start[fw_count+j])
+            {
+                LOG_ERR("ERR:check code data failed\n");
+                return -1;
+            }
+        }
+        fw_count += FW_ONE_BLOCK_LENGTH_R;
+        cs_press_delay_ms(5);
+    }
+    if(page_end > 0){
+        /* read code data */
+        ret = cs_press_iic_read_double_reg(fw_block_num_r * FW_ONE_BLOCK_LENGTH_R, fw_read_code, 128);
+        if(ret < 0)
+        {
+            LOG_ERR("ERR:iic write failed\n");
+            return ret;
+        }
+        /* check code data */
+        for(j = 0; j < 128; j++)
+        {
+            if(fw_read_code[j] != fw_code_start[fw_count + j])
+            {
+                LOG_ERR("ERR:check code data failed\n");
+                return -1;
+            }
+        }
+        cs_press_delay_ms(5);
+    }
+
+    return 0;
 }
 
 void set_device_updating_flag(unsigned char val)
@@ -1695,123 +1904,78 @@ unsigned char  get_device_updating_flag(void)
   */
 char cs_press_fw_force_update(const unsigned char *fw_array)
 {
-    unsigned int i = 0;
-    unsigned int j = 0;
     int ret = 0;
     char result = 0;
+    bool retry = false;
     unsigned int fw_code_length = 0;
-    unsigned int fw_block_num_w = 0;
-    unsigned int fw_block_num_r = 0;
     const unsigned char *fw_code_start = NULL;
-    unsigned int fw_count = 0;
     unsigned char fw_read_code[FW_ONE_BLOCK_LENGTH_R] = {0};
     unsigned short fw_default_version = 0;
     unsigned short fw_read_version = 0;
-    unsigned char boot_fw_write_cmd[BOOT_CMD_LENGTH] = BOOT_FW_WRITE_CMD;
     unsigned char boot_fw_wflag_cmd[BOOT_CMD_LENGTH] = BOOT_FW_WFLAG_CMD;
-    unsigned char page_end = 0;
-
 #ifdef INT_SET_EN
     cs_irq_disable(); /*close enit irq.*/
 #endif
-    /* fw init */
-    fw_code_length = ((((unsigned short)fw_array[FW_ADDR_CODE_LENGTH+0]<<8)&0xff00)|fw_array[FW_ADDR_CODE_LENGTH+1]);
-    fw_code_start = &fw_array[FW_ADDR_CODE_START];
-    fw_block_num_w = fw_code_length/FW_ONE_BLOCK_LENGTH_W;
-    fw_block_num_r = fw_code_length/FW_ONE_BLOCK_LENGTH_R;
-    fw_default_version = ((((unsigned short)fw_array[FW_ADDR_VERSION+0]<<8)&0xff00)|fw_array[FW_ADDR_VERSION+1]);
+UPDATE_RETRY:
+    LOG_INFO("fw update start\n");
 
+    /* fw init */
+    fw_code_length = ((((unsigned short)fw_array[FW_ADDR_CODE_LENGTH + 0] << 8) & 0xff00) | fw_array[FW_ADDR_CODE_LENGTH + 1]);
+    fw_code_start = &fw_array[FW_ADDR_CODE_START];
+    fw_default_version = ((((unsigned short)fw_array[FW_ADDR_VERSION + 0] << 8) & 0xff00) | fw_array[FW_ADDR_VERSION + 1]);
     if(fw_code_length % 128){
         LOG_INFO("fw is not 128*\n");
         goto FLAG_FW_FAIL;
     }
-    page_end = fw_code_length % 256;
     cs_press_reset_ic();
+
     /* send fw write cmd */
-    cs_press_iic_write_double_reg(BOOT_CMD_REG ,boot_fw_write_cmd, BOOT_CMD_LENGTH);
-    cs_press_delay_ms(1500);    /* waiting flash erase*/
-    /* send fw code */
-    fw_count = 0;
-    for(i=0;i<fw_block_num_w;i++)
+    ret = cs_press_fw_write(fw_code_start, fw_code_length);
+    if(ret < 0)
     {
-        ret = cs_press_iic_write_double_reg(i*FW_ONE_BLOCK_LENGTH_W, (unsigned char*)fw_code_start+fw_count, FW_ONE_BLOCK_LENGTH_W);
-        fw_count += FW_ONE_BLOCK_LENGTH_W;
-        if(ret < 0)
-        {
-            LOG_ERR("ERR:iic write failed\n");
-            result = (char)-1;
-            goto FLAG_FW_FAIL;
-        }
-        cs_press_delay_ms(10);
+        LOG_ERR("ERR:iic write failed\n");
+        result = (char)-1;
+        goto FLAG_FW_FAIL;
     }
+
     /* read & check fw code */
-    fw_count = 0;
-    for(i = 0; i < fw_block_num_r; i++)
+    ret = cs_press_fw_read_check(fw_code_start, fw_code_length);
+    if(ret < 0)
     {
-        /* read code data */
-        ret = cs_press_iic_read_double_reg(i*FW_ONE_BLOCK_LENGTH_R, fw_read_code, FW_ONE_BLOCK_LENGTH_R);
-        if(ret < 0)
-        {
-            LOG_ERR("ERR:iic write failed\n");
-            result = (char)-1;
-            goto FLAG_FW_FAIL;
-        }
-        /* check code data */
-        for(j = 0; j < FW_ONE_BLOCK_LENGTH_R; j++)
-        {
-            if(fw_read_code[j] != fw_code_start[fw_count+j])
-            {
-                LOG_ERR("ERR:check code data failed\n");
-                result = (char)-1;
-                goto FLAG_FW_FAIL;
-            }
-        }
-        fw_count += FW_ONE_BLOCK_LENGTH_R;
-        cs_press_delay_ms(5);
-    }
-    if(page_end > 0){
-        /* read code data */
-        ret = cs_press_iic_read_double_reg(fw_block_num_r*FW_ONE_BLOCK_LENGTH_R, fw_read_code, 128);
-        if(ret < 0)
-        {
-            LOG_ERR("ERR:iic write failed\n");
-            result = (char)-1;
-            goto FLAG_FW_FAIL;
-        }
-        /* check code data */
-        for(j = 0; j < 128; j++)
-        {
-            if(fw_read_code[j] != fw_code_start[fw_count+j])
-            {
-                LOG_ERR("ERR:check code data failed\n");
-                result = (char)-1;
-                goto FLAG_FW_FAIL;
-            }
-        }
-        cs_press_delay_ms(5);
+        LOG_ERR("ERR:iic read check failed\n");
+        result = (char)-1;
+        goto FLAG_FW_FAIL;
     }
 
     /* send fw flag cmd */
     cs_press_iic_write_double_reg(BOOT_CMD_REG ,boot_fw_wflag_cmd, BOOT_CMD_LENGTH);
     cs_press_delay_ms(50);
+
     /* reset */
     cs_press_reset_ic();
+
     /* check fw version */
     cs_press_delay_ms(900); /* skip boot */
-    ret = cs_press_iic_read(AP_VERSION_REG, fw_read_code, CS_FW_VERSION_LENGTH);
     fw_read_version = 0;
 
+    ret = cs_press_iic_read(AP_VERSION_REG, fw_read_code, CS_FW_VERSION_LENGTH);
     if(ret >= 0){
-        fw_read_version = ((((unsigned short)fw_read_code[2]<<8)&0xff00)|fw_read_code[3]);
+        fw_read_version = ((((unsigned short)fw_read_code[2] << 8) & 0xff00) | fw_read_code[3]);
     }
-    LOG_INFO("bin ver:%d.%d,soc ver:%d.%d\n", (fw_default_version>>8),(fw_default_version&0xff),\
-                                                 (fw_read_version>>8),(fw_read_version&0xff));
+
+    LOG_INFO("bin ver:%d.%d,soc ver:%d.%d\n", (fw_default_version >> 8), (fw_default_version & 0xff), (fw_read_version >> 8), (fw_read_version & 0xff));
     if(fw_read_version != fw_default_version){
         LOG_ERR("ERR:fw_read_version != fw_default_version\n");
         result = (char)-1;
         goto FLAG_FW_FAIL;
     }
 FLAG_FW_FAIL:
+    if (!retry && (result < 0 || result >= 0x80)) {
+        LOG_ERR("fw update fail, try again...\n");
+        result = 0;
+        retry = true;
+        goto UPDATE_RETRY;
+    }
 #ifdef INT_SET_EN
     cs_irq_enable(); /*open enit irq.*/
 #endif
@@ -2895,18 +3059,19 @@ char cs_write_shell_type (unsigned char shell_type)
 /********************
 *0 no charge, 1 charging
 *************************/
+/*
 void cs_write_charge_state (unsigned char state)
 {
     if(state <= 1){
         g_cs_press.charge_flag = state;
-        /*game mode*/
+        //game mode
         if(g_cs_press.cs_shell_themal_enable == 1){
             cancel_delayed_work(&g_cs_press.delay_run_worker);
             schedule_delayed_work(&g_cs_press.delay_run_worker, msecs_to_jiffies(DEFAULT_RUN_DELAY_TIME));
         }
     }
 }
-
+*/
 unsigned char cs_read_charge_state (void)
 {
     return g_cs_press.charge_flag;
@@ -3473,7 +3638,8 @@ static int cs_proc_get_rawdata_open(struct inode *inode, struct file *filp)
   * @param[out] check result data buf
   * @retval     0:running, -1: error, 1: success, 2: fail, 3: overtime
   */
-static int cs_proc_get_forcedata_show(struct seq_file *m,void *v)
+/*
+  static int cs_proc_get_forcedata_show(struct seq_file *m,void *v)
 {
     int ret;
     unsigned char reg_addr;
@@ -3528,6 +3694,7 @@ static int cs_proc_get_forcedata_open(struct inode *inode, struct file *filp)
     }
     return single_open(filp,cs_proc_get_forcedata_show,NULL);
 }
+*/
 
 static ssize_t cs_proc_left_press_level_write(struct file *file, const char __user *buf,
                                             size_t count, loff_t *offset)
@@ -3978,11 +4145,14 @@ static int cs_auto_test_show(struct seq_file *m, void *v)
 {
     unsigned char reg_rw[FW_ONE_BLOCK_LENGTH_R] = { 0 };
     int i = 0;
-    int retry = 20;
+    int retry = 100;
     int result = -1;
     uint8_t len = 0;
     uint16_t status = 0;
-    char ret = 0 ;
+    char ret = 0;
+    bool need_fw_update = false;
+    int update_wait = 200;
+    unsigned char read_temp[FW_ONE_BLOCK_LENGTH_R] = {0};
 /*
     unsigned char boot_ver_buf[4];
 
@@ -3990,6 +4160,39 @@ static int cs_auto_test_show(struct seq_file *m, void *v)
 
     LOG_INFO("boot_ver: %02X %02X %02X %02X\n", boot_ver_buf[0], boot_ver_buf[1], boot_ver_buf[2], boot_ver_buf[3]);
 */
+    cs_press_wakeup_iic();
+    ret = cs_press_iic_read(AP_VERSION_REG, read_temp, CS_FW_VERSION_LENGTH);  /*FW Version*/
+    if(ret == 0){
+        LOG_INFO("fw_ver: %d %d %d %d\n",
+             read_temp[0], read_temp[1], read_temp[2], read_temp[3]);
+        if (!read_temp[0] && !read_temp[1]
+                && !read_temp[2] && !read_temp[3]) {
+            LOG_ERR("read fw info all zero!!\n");
+            need_fw_update = true;
+        }
+    } else {
+        LOG_ERR("read fw info err\n");
+        need_fw_update = true;
+    }
+
+    if (need_fw_update) {
+        g_cs_press.update_done = 0;
+        g_cs_press.update_type = FORCE_FILE_UPDATE;
+        ret = fml_fw_update_by_file();
+        if (ret == 0) {
+            LOG_INFO("fw update success!\n");
+        } else {
+            LOG_ERR("fw update %d, failed!\n", ret);
+        }
+    }
+
+    while (!g_cs_press.update_done && update_wait) {
+        msleep(100);
+        update_wait--;
+    }
+    if (!g_cs_press.update_done) {
+        LOG_ERR("wait fw update timeout, continue...\n");
+    }
 
     memset(reg_rw, 0x00, FW_ONE_BLOCK_LENGTH_R);
     ret = cs_press_iic_write(0xFB, reg_rw, 1);
@@ -4461,6 +4664,7 @@ exit_flag:
 **********/
 int parse_sence_str(char* parse_str,  struct scene_client_t *out_struct)
 {
+/*
     const char *delims = "|";
     char *result = NULL;
     int temp_data;
@@ -4474,7 +4678,7 @@ int parse_sence_str(char* parse_str,  struct scene_client_t *out_struct)
         return -1;
     }
     out_struct->pscene = NULL;
-    /**********add scene********/
+
     result = strsep(&parse_str, delims);
     if(result != NULL){
         list_for_each_entry(ptemp_list, &gScenes, node){
@@ -4529,6 +4733,9 @@ int parse_sence_str(char* parse_str,  struct scene_client_t *out_struct)
         return -6;
     }
     return 0;
+*/
+    LOG_INFO("%s not support\n", __func__);
+    return -1;
 }
 
 /*********
@@ -4802,7 +5009,7 @@ exit_flag:
 static ssize_t cs_proc_charge_state_write(struct file *file, const char __user *buf,
                                             size_t count, loff_t *offset)
 {
-    const char *startpos = NULL;
+/*    const char *startpos = NULL;
     int tempdata = 0;
     char *kbuf = NULL;
     int err = 0;
@@ -4835,7 +5042,7 @@ static ssize_t cs_proc_charge_state_write(struct file *file, const char __user *
     }
 exit_kfree:
     kfree(kbuf);
-exit_flag:
+exit_flag:*/
     return count;
 }
 
@@ -4872,6 +5079,10 @@ static ssize_t cs_proc_camera_key_mode_write(struct file *file, const char __use
     mutex_lock(&press_lock);
 
     LOG_INFO("%s: %d --> %d\n", __func__, g_cs_press.camera_key_mode, tempdata);
+    /*if (g_cs_press.camera_key_mode != tempdata
+            && g_cs_press.camera_key_mode == CAMERA_KEY_CAMERA_MODE) {
+        g_cs_press.is_physical_tap_down = false;
+    }*/
     g_cs_press.camera_key_mode = tempdata;
     /*if (g_cs_press.is_long_tap_down) {
         g_cs_press.mode_switch_waiting_up = true;
@@ -5738,7 +5949,7 @@ static const char proc_list[PROC_FOPS_NUM][PROC_NAME_LEN]={
     "left_press_level",
     "right_press_level",
     "read_cali_coef",
-    "read_force_data",
+    //"read_force_data",
     "fw_update_file",
     "read_boot_version",
     "auto_test",
@@ -5775,7 +5986,7 @@ static const struct file_operations proc_fops[PROC_FOPS_NUM] = {
     FOPS_ARRAY(cs_proc_read_left_press_level_open, cs_proc_left_press_level_write),
     FOPS_ARRAY(cs_proc_read_right_press_level_open, cs_proc_right_press_level_write),
     FOPS_ARRAY(cs_proc_calicoef_open, NULL),
-    FOPS_ARRAY(cs_proc_get_forcedata_open, NULL),
+    /*FOPS_ARRAY(cs_proc_get_forcedata_open, NULL),*/
     FOPS_ARRAY(cs_proc_open, cs_proc_fw_file_update_write),
     FOPS_ARRAY(cs_proc_read_boot_version_open, cs_proc_write),
     FOPS_ARRAY(cs_proc_auto_test_open, cs_proc_write),
@@ -5870,6 +6081,7 @@ static void cs_press_panel_notifier_callback(enum panel_event_notifier_tag tag,
                 || notification->notif_type == DRM_PANEL_EVENT_BLANK_LP) && !g_cs_press.is_suspended) {
             mutex_lock(&press_lock);
             cs_press_set_mode(CAMERA_KEY_SLEEP_MODE);
+            g_cs_press.is_physical_tap_down = false;
             g_cs_press.is_suspended = true;
             mutex_unlock(&press_lock);
         }
@@ -5896,6 +6108,7 @@ static int cs_press_mtk_drm_notifier_callback(struct notifier_block *nb,
     } else if (*blank == MTK_DISP_BLANK_POWERDOWN && !g_cs_press.is_suspended) {
         mutex_lock(&press_lock);
         cs_press_set_mode(CAMERA_KEY_SLEEP_MODE);
+        g_cs_press.is_physical_tap_down = false;
         g_cs_press.is_suspended = true;
         mutex_unlock(&press_lock);
     }
@@ -5941,6 +6154,7 @@ static int fb_notifier_callback(struct notifier_block *self, unsigned long event
 #endif
             mutex_lock(&press_lock);
             cs_press_set_mode(CAMERA_KEY_SLEEP_MODE);
+            g_cs_press.is_physical_tap_down = false;
             g_cs_press.is_suspended = true;
             mutex_unlock(&press_lock);
         }
@@ -6196,7 +6410,9 @@ static struct miscdevice csa37f71_misc = {
 static int csa37f71_probe(struct i2c_client *client)
 {
     int ret = -1;
+#if IS_ENABLED(CONFIG_DRM_OPLUS_PANEL_NOTIFY) || IS_ENABLED(CONFIG_QCOM_PANEL_EVENT_NOTIFIER)
     int retry = 0;
+#endif
 
     LOG_DEBUG("probe init\n");
     ret = misc_register(&csa37f71_misc); /*dev node*/
@@ -6227,15 +6443,15 @@ static int csa37f71_probe(struct i2c_client *client)
     g_cs_press.pinctrl = devm_pinctrl_get(&client->dev);
     if (IS_ERR_OR_NULL(g_cs_press.pinctrl)) {
         LOG_ERR("get pinctrl fail\n");
-        return -EINVAL;
-    }
-
-    g_cs_press.irq_pin_input = pinctrl_lookup_state(g_cs_press.pinctrl, "default");
-    if (IS_ERR_OR_NULL(g_cs_press.irq_pin_input)) {
-        LOG_ERR("Failed to get the state irq_pin_input pinctrl handle\n");
-        return -EINVAL;
+        //return -EINVAL;
     } else {
-        pinctrl_select_state(g_cs_press.pinctrl, g_cs_press.irq_pin_input);
+        g_cs_press.irq_pin_input = pinctrl_lookup_state(g_cs_press.pinctrl, "default");
+        if (IS_ERR_OR_NULL(g_cs_press.irq_pin_input)) {
+            LOG_ERR("Failed to get the state irq_pin_input pinctrl handle\n");
+            //return -EINVAL;
+        } else {
+            pinctrl_select_state(g_cs_press.pinctrl, g_cs_press.irq_pin_input);
+        }
     }
 
     g_cs_press.is_update_log = 0;

@@ -1650,7 +1650,7 @@ static fw_check_state fts_fw_check(void *chip_data,
 
 	if (panel_data->manufacture_info.version) {
 		sprintf(dev_version, "%04x", panel_data->tp_fw);
-		strlcpy(&(panel_data->manufacture_info.version[7]), dev_version, 5);
+		strncpy(&(panel_data->manufacture_info.version[7]), dev_version, 5);
 	}
 
 	return FW_NORMAL;
@@ -3082,7 +3082,9 @@ static int fts_tp_probe(struct spi_device *spi)
 
 	spi->mode = SPI_MODE_0;
 	spi->bits_per_word = 8;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	spi->chip_select = 0; /*modify reg=0 for more tp vendor share same spi interface*/
+#endif
 #ifdef CONFIG_TOUCHPANEL_MTK_PLATFORM
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0))
 		spi->cs_setup.value = 1;

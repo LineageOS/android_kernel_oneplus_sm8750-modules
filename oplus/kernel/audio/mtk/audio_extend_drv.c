@@ -13,9 +13,15 @@
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/version.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/pcm.h>
+
+#ifndef KERNEL_VERSION
+#define KERNEL_VERSION(a, b, c) (((a) << 16) + ((b) << 8) + ((c) > 255 ? 255 : (c)))
+#endif
+
 #if 1
 #define AUDIO_EXTEND_DRIVER_NAME "audio-extend-drv"
 #define OPLUS_SPK_NAME "Speaker Codec"
@@ -149,6 +155,44 @@ static struct snd_soc_dai_link_component tfa98xx_dails_4rd[] = {
 		.dai_name = "aw882xx-aif-6-37",
 	},
 };
+/*For tfa98xx default 6rd*/
+static struct snd_soc_dai_link_component tfa98xx_dails_6rd[] = {
+	{
+		.of_node = NULL,
+		.name = "aw882xx_smartpa.5-0036",
+		.dai_name = "aw882xx-aif-5-36",
+	},
+	{
+		.of_node = NULL,
+		.name = "aw882xx_smartpa.5-0035",
+		.dai_name = "aw882xx-aif-5-35",
+	},
+
+	{
+		.of_node = NULL,
+		.name = "aw882xx_smartpa.5-0034",
+		.dai_name = "aw882xx-aif-5-34",
+	},
+
+	{
+		.of_node = NULL,
+		.name = "aw882xx_smartpa.6-0036",
+		.dai_name = "aw882xx-aif-6-36",
+	},
+	{
+		.of_node = NULL,
+		.name = "aw882xx_smartpa.6-0035",
+		.dai_name = "aw882xx-aif-6-35",
+	},
+
+	{
+		.of_node = NULL,
+		.name = "aw882xx_smartpa.6-0034",
+		.dai_name = "aw882xx-aif-6-34",
+	},
+};
+
+
 static int extend_codec_prop_parse(struct device *dev, const char *codec_prop[], struct codec_prop_info *codec_info)
 {
 	int ret = 0;
@@ -327,6 +371,22 @@ static void extend_codec_be_dailink(struct codec_prop_info *codec_info, struct s
 				pr_info("%s: tfa98xx_dails[3] name:%s, dai_name:%s \n", __func__, tfa98xx_dails_4rd[3].name, tfa98xx_dails_4rd[3].dai_name);
 				dailink[i].codecs = tfa98xx_dails_4rd;
 				dailink[i].num_codecs = ARRAY_SIZE(tfa98xx_dails_4rd);
+			} else if (codec_info->dev_cnt == 6) {
+				pr_info("%s: use %s 6rd dailink replace\n", __func__, codec_info->codec_vendor);
+				for (j = 0; j < codec_info->dev_cnt; j++) {
+					tfa98xx_dails_6rd[j].name = codec_info->codec_name[j];
+					tfa98xx_dails_6rd[j].dai_name = codec_info->codec_dai_name[j];
+				}
+				pr_info("%s: tfa98xx_dails[0] name:%s, dai_name:%s \n", __func__, tfa98xx_dails_6rd[0].name, tfa98xx_dails_6rd[0].dai_name);
+				pr_info("%s: tfa98xx_dails[1] name:%s, dai_name:%s \n", __func__, tfa98xx_dails_6rd[1].name, tfa98xx_dails_6rd[1].dai_name);
+				pr_info("%s: tfa98xx_dails[2] name:%s, dai_name:%s \n", __func__, tfa98xx_dails_6rd[2].name, tfa98xx_dails_6rd[2].dai_name);
+				pr_info("%s: tfa98xx_dails[3] name:%s, dai_name:%s \n", __func__, tfa98xx_dails_6rd[3].name, tfa98xx_dails_6rd[3].dai_name);
+				pr_info("%s: tfa98xx_dails[4] name:%s, dai_name:%s \n", __func__, tfa98xx_dails_6rd[4].name, tfa98xx_dails_6rd[4].dai_name);
+				pr_info("%s: tfa98xx_dails[5] name:%s, dai_name:%s \n", __func__, tfa98xx_dails_6rd[5].name, tfa98xx_dails_6rd[5].dai_name);
+				dailink[i].codecs = tfa98xx_dails_6rd;
+				dailink[i].num_codecs = ARRAY_SIZE(tfa98xx_dails_6rd);
+			} else {
+					pr_err("%s: error: No PA count matched, please check!! \n", __func__);
 			}
 		}
 	}
@@ -444,6 +504,14 @@ static int audio_extend_probe(struct platform_device *pdev)
 	return 0;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+static void audio_extend_remove(struct platform_device *pdev)
+{
+	dev_info(&pdev->dev, "%s: dev name %s\n", __func__,
+		dev_name(&pdev->dev));
+}
+
+#else
 static int audio_extend_remove(struct platform_device *pdev)
 {
 	dev_info(&pdev->dev, "%s: dev name %s\n", __func__,
@@ -451,6 +519,7 @@ static int audio_extend_remove(struct platform_device *pdev)
 
 	return 0;
 }
+#endif
 
 static const struct of_device_id audio_extend_of_match[] = {
 	{.compatible = "oplus,asoc-audio"},

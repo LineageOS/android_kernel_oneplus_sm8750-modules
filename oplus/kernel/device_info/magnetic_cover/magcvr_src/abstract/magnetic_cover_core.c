@@ -74,8 +74,6 @@ static int magnetic_cover_get_data(struct magnetic_cover_info *magcvr_info)
 		return -EINVAL;
 	}
 
-	disable_irq(magcvr_info->irq);
-
 	if (magcvr_info->mc_ops->get_data && magcvr_info->chip_info) {
 		do {
 			get_data_retry++;
@@ -87,7 +85,6 @@ static int magnetic_cover_get_data(struct magnetic_cover_info *magcvr_info)
 		if (ret < 0 || fault_injection_handle(magcvr_info, OPT_IIC_READ)) {
 			MAG_CVR_DEBUG("failed to get data\n");
 			magcvr_info->iic_read_fail = 1;
-			enable_irq(magcvr_info->irq);
 			return 0;
 		}
 	} else {
@@ -97,7 +94,6 @@ static int magnetic_cover_get_data(struct magnetic_cover_info *magcvr_info)
 	magcvr_info->m_value = m_long2int(value);
 	MAG_CVR_LOG("value get[%d] and enable irq\n", magcvr_info->m_value);
 
-	enable_irq(magcvr_info->irq);
 	return magcvr_info->m_value;
 }
 
@@ -880,6 +876,9 @@ int magcvr_set_position(struct magnetic_cover_info *magcvr_info)
 		}
 	}
 
+#if IS_ENABLED(CONFIG_OPLUS_MAGCVR_NOTIFY)
+	magcvr_set_current_pos(magcvr_info->position);
+#endif
 	magcvr_info->last_position = magcvr_info->position;
 
 	if (magcvr_info->driver_start == true) {

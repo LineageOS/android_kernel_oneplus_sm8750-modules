@@ -20,6 +20,7 @@
 #include <mt-plat/mtk_pwm.h>
 #include <linux/dma-mapping.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/version.h>
 
 #include "oplus_ir_core.h"
 #include "oplus_ir_pwm.h"
@@ -250,7 +251,11 @@ end:
 	return ret;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+static void oplus_ir_pwm_remove(struct platform_device *pdev)
+#else  /* KERNEL_VERSION(6, 1, 0) */
 static int oplus_ir_pwm_remove(struct platform_device *pdev)
+#endif /* KERNEL_VERSION(6, 1, 0) */
 {
 	struct opus_pwm_ir_t *pwm_ir = platform_get_drvdata(pdev);
 
@@ -258,7 +263,10 @@ static int oplus_ir_pwm_remove(struct platform_device *pdev)
 	pr_info("oplus_pwm_ir: kookong_ir_pwm_remove call\n");
 
 	kfree(pwm_ir);
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	return 0;
+#endif /* KERNEL_VERSION(6, 1, 0) */
 }
 
 static struct of_device_id oplus_ir_pwm_of_match_table[] = {

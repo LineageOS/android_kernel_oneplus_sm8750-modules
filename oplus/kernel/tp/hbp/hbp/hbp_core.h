@@ -34,6 +34,8 @@
 #define DRIVER_SYNC_TIMEOUT 50
 #define DAEMON_ACK_TIMEOUT 1000
 
+#define FP_FRAME_TIME 10
+
 #define HBP_CORE "hbp_core"
 #define HBP_STATAS "hbp-sts"
 #define HBP_CTRL "hbp"
@@ -95,7 +97,7 @@ struct device_info {
 };
 
 union usr_data {
-	int32_t val;
+	int64_t val;
 
 	struct {
 		void __user *tx;
@@ -112,6 +114,9 @@ union usr_data {
 		uint8_t state;
 		int x;
 		int y;
+		int touch_early_down_flag;
+		long is_touch_fp_area_Cnt;
+		int tp_firmware_time;
 	} ifp;
 
 	struct power_sequeue sq[MAX_POWER_SEQ];
@@ -121,6 +126,12 @@ union usr_data {
 		uint8_t bits_per_word;
 		int speed;
 	} spi_setup;
+
+	struct {
+		bool filmed;
+		int level;
+		bool trusty;
+	} film;
 };
 
 struct chip_info {
@@ -185,7 +196,8 @@ enum gesture_type {
 	SingleTap,
 	Heart,
 	PenDetect,
-	SGesture
+	SGesture,
+	FingerprintEarlyDown,
 };
 
 struct point_info {
@@ -211,6 +223,7 @@ struct gesture_info {
 	struct Coordinate Point_3rd;
 	struct Coordinate Point_4th;
 	uint8_t id;
+	int tp_firmware_time;
 };
 
 struct dev_operations {
@@ -262,8 +275,15 @@ struct hbp_device {
 	struct wait_queue_head drv_event;
 	int drv_ack;
 
+	/*fp*/
 	int pre_fpstate;
 	bool screenoff_ifp;
+
+	int touch_early_down_flag;
+	long is_touch_fp_area_cnt;
+	ktime_t touch_fp_area_time;
+	ktime_t fp_down_time;
+
 	struct frame_queue frame_queue;
 
 	/*callback from panel*/
@@ -293,6 +313,8 @@ struct hbp_device {
 
 	bool pen_support;
 	bool create_with_power_on_support;
+	char clk_name[16];
+	struct clk *pen_ck;
 };
 
 struct device_state {
@@ -352,7 +374,8 @@ extern int hbp_register_devices(void *priv,
 extern int hbp_unregister_devices(void *priv);
 extern bool match_from_cmdline(struct device *dev, struct chip_info *info);
 extern void hbp_set_irq_wake(struct hbp_device *hbp_dev, bool wake);
-
+extern void hbp_dev_ctrl_power_reconfig(void);
+extern void hbp_dev_ctrl_hw_reset(void);
 /*
 #if 1
 request_firmware_select()

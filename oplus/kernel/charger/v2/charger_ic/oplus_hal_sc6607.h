@@ -147,6 +147,9 @@
 
 #define SC6607_PAGE_SIZE		1024
 
+#define FLASH_MODE_DELAY		400
+#define FLASH_MODE_CHECKOUT_DELAY	2000
+
 #define DECL_ALERT_HANDLER(xbit, xhandler) { \
 	.bit_mask = (1 << xbit), \
 	.handler = xhandler, \

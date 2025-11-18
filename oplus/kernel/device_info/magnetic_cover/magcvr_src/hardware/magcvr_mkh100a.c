@@ -114,7 +114,11 @@ static int magcvr_mkh100a_probe(struct platform_device *pdev)
 	return 0;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+static void magcvr_mkh100a_remove(struct platform_device *pdev)
+#else
 static int magcvr_mkh100a_remove(struct platform_device *pdev)
+#endif
 {
 	struct magnetic_cover_info *magcvr_info = platform_get_drvdata(pdev);
 	struct mkh100a_chip_info *mkh100a_info = NULL;
@@ -133,7 +137,11 @@ static int magcvr_mkh100a_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 
 EXIT:
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+	return;
+#else
 	return 0;
+#endif
 }
 
 static int magcvr_mkh100a_suspend(struct device *dev)

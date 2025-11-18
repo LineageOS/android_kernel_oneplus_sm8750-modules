@@ -42,6 +42,7 @@
 #include "synaptics_touchcom_func_touch.h"
 #include"synaptics_touchcom_core_dev.h"
 #include "../../../../hbp_spi.h"
+#include "../../../../hbp_core.h"
 
 static unsigned char *rx_buf;
 static unsigned char *tx_buf;
@@ -197,6 +198,7 @@ int syna_tcm_read(struct tcm_dev *tcm_dev,
 	int retval;
 	// unsigned int idx;
 	struct spi_message msg;
+	char payload[64] = {0};
 	//struct spi_device *spi = hw_if->pdev;
 	//struct syna_hw_bus_data *bus = &hw_if->bdata_io;
 
@@ -261,6 +263,14 @@ int syna_tcm_read(struct tcm_dev *tcm_dev,
 	retval = tcm_dev->bus_ops->spi_sync(tcm_dev->bus_ops, tx_buf, rx_buf, rd_len);
 	if (retval != 0) {
 		hbp_err("Failed to complete SPI transfer, error = %d\n", retval);
+		if (retval == -5) {
+			tcm_dev->tcm_spi_read_err_cnt++;
+			snprintf(payload, sizeof(payload), "syna_tcm_read_error cnt %d\n", tcm_dev->tcm_spi_read_err_cnt);
+			hbp_exception_report(EXCEP_BUS, payload, sizeof(payload));
+		}
+		if (tcm_dev->tcm_spi_read_err_cnt > 3) {
+			hbp_exception_report(EXCEP_BUS, "tcm_spi_read_err_cnt_over_3times", sizeof("tcm_spi_read_err_cnt_over_3times"));
+		}
 		goto exit;
 	}
 	retval = syna_pal_mem_cpy(rd_data, rd_len, rx_buf, rd_len, rd_len);
@@ -556,6 +566,8 @@ int syna_tcm_allocate_device(struct tcm_dev **ptcm_dev_ptr, unsigned int resp_re
 
 	tcm_dev->dev_mode = MODE_UNKNOWN;
 
+	tcm_dev->tcm_spi_read_err_cnt = 0;
+
 	/* allocate internal buffers */
 	syna_tcm_buf_init(&tcm_dev->report_buf);
 	syna_tcm_buf_init(&tcm_dev->resp_buf);
@@ -726,10 +738,15 @@ int syna_tcm_detect_device(struct tcm_dev *tcm_dev)
 		hbp_info("Device in Application FW, build id: %d, %s\n",
 			tcm_dev->packrat_number,
 			tcm_dev->id_info.part_number);
-		syna_tcm_get_app_info(tcm_dev, &tcm_dev->app_info);
+		retval = syna_tcm_get_app_info(tcm_dev, &tcm_dev->app_info);
+		if (retval < 0) {
+			hbp_err("Fail to get touch app info.\n");
+			return retval;
+		}
 		retval = syna_tcm_preserve_touch_report_config(tcm_dev);
 		if (retval < 0) {
 			hbp_err("Fail to preserve touch report config\n");
+			return retval;
 		}
 		break;
 	case MODE_BOOTLOADER:
@@ -773,7 +790,7 @@ int syna_tcm_get_event_data(struct tcm_dev *tcm_dev,
 {
 	int retval = 0;
 
-	if (!tcm_dev) {
+	if (!tcm_dev || !tcm_dev->read_message) {
 		hbp_err("Invalid tcm device handle\n");
 		return _EINVAL;
 	}

@@ -44,7 +44,6 @@
 
 #define PPS_MONITOR_CYCLE_MS		1500
 #define PPS_WATCHDOG_TIME_MS		3000
-#define PPS_START_DEF_CURR_MA		1500
 #define PPS_START_DEF_VOL_MV		5500
 #define PPS_MONITOR_TIME_MS		500
 #define PD_SVOOC_WAIT_MS		300
@@ -52,6 +51,8 @@
 #define OPLUS_FIXED_PDO_DEF_VOL		5000
 #define OPLUS_PPS_UW_MV_TRANSFORM	1000
 #define PPS_GET_CP_VIN_DELAY		30
+#define PPS_START_DEF_CURR_MA_OPLUS	800
+#define PPS_START_DEF_CURR_MA_THIRD	1000
 
 
 #define PPS_UPDATE_PDO_TIME		5
@@ -142,7 +143,7 @@ struct oplus_pps_timer {
 	struct timespec pdo_timer;
 	struct timespec fastchg_timer;
 	struct timespec temp_timer;
-	struct timespec ibat_timer;
+	unsigned long ibat_jiffies;
 	int pps_max_time_ms;
 	unsigned long monitor_jiffies;
 };
@@ -402,6 +403,7 @@ struct oplus_pps {
 	bool shell_temp_ready;
 	int adapter_max_curr;
 	int boot_time;
+	int allow_check_soc;
 
 	int pps_fastchg_batt_temp_status;
 	int pps_temp_cur_range;
@@ -420,6 +422,9 @@ struct oplus_pps {
 	struct dentry *debugfs_pps;
 	int debug_force_pps_err;
 	long pps_online_time;
+	bool fcl_support;
+	bool ss_check;
+	bool fcl_trigger;
 };
 
 struct current_level {
@@ -1098,6 +1103,22 @@ static int oplus_pps_cp_set_work_start(struct oplus_pps *chip, bool start)
 }
 
 __maybe_unused
+static int oplus_pps_cp_sstimeout_ucp_enable(struct oplus_pps *chip, bool enable)
+{
+	int rc;
+
+	if (chip->cp_ic == NULL) {
+		chg_err("cp_ic is NULL\n");
+		return -ENODEV;
+	}
+
+	rc = oplus_chg_ic_func(chip->cp_ic, OPLUS_IC_FUNC_CP_SET_SSTIMEOUT_UCP_ENABLE, enable);
+	chip->ss_check = enable;
+
+	return rc;
+}
+
+__maybe_unused
 static int oplus_pps_cp_get_work_status(struct oplus_pps *chip, bool *start)
 {
 	int rc;
@@ -1207,62 +1228,93 @@ static int oplus_pps_switch_to_normal(struct oplus_pps *chip)
 
 static int oplus_pps_publish_cpa_power(struct oplus_pps *chip)
 {
-        struct mms_msg *msg;
-        int rc;
+	struct mms_msg *msg;
+	int rc;
 
-        msg = oplus_mms_alloc_msg(MSG_TYPE_ITEM, MSG_PRIO_MEDIUM,
-                                  PPS_ITEM_CPA_POWER);
-        if (msg == NULL) {
-                chg_err("alloc msg error\n");
-                return -ENOMEM;
-        }
-        rc = oplus_mms_publish_msg_sync(chip->pps_topic, msg);
-        if (rc < 0) {
-                chg_err("publish pps online msg error, rc=%d\n", rc);
-                kfree(msg);
-        }
+	msg = oplus_mms_alloc_msg(MSG_TYPE_ITEM, MSG_PRIO_MEDIUM,
+				  PPS_ITEM_CPA_POWER);
+	if (msg == NULL) {
+		chg_err("alloc msg error\n");
+		return -ENOMEM;
+	}
+	rc = oplus_mms_publish_msg_sync(chip->pps_topic, msg);
+	if (rc < 0) {
+		chg_err("publish pps online msg error, rc=%d\n", rc);
+		kfree(msg);
+	}
 
-        return rc;
+	return rc;
 }
 
 static int oplus_pps_publish_adapter_power(struct oplus_pps *chip)
 {
-        struct mms_msg *msg;
-        int rc;
+	struct mms_msg *msg;
+	int rc;
 
-        msg = oplus_mms_alloc_msg(MSG_TYPE_ITEM, MSG_PRIO_MEDIUM,
-                                  PPS_ITEM_ADAPTER_POWER);
-        if (msg == NULL) {
-                chg_err("alloc msg error\n");
-                return -ENOMEM;
-        }
-        rc = oplus_mms_publish_msg_sync(chip->pps_topic, msg);
-        if (rc < 0) {
-                chg_err("publish pps online msg error, rc=%d\n", rc);
-                kfree(msg);
-        }
+	msg = oplus_mms_alloc_msg(MSG_TYPE_ITEM, MSG_PRIO_MEDIUM,
+				  PPS_ITEM_ADAPTER_POWER);
+	if (msg == NULL) {
+		chg_err("alloc msg error\n");
+		return -ENOMEM;
+	}
+	rc = oplus_mms_publish_msg_sync(chip->pps_topic, msg);
+	if (rc < 0) {
+		chg_err("publish pps online msg error, rc=%d\n", rc);
+		kfree(msg);
+	}
 
-        return rc;
+	return rc;
 }
 
 static int oplus_pps_publish_adapter_info(struct oplus_pps *chip)
 {
-        struct mms_msg *msg;
-        int rc;
+	struct mms_msg *msg;
+	int rc;
 
-        msg = oplus_mms_alloc_msg(MSG_TYPE_ITEM, MSG_PRIO_MEDIUM,
-                                  PPS_ITEM_PPS_ADAPTER_INFO);
-        if (msg == NULL) {
-                chg_err("alloc msg error\n");
-                return -ENOMEM;
-        }
-        rc = oplus_mms_publish_msg_sync(chip->pps_topic, msg);
-        if (rc < 0) {
-                chg_err("publish pps online msg error, rc=%d\n", rc);
-                kfree(msg);
-        }
+	msg = oplus_mms_alloc_msg(MSG_TYPE_ITEM, MSG_PRIO_MEDIUM,
+				  PPS_ITEM_PPS_ADAPTER_INFO);
+	if (msg == NULL) {
+		chg_err("alloc msg error\n");
+		return -ENOMEM;
+	}
+	rc = oplus_mms_publish_msg_sync(chip->pps_topic, msg);
+	if (rc < 0) {
+		chg_err("publish pps online msg error, rc=%d\n", rc);
+		kfree(msg);
+	}
 
-        return rc;
+	return rc;
+}
+
+static int oplus_pps_track_set_fcl_info(struct device *dev, int batt_volt, int batt_curr, int batt_temp)
+{
+	int rc;
+	struct mms_msg *msg;
+	struct oplus_mms *err_topic = oplus_mms_get_by_name("error");
+
+	if (!err_topic)
+		return -ENODEV;
+
+	if (batt_volt)
+		msg = oplus_mms_alloc_str_msg(MSG_TYPE_ITEM,
+			MSG_PRIO_MEDIUM, ERR_ITEM_FCL_INFO, "one_time_full==%d,%d,%d",
+			batt_volt, batt_curr, batt_temp);
+	else
+		msg = oplus_mms_alloc_str_msg(MSG_TYPE_ITEM,
+			MSG_PRIO_MEDIUM, ERR_ITEM_FCL_INFO, "n_time_full=%d,%d,%d",
+			batt_volt, batt_curr, batt_temp);
+	if (msg == NULL) {
+		chg_err("alloc device id msg error\n");
+		return -ENOMEM;
+	}
+
+	rc = oplus_mms_publish_msg_sync(err_topic, msg);
+	if (rc < 0) {
+		chg_err("publish pcl info msg error, rc=%d\n", rc);
+		kfree(msg);
+	}
+
+	return rc;
 }
 
 static int oplus_pps_set_online(struct oplus_pps *chip, bool online)
@@ -1501,10 +1553,12 @@ static bool oplus_pps_charge_allow_check(struct oplus_pps *chip)
 	}
 
 	if (chip->ui_soc < chip->limits.pps_strategy_soc_over_low ||
-	    chip->ui_soc > chip->limits.pps_strategy_soc_high)
+	    chip->ui_soc > chip->limits.pps_strategy_soc_high) {
 		vote(chip->pps_not_allow_votable, BATT_SOC_VOTER, true, 1, false);
-	else
+	} else {
 		vote(chip->pps_not_allow_votable, BATT_SOC_VOTER, false, 0, false);
+		chip->allow_check_soc = chip->ui_soc;
+	}
 
 	oplus_pps_charge_btb_allow_check(chip);
 
@@ -1556,6 +1610,7 @@ static void oplus_pps_votable_reset(struct oplus_pps *chip)
 	vote(chip->pps_curr_votable, SALE_MODE_VOTER, false, 0, false);
 	vote(chip->pps_curr_votable, IC_VOTER, false, 0, false);
 	vote(chip->pps_curr_votable, BATT_SOC_VOTER, false, 0, false);
+	vote(chip->pps_curr_votable, LIMIT_FCL_VOTER, false, 0, false);
 }
 
 static int oplus_pps_temp_cur_range_init(struct oplus_pps *chip)
@@ -1605,11 +1660,14 @@ static void oplus_pps_variables_init(struct oplus_pps *chip)
 	chip->pps_curr_ma_from_pps_status = 0;
 	chip->support_cp_ibus = false;
 	chip->request_vbus_too_low_flag = false;
+	chip->ss_check = false;
+	chip->fcl_trigger = false;
+	chip->allow_check_soc = chip->ui_soc;
 
 	chip->timer.fastchg_timer = oplus_current_kernel_time();
 	chip->timer.temp_timer = oplus_current_kernel_time();
 	chip->timer.pdo_timer = oplus_current_kernel_time();
-	chip->timer.ibat_timer = oplus_current_kernel_time();
+	chip->timer.ibat_jiffies = jiffies;
 	if (!chip->oplus_pps_adapter)
 		chip->timer.pps_max_time_ms = chip->limits.pps_timeout_third * 1000;
 	else
@@ -1681,6 +1739,14 @@ static void oplus_pps_sub_btb_connnect_check(struct oplus_pps *chip)
 	} else {
 		vote(chip->pps_curr_votable, BAD_SUB_BTB_VOTER, false, 0, false);
 	}
+}
+
+static int oplus_pps_get_start_curr_min(struct oplus_pps *chip)
+{
+	if (chip->oplus_pps_adapter)
+		return PPS_START_DEF_CURR_MA_OPLUS;
+	else
+		return PPS_START_DEF_CURR_MA_THIRD;
 }
 
 static void oplus_pps_switch_check_work(struct work_struct *work)
@@ -1865,7 +1931,7 @@ static void oplus_pps_switch_check_work(struct work_struct *work)
 	if (is_wired_suspend_votable_available(chip))
 		vote(chip->wired_suspend_votable, PPS_VOTER, true, 1, false);
 
-	rc = oplus_pps_pdo_set(chip, PPS_START_DEF_VOL_MV, PPS_START_DEF_CURR_MA);
+	rc = oplus_pps_pdo_set(chip, PPS_START_DEF_VOL_MV, oplus_pps_get_start_curr_min(chip));
 	if (rc < 0) {
 		chg_err("pdo set error, rc=%d\n", rc);
 		goto err;
@@ -1913,6 +1979,7 @@ static int oplus_pps_charge_start(struct oplus_pps *chip)
 	int batt_num;
 	int soc;
 	const char temp_region[] = "temp_region";
+	const char allow_soc[] = "allow_soc";
 
 #define PPS_START_VOL_THR_4_TO_1_600MV	600
 #define PPS_START_VOL_THR_3_TO_1_400MV	400
@@ -2002,6 +2069,7 @@ static int oplus_pps_charge_start(struct oplus_pps *chip)
 					else
 						chip->strategy = chip->third_curve_strategy;
 					oplus_chg_strategy_set_process_data(chip->strategy, temp_region, chip->pps_temp_cur_range);
+					oplus_chg_strategy_set_process_data(chip->strategy, allow_soc, chip->allow_check_soc);
 					rc = oplus_chg_strategy_init(chip->strategy);
 					if (rc < 0) {
 						chg_err("strategy_init error, not support pps fast charge\n");
@@ -2093,7 +2161,7 @@ static int oplus_pps_charge_start(struct oplus_pps *chip)
 		}
 	}
 
-	rc = oplus_pps_cp_set_iin(chip, PPS_START_DEF_CURR_MA);
+	rc = oplus_pps_cp_set_iin(chip, oplus_pps_get_start_curr_min(chip));
 	if (rc < 0) {
 		chg_err("set cp input current error, rc=%d\n", rc);
 		return rc;
@@ -2121,7 +2189,7 @@ static int oplus_pps_charge_start(struct oplus_pps *chip)
 		}
 	}
 
-	rc = oplus_pps_pdo_set(chip, req_vol, PPS_START_DEF_CURR_MA);
+	rc = oplus_pps_pdo_set(chip, req_vol, oplus_pps_get_start_curr_min(chip));
 	if (rc < 0) {
 		chg_err("pdo set error, rc=%d\n", rc);
 		return rc;
@@ -2209,7 +2277,7 @@ oplus_pps_set_current_temp_normal_range(struct oplus_pps *chip,
 
 	switch (chip->pps_fastchg_batt_temp_status) {
 	case PPS_BAT_TEMP_NORMAL_HIGH:
-		if (vbat_temp_cur >
+		if (vbat_temp_cur >=
 		    chip->limits.pps_strategy_batt_high_temp0) {
 			chip->pps_fastchg_batt_temp_status =
 				PPS_BAT_TEMP_HIGH0;
@@ -2229,7 +2297,7 @@ oplus_pps_set_current_temp_normal_range(struct oplus_pps *chip,
 		}
 		break;
 	case PPS_BAT_TEMP_HIGH0:
-		if (vbat_temp_cur >
+		if (vbat_temp_cur >=
 		    chip->limits.pps_strategy_batt_high_temp1) {
 			chip->pps_fastchg_batt_temp_status =
 				PPS_BAT_TEMP_HIGH1;
@@ -2246,7 +2314,7 @@ oplus_pps_set_current_temp_normal_range(struct oplus_pps *chip,
 		}
 		break;
 	case PPS_BAT_TEMP_HIGH1:
-		if (vbat_temp_cur >
+		if (vbat_temp_cur >=
 		    chip->limits.pps_strategy_batt_high_temp2) {
 			chip->pps_fastchg_batt_temp_status =
 				PPS_BAT_TEMP_HIGH2;
@@ -2264,7 +2332,7 @@ oplus_pps_set_current_temp_normal_range(struct oplus_pps *chip,
 		break;
 	case PPS_BAT_TEMP_HIGH2:
 		if (chip->limits.pps_normal_high_temp != -EINVAL &&
-		    vbat_temp_cur > chip->limits.pps_normal_high_temp) {
+		    vbat_temp_cur >= chip->limits.pps_normal_high_temp) {
 			chip->limits.pps_strategy_change_count++;
 			if (chip->limits.pps_strategy_change_count >=
 			    PPS_TEMP_OVER_COUNTS) {
@@ -2290,7 +2358,7 @@ oplus_pps_set_current_temp_normal_range(struct oplus_pps *chip,
 				}
 			}
 		} else if (chip->limits.pps_batt_over_high_temp != -EINVAL &&
-			   vbat_temp_cur >
+			   vbat_temp_cur >=
 				   chip->limits.pps_batt_over_high_temp) {
 			chip->limits.pps_strategy_change_count++;
 			if (chip->limits.pps_strategy_change_count >=
@@ -2313,7 +2381,7 @@ oplus_pps_set_current_temp_normal_range(struct oplus_pps *chip,
 		}
 		break;
 	case PPS_BAT_TEMP_LOW0:
-		if (vbat_temp_cur >
+		if (vbat_temp_cur >=
 		    chip->limits.pps_strategy_batt_high_temp0) {
 			chip->pps_fastchg_batt_temp_status =
 				PPS_BAT_TEMP_HIGH0;
@@ -2333,7 +2401,7 @@ oplus_pps_set_current_temp_normal_range(struct oplus_pps *chip,
 		}
 		break;
 	case PPS_BAT_TEMP_LOW1:
-		if (vbat_temp_cur >
+		if (vbat_temp_cur >=
 		    chip->limits.pps_strategy_batt_high_temp1) {
 			chip->pps_fastchg_batt_temp_status =
 				PPS_BAT_TEMP_HIGH1;
@@ -2350,7 +2418,7 @@ oplus_pps_set_current_temp_normal_range(struct oplus_pps *chip,
 		}
 		break;
 	case PPS_BAT_TEMP_LOW2:
-		if (vbat_temp_cur >
+		if (vbat_temp_cur >=
 		    chip->limits.pps_strategy_batt_high_temp2) {
 			chip->pps_fastchg_batt_temp_status =
 				PPS_BAT_TEMP_HIGH2;
@@ -2797,7 +2865,6 @@ static void oplus_pps_check_sw_full(struct oplus_pps *chip, struct puc_strategy_
 				return;
 			}
 		}
-
 		if ((vbat_mv > normal_hw_vth)) {
 			chip->count.hw_full++;
 			if (chip->count.hw_full >= PPS_FULL_COUNTS_HW) {
@@ -2952,11 +3019,12 @@ static bool oplus_pps_btb_temp_check(struct oplus_pps *chip)
 	return btb_status;
 }
 
+#define PPS_UCP_SS_IBUS_MIN 600
 #define PPS_IBAT_LOW_MIN	2000
 #define PPS_IBAT_LOW_MIN_SINGLE	3000
+#define PPS_IBAT_UCP_CNT	(7 / PPS_UPDATE_IBAT_TIME) /* 7s */
 static void oplus_pps_check_ibat_safety(struct oplus_pps *chip)
 {
-	struct timespec ts_current;
 	union mms_msg_data data = { 0 };
 	int ibat;
 	int ibat_hi_th;
@@ -2964,13 +3032,11 @@ static void oplus_pps_check_ibat_safety(struct oplus_pps *chip)
 	int ibat_low_th = (oplus_gauge_get_batt_num() == 1) ? PPS_IBAT_LOW_MIN_SINGLE : PPS_IBAT_LOW_MIN;
 	int curr_ma;
 
-#define PPS_IBAT_LOW_CNT	4
 #define PPS_IBAT_HIGH_CNT	8
 
-	ts_current = oplus_current_kernel_time();
-	if ((ts_current.tv_sec - chip->timer.ibat_timer.tv_sec) < PPS_UPDATE_IBAT_TIME)
+	if (time_is_after_jiffies(chip->timer.ibat_jiffies + (unsigned long)(PPS_UPDATE_IBAT_TIME * HZ)))
 		return;
-	chip->timer.ibat_timer = ts_current;
+	chip->timer.ibat_jiffies = jiffies;
 
 	if (!is_gauge_topic_available(chip)) {
 		chg_err("gauge topic not found\n");
@@ -3015,7 +3081,7 @@ static void oplus_pps_check_ibat_safety(struct oplus_pps *chip)
 
 	if (ibat > ibat_low_th) {
 		chip->count.ibat_low++;
-		if (chip->count.ibat_low >= PPS_IBAT_LOW_CNT) {
+		if (chip->count.ibat_low > PPS_IBAT_UCP_CNT) {
 			chip->quit_pps_protocol = true;
 			vote(chip->pps_disable_votable, IBAT_OVER_VOTER, true, 1, false);
 			return;
@@ -3023,6 +3089,9 @@ static void oplus_pps_check_ibat_safety(struct oplus_pps *chip)
 	} else {
 		chip->count.ibat_low = 0;
 	}
+
+	if (chip->cp_ratio > 0 && !chip->ss_check && (-ibat / chip->cp_ratio) > PPS_UCP_SS_IBUS_MIN)
+		oplus_pps_cp_sstimeout_ucp_enable(chip, true);
 }
 
 static void oplus_pps_check_temp(struct oplus_pps *chip)
@@ -3080,7 +3149,7 @@ static void oplus_pps_check_temp(struct oplus_pps *chip)
 				if (chip->count.tfg_over >= PPS_TFG_OV_CNT) {
 					chip->count.tfg_over = 0;
 					vote(chip->pps_disable_votable, TFG_VOTER, true, 1, false);
-                			oplus_pps_push_err_info(chip, PPS_ERR_TFG_OVER, batt_temp);
+					oplus_pps_push_err_info(chip, PPS_ERR_TFG_OVER, batt_temp);
 				}
 			} else {
 				chip->count.tfg_over = 0;
@@ -3177,6 +3246,123 @@ static void oplus_pps_set_batt_bal_curr(struct oplus_pps *chip)
 		vote(chip->pps_curr_votable, BATT_BAL_VOTER, true, target_curr, false);
 	else
 		vote(chip->pps_curr_votable, BATT_BAL_VOTER, false, 0, false);
+}
+
+static void oplus_pps_get_full_vth(struct oplus_pps *chip, int *hw_vth, int *sw_vth)
+{
+        int tbat = chip->shell_temp;
+
+	if (!chip->oplus_pps_adapter)
+		*hw_vth = chip->limits.pps_full_normal_hw_vbat_third;
+	else
+		*hw_vth = chip->limits.pps_full_normal_hw_vbat;
+
+	if (tbat < chip->limits.pps_cool_temp) {
+		if (!chip->oplus_pps_adapter)
+			*sw_vth = chip->limits.pps_full_cool_sw_vbat_third;
+		else
+			*sw_vth = chip->limits.pps_full_cool_sw_vbat;
+	} else if (chip->limits.pps_batt_over_high_temp != -EINVAL && tbat > chip->limits.pps_batt_over_high_temp) {
+		*sw_vth = chip->limits.pps_full_warm_vbat;
+	} else {
+		if (!chip->oplus_pps_adapter)
+			*sw_vth = chip->limits.pps_full_normal_sw_vbat_third;
+		else
+			*sw_vth = chip->limits.pps_full_normal_sw_vbat;
+	}
+}
+
+static int oplus_pps_set_fcl_curr(struct oplus_pps *chip)
+{
+	int rc = 0;
+	int ibus_ma = 0, ifg = 0, ibat = 0;
+	int vbat_fcl = 0, vbat_fg = 0, vbat_cp = 0, vbat_r = 0;
+	int sw_vth = 0, hw_vth = 0;
+	int ibat_limit = 0, fcl_limit = 0;
+	int vb_offset = 0, vbat_offset = 0;
+	int curr_dec = 0, min_curr = 0;
+	bool hw_status = false;
+	static int limit_cnts = 0;
+	union mms_msg_data data = { 0 };
+#define ROUND_DOWN(a, n) (((a) / (n)) * (n))
+#define FCL_LIMIT_CNTS 3
+
+	if (!chip->fcl_support)
+		return rc;
+
+	rc = oplus_mms_get_item_data(chip->gauge_topic, GAUGE_ITEM_CURR, &data, true);
+	if (rc < 0) {
+		chg_err("can't get ibat, rc=%d\n", rc);
+		vote(chip->pps_disable_votable, NO_DATA_VOTER, true, 1, false);
+		return rc;
+	}
+	ifg = -data.intval;
+	ibat = abs(ifg);
+	if (chip->support_cp_ibus) {
+		rc = oplus_pps_cp_get_iin(chip, &ibus_ma);
+		if (rc < 0) {
+			chg_err("can't get cp iin, rc=%d\n", rc);
+		} else {
+			ibat = ibus_ma * chip->cp_ratio;
+		}
+	}
+	oplus_gauge_get_vb_offset(chip->gauge_topic, &vb_offset);
+	rc = oplus_mms_get_item_data(chip->gauge_topic, GAUGE_ITEM_VOL_FCL, &data, true);
+	if (rc >= 0)
+		vbat_fcl = data.intval;
+
+	rc = oplus_mms_get_item_data(chip->gauge_topic, GAUGE_ITEM_VOL_MAX, &data, true);
+	if (rc >= 0)
+		vbat_fg = data.intval;
+
+	rc = oplus_pps_cp_get_vout(chip, &vbat_cp);
+	if (rc < 0)
+		vbat_cp = 0;
+
+	if (vbat_fcl) {
+		vbat_offset = vbat_fcl - (ifg * vb_offset / 1000);
+		vbat_r = max(vbat_offset, vbat_fg);
+	} else if (vbat_cp) {
+		vbat_offset = vbat_cp - (ibus_ma * vb_offset / 1000);
+		if (is_support_parallel_battery(chip->gauge_topic) == PARALLEL_CONNECT_TYPE)
+			vbat_r = max(vbat_offset, vbat_fg);
+		else
+			vbat_r = vbat_offset;
+
+	} else {
+		vbat_r = vbat_fg;
+	}
+	oplus_pps_get_full_vth(chip, &hw_vth, &sw_vth);
+	if (chip->fcl_trigger) {
+		limit_cnts++;
+		if (limit_cnts > FCL_LIMIT_CNTS && chip->curr_set_ma < chip->target_curr_ma) {
+			limit_cnts = 0;
+			chip->fcl_trigger = false;
+		}
+		return 0;
+	}
+
+	chip->fcl_trigger = oplus_gauge_get_fcl_curr(
+		hw_vth, sw_vth, vbat_r, &curr_dec, &min_curr, &hw_status);
+
+	if (chip->fcl_trigger && chip->cp_ratio) {
+		ibat_limit = ibat / chip->cp_ratio - curr_dec;
+		fcl_limit = ibat_limit > min_curr ?
+			ibat_limit : min_curr;
+		if (hw_status)
+			oplus_pps_track_set_fcl_info(chip->dev, vbat_r, ibat, chip->shell_temp);
+		else
+			oplus_pps_track_set_fcl_info(chip->dev, 0, 0, 0);
+		chg_info(" [%d, %d][%d, %d, %d][%d]\n", ibat, ibus_ma, vbat_r, vbat_fcl, vbat_cp, vb_offset);
+
+		fcl_limit = ROUND_DOWN(fcl_limit, 50);
+		if (fcl_limit)
+			vote(chip->pps_curr_votable, LIMIT_FCL_VOTER, true, fcl_limit, false);
+		else
+			vote(chip->pps_curr_votable, LIMIT_FCL_VOTER, false, 0, false);
+	}
+
+	return 0;
 }
 
 static void oplus_pps_imp_check(struct oplus_pps *chip)
@@ -3509,6 +3695,7 @@ static void oplus_pps_monitor_work(struct work_struct *work)
 
 		oplus_pps_set_cool_down_curr(chip, chip->cool_down);
 		oplus_pps_set_batt_bal_curr(chip);
+		oplus_pps_set_fcl_curr(chip);
 		oplus_pps_protection_check(chip, &data);
 		if (get_client_vote(chip->pps_disable_votable, CHG_FULL_VOTER) > 0) {
 			chg_info("exit pps fast charge, start ffc\n");
@@ -3522,10 +3709,6 @@ static void oplus_pps_monitor_work(struct work_struct *work)
 		if (chip->pdo_set_error_count > PPS_ERROR_COUNT_MAX) {
 			chg_info("pps pdo_set_error exception, exit pps mode\n");
 			chip->quit_pps_protocol = true;
-			goto exit;
-		}
-		if (chip->pps_not_allow || chip->pps_disable) {
-			chg_info("pps charge not allow or disable, exit pps mode\n");
 			goto exit;
 		}
 
@@ -3546,6 +3729,12 @@ static void oplus_pps_monitor_work(struct work_struct *work)
 		oplus_pps_push_err_info(chip, chip->debug_force_pps_err, 0);
 		chip->debug_force_pps_err = 0;
 	}
+
+	if (chip->pps_not_allow || chip->pps_disable) {
+		chg_info("pps charge not allow or disable, exit pps mode\n");
+		goto exit;
+	}
+
 	if (chip->wired_online)
 		schedule_delayed_work(&chip->monitor_work, msecs_to_jiffies(delay));
 	return;
@@ -3597,7 +3786,7 @@ static void oplus_pps_current_work(struct work_struct *work)
 	if (!chip->pps_charging)
 		return;
 
-#define PPS_CURR_CHANGE_UPDATE_DELAY		200
+#define PPS_CURR_CHANGE_UPDATE_DELAY	500
 #define PPS_CURR_NO_CHANGE_UPDATE_DELAY	500
 
 	if (chip->oplus_pps_adapter) {
@@ -3757,8 +3946,8 @@ static void oplus_pps_gauge_update_work(struct work_struct *work)
 	struct oplus_pps *chip =
 		container_of(work, struct oplus_pps, gauge_update_work);
 
-#define PPS_RECOVERY_IBAT_THD (-1000)
-#define PPS_RECOVERY_IBAT_TIMES (10)
+#define PPS_RECOVERY_IBAT_THD (-600)
+#define PPS_RECOVERY_IBAT_TIMES (3)
 
 	if (chip->pps_not_allow)
 		oplus_pps_charge_allow_check(chip);
@@ -3769,15 +3958,17 @@ static void oplus_pps_gauge_update_work(struct work_struct *work)
 	else
 		wired_type = msg_data.intval;
 
-
 	if ((wired_type == OPLUS_CHG_USB_TYPE_PD_PPS) &&
 	    is_client_vote_enabled(chip->pps_disable_votable, PPS_IBAT_ABNOR_VOTER)) {
 		rc = oplus_mms_get_item_data(chip->gauge_topic, GAUGE_ITEM_CURR, &msg_data, true);
 		if (unlikely(rc < 0)) {
 			chg_err("can't get ibat, rc=%d\n", rc);
 		} else {
+			chg_info("current = %d, recovery=%d, pd_pps is disable by the PPS_IBAT_ABNOR_VOTER\n",
+				 msg_data.intval, chip->count.pps_recovery);
 			if (msg_data.intval < PPS_RECOVERY_IBAT_THD) {
-				if (chip->count.pps_recovery > PPS_RECOVERY_IBAT_TIMES) {
+				if (chip->count.pps_recovery >= PPS_RECOVERY_IBAT_TIMES) {
+					chg_info("retry to recovery the pps charging!\n");
 					vote(chip->pps_disable_votable, PPS_IBAT_ABNOR_VOTER, false, 0, false);
 					oplus_cpa_request(chip->cpa_topic, CHG_PROTOCOL_PPS);
 				}
@@ -4024,6 +4215,9 @@ static void oplus_pps_subscribe_wired_topic(struct oplus_mms *topic,
 	oplus_mms_get_item_data(chip->wired_topic, WIRED_ITEM_USB_STATUS, &data,
 				true);
 	chip->usb_status = data.intval;
+	oplus_mms_get_item_data(chip->wired_topic, WIRED_ITEM_PRESENT, &data,
+				false);
+	chip->irq_plugin = !!data.intval;
 
 	vote(chip->pps_boot_votable, WIRED_TOPIC_VOTER, false, 0, false);
 }
@@ -4307,6 +4501,8 @@ static void oplus_pps_subscribe_gauge_topic(struct oplus_mms *topic,
 		vote(chip->pps_disable_votable, NON_STANDARD_VOTER, true, 1,
 		     false);
 	}
+
+	oplus_gauge_get_fcl_support(chip->gauge_topic, &chip->fcl_support);
 
 	vote(chip->pps_boot_votable, GAUGE_TOPIC_VOTER, false, 0, false);
 }
@@ -4712,22 +4908,22 @@ static int oplus_pps_update_oplus_adapter(struct oplus_mms *mms,
 static int oplus_pps_update_cpa_power(struct oplus_mms *mms,
                                            union mms_msg_data *data)
 {
-        data->intval = 0;
-        return 0;
+	data->intval = 0;
+	return 0;
 }
 
 static int oplus_pps_update_adapter_power(struct oplus_mms *mms,
                                            union mms_msg_data *data)
 {
-        data->intval = 0;
-        return 0;
+	data->intval = 0;
+	return 0;
 }
 
 static int oplus_chg_track_upload_pps_adapter_info(struct oplus_mms *mms,
                                            union mms_msg_data *data)
 {
-        data->intval = 0;
-        return 0;
+	data->intval = 0;
+	return 0;
 }
 
 static int oplus_pps_track_debugfs_init(struct oplus_pps *chip)
@@ -4743,9 +4939,9 @@ static int oplus_pps_track_debugfs_init(struct oplus_pps *chip)
 
 	chip->debugfs_pps = debugfs_create_dir("pps", debugfs_root);
 	if (!chip->debugfs_pps) {
-                ret = -ENOENT;
-                return ret;
-        }
+		ret = -ENOENT;
+		return ret;
+	}
 
 	debugfs_create_u32("debug_force_pps_err", 0644, chip->debugfs_pps, &(chip->debug_force_pps_err));
 	return ret;
@@ -5721,7 +5917,11 @@ static ssize_t oplus_pps_dev_write(struct file *filp, const char __user *buf,
 
 static const struct file_operations oplus_pps_dev_fops = {
 	.owner			= THIS_MODULE,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+	.llseek			= noop_llseek,
+#else
 	.llseek			= no_llseek,
+#endif
 	.write			= oplus_pps_dev_write,
 	.read			= oplus_pps_dev_read,
 	.open			= oplus_pps_dev_open,
@@ -5962,7 +6162,11 @@ imp_node_init_err:
 	return rc;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+static void oplus_pps_remove(struct platform_device *pdev)
+#else
 static int oplus_pps_remove(struct platform_device *pdev)
+#endif
 {
 	struct oplus_pps *chip = platform_get_drvdata(pdev);
 
@@ -6008,7 +6212,9 @@ static int oplus_pps_remove(struct platform_device *pdev)
 		debugfs_remove_recursive(chip->debugfs_pps);
 	devm_kfree(&pdev->dev, chip);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	return 0;
+#endif
 }
 
 static void oplus_pps_shutdown(struct platform_device *pdev)

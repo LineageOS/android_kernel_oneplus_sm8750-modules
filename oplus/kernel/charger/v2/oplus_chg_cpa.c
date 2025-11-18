@@ -232,6 +232,7 @@ static int oplus_cpa_protocol_wait(struct oplus_cpa *cpa, enum oplus_chg_protoco
 {
 	int rc = 0;
 	int wait_time = 0;
+	unsigned long left = 0;
 	int i;
 
 	if (!cpa->protocol_wait_support)
@@ -241,7 +242,13 @@ static int oplus_cpa_protocol_wait(struct oplus_cpa *cpa, enum oplus_chg_protoco
 		if (cpa->protocol_wait_table[i].type == type) {
 			wait_time = cpa->protocol_wait_table[i].time;
 			chg_info("set %s to wait %d ms\n", get_protocol_name_str(type), wait_time);
-			rc = wait_for_completion_timeout(&cpa->pd_completed_ack, msecs_to_jiffies(wait_time));
+			left = wait_for_completion_timeout(&cpa->pd_completed_ack, msecs_to_jiffies(wait_time));
+			if (!left) {
+				chg_debug("timeout waiting for pd_ack\n");
+				rc = -ETIMEDOUT;
+			} else {
+				chg_info("exit pd wait. left time = %lu\n", left);
+			}
 		}
 	}
 
@@ -1548,7 +1555,7 @@ FOUND_NODE:
 }
 
 #if IS_ENABLED(CONFIG_OPLUS_DYNAMIC_CONFIG_CHARGER)
-#include "config/dynamic_cfg/oplus_cpa_cfg.c"
+#include "config/dynamic_cfg/oplus_cpa_cfg.h"
 #endif
 
 static int oplus_cpa_probe(struct platform_device *pdev)
@@ -1625,7 +1632,11 @@ votable_init_err:
 	return rc;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+static void oplus_cpa_remove(struct platform_device *pdev)
+#else
 static int oplus_cpa_remove(struct platform_device *pdev)
+#endif
 {
 	struct oplus_cpa *cpa = platform_get_drvdata(pdev);
 
@@ -1638,7 +1649,9 @@ static int oplus_cpa_remove(struct platform_device *pdev)
 	destroy_votable(cpa->req_lock_votable);
 	devm_kfree(&pdev->dev, cpa);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	return 0;
+#endif
 }
 
 static const struct of_device_id oplus_cpa_match[] = {

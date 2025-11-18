@@ -531,6 +531,7 @@ struct oplus_sc96257 {
 	int event_code;
 
 	struct mutex i2c_lock;
+	struct mutex pinctrl_lock;
 
 	struct pinctrl *pinctrl;
 	struct pinctrl_state *rx_con_default;
@@ -562,6 +563,7 @@ static struct oplus_sc96257 *g_sc96257_chip = NULL;
 static int sc96257_get_running_mode(struct oplus_sc96257 *chip);
 static int sc96257_get_power_cap(struct oplus_sc96257 *chip);
 static int sc96257_set_rx_enable(struct oplus_chg_ic_dev *dev, bool en);
+static int sc96257_fw_checksum(struct oplus_sc96257 *chip);
 
 __maybe_unused static bool is_nor_ic_available(struct oplus_sc96257 *chip)
 {
@@ -915,15 +917,18 @@ static int sc96257_set_rx_enable_raw(struct oplus_chg_ic_dev *dev, bool en)
 	}
 	chip = oplus_chg_ic_get_drvdata(dev);
 
+	mutex_lock(&chip->pinctrl_lock);
 	if (IS_ERR_OR_NULL(chip->pinctrl) ||
 	    IS_ERR_OR_NULL(chip->rx_en_active) ||
 	    IS_ERR_OR_NULL(chip->rx_en_sleep)) {
 		chg_err("rx_en pinctrl error\n");
+		mutex_unlock(&chip->pinctrl_lock);
 		return -ENODEV;
 	}
 
 	rc = pinctrl_select_state(chip->pinctrl,
 		en ? chip->rx_en_active : chip->rx_en_sleep);
+	mutex_unlock(&chip->pinctrl_lock);
 	return rc;
 }
 
@@ -1541,14 +1546,17 @@ static int sc96257_set_mode_sw_default(struct oplus_sc96257 *chip)
 		return -ENODEV;
 	}
 
+	mutex_lock(&chip->pinctrl_lock);
 	if (IS_ERR_OR_NULL(chip->pinctrl) ||
 	    IS_ERR_OR_NULL(chip->mode_sw_active) ||
 	    IS_ERR_OR_NULL(chip->mode_sw_sleep)) {
 		chg_err("mode_sw pinctrl error\n");
+		mutex_unlock(&chip->pinctrl_lock);
 		return -ENODEV;
 	}
 
 	rc = pinctrl_select_state(chip->pinctrl, chip->mode_sw_sleep);
+	mutex_unlock(&chip->pinctrl_lock);
 	if (rc < 0)
 		chg_err("can't set mode_sw active, rc=%d\n", rc);
 	else
@@ -1600,6 +1608,13 @@ static int sc96257_set_tx_start(struct oplus_chg_ic_dev *dev, bool start)
 	if (start) {
 		sc96257_set_wake_pattern(chip);
 		msleep(10);
+		if (sc96257_fw_checksum(chip) == FW_CHECKSUM_FAIL) {
+			chg_info("check tx_fw fail\n");
+			chip->event_code = WLS_EVENT_FORCE_UPGRADE;
+			oplus_chg_ic_virq_trigger(chip->ic_dev, OPLUS_IC_VIRQ_EVENT_CHANGED);
+			sc96257_track_upload_wls_ic_err_info(chip, WLS_ERR_SCENE_TX, WLS_IC_ERR_VAC_ACDRV);
+			return -ENODEV;
+		}
 		rc = sc96257_tx_set_cmd(chip, AP_CMD_TX_ENABLE);
 	} else {
 		rc = sc96257_tx_set_cmd(chip, AP_CMD_TX_DISABLE);
@@ -3036,15 +3051,18 @@ static int sc96257_set_insert_disable(struct oplus_chg_ic_dev *dev, bool en)
 	}
 	chip = oplus_chg_ic_get_drvdata(dev);
 
+	mutex_lock(&chip->pinctrl_lock);
 	if (IS_ERR_OR_NULL(chip->pinctrl) ||
 	    IS_ERR_OR_NULL(chip->insert_dis_active) ||
 	    IS_ERR_OR_NULL(chip->insert_dis_sleep)) {
 		chg_err("insert_dis pinctrl error\n");
+		mutex_unlock(&chip->pinctrl_lock);
 		return -ENODEV;
 	}
 
 	rc = pinctrl_select_state(chip->pinctrl,
 		en ? chip->insert_dis_active : chip->insert_dis_sleep);
+	mutex_unlock(&chip->pinctrl_lock);
 	if (rc < 0)
 		chg_err("can't %s insert_dis\n", en ? "enable" : "disable");
 	else
@@ -3165,32 +3183,42 @@ static int sc96257_set_silent(struct oplus_chg_ic_dev *dev)
 	return 0;
 }
 
-static bool sc96257_vac_acdrv_check(struct oplus_sc96257 *chip)
+static int sc96257_fw_checksum(struct oplus_sc96257 *chip)
 {
 	u32 fw_check = 0;
 	u32 fw_version = 0;
 	int rc;
 
-
 	rc = sc96257_get_fw_check(chip, &fw_check);
 	if (rc < 0) {
 		chg_err("read fw_check err, rc=%d\n", rc);
-		return true;
+		return FW_CHECKSUM_UNKNOWN;
 	}
 	rc = sc96257_get_fw_version(chip, &fw_version);
 	if (rc < 0) {
 		chg_err("read fw_version err, rc=%d\n", rc);
-		return true;
+		return FW_CHECKSUM_UNKNOWN;
 	}
 
-	if (fw_check == fw_version && fw_version != 0x0 && fw_version != 0xFFFFFFFF) {
+	if (fw_check == fw_version && fw_version != INVALID_FW_VERSION0 && fw_version != INVALID_FW_VERSION1)
+		return FW_CHECKSUM_OK;
+	return FW_CHECKSUM_FAIL;
+}
+
+static bool sc96257_vac_acdrv_check(struct oplus_sc96257 *chip)
+{
+	int checksum;
+
+	checksum = sc96257_fw_checksum(chip);
+	if (checksum == FW_CHECKSUM_OK) {
 		chg_info("check vac_acdrv OK\n");
 		return true;
-	} else {
+	} else if (checksum == FW_CHECKSUM_FAIL) {
 		sc96257_track_upload_wls_ic_err_info(chip, WLS_ERR_SCENE_RX, WLS_IC_ERR_VAC_ACDRV);
 		chg_err("check vac_acdrv fail\n");
 		return false;
 	}
+	return true;
 }
 
 static void sc96257_check_ldo_on_work(struct work_struct *work)
@@ -4030,6 +4058,7 @@ static int sc96257_driver_probe(struct i2c_client *client,
 	INIT_DELAYED_WORK(&chip->check_ldo_on_work, sc96257_check_ldo_on_work);
 	INIT_DELAYED_WORK(&chip->rx_mode_work, sc96257_rx_mode_work);
 	mutex_init(&chip->i2c_lock);
+	mutex_init(&chip->pinctrl_lock);
 	init_completion(&chip->ldo_on);
 	init_completion(&chip->resume_ack);
 	complete_all(&chip->resume_ack);

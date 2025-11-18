@@ -65,6 +65,7 @@ extern void oplus_tfa98xx_queue_check_work(struct tfa98xx *tfa98xx);
 extern void oplus_tfa98xx_exit_check_work(struct tfa98xx *tfa98xx);
 extern void oplus_tfa98xx_record_r0_f0_range(int r0_cal, int32_t f0_cal, int dev_idx);
 extern int oplus_need_check_calib_values(void);
+extern void oplus_tfa98xx_clear_check_flag(void);
 #endif
 
 #ifdef OPLUS_ARCH_EXTENDS
@@ -376,6 +377,14 @@ static int tfa98xx_spk_l_mute_ctrl_put(struct snd_kcontrol *kcontrol,
 
 	int val = ucontrol->value.integer.value[0];
 
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+/* 2025/04/18, not check feedback when mute */
+	if (val == 1) {
+		oplus_tfa98xx_exit_check_work(tfa98xx);
+		oplus_tfa98xx_clear_check_flag();
+	}
+#endif /*CONFIG_OPLUS_FEATURE_MM_FEEDBACK*/
+
 	if (val == s_speaker_l_force_mute) {
 		pr_info("Speaker_L mute is already %s\n", val == 1 ? "on" : "off");
 		return 1;
@@ -414,6 +423,14 @@ static int tfa98xx_spk_r_mute_ctrl_put(struct snd_kcontrol *kcontrol,
 	struct tfa98xx *tfa98xx = snd_soc_component_get_drvdata(component);
 
 	int val = ucontrol->value.integer.value[0];
+
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+/* 2025/04/18, not check feedback when mute */
+	if (val == 1) {
+		oplus_tfa98xx_exit_check_work(tfa98xx);
+		oplus_tfa98xx_clear_check_flag();
+	}
+#endif /*CONFIG_OPLUS_FEATURE_MM_FEEDBACK*/
 
 	if (val == s_speaker_r_force_mute) {
 		pr_info("Speaker_R mute is already %s\n", val == 1 ? "on" : "off");
@@ -1030,19 +1047,19 @@ static enum Tfa98xx_Error tfa9874_calibrate(struct tfa98xx *tfa98xx_cal, int *sp
 			if (imp < tfa98xx->tfa->min_mohms || imp > tfa98xx->tfa->max_mohms) {
 				num_spkr_in_error = tfa98xx_device_count;
 				pr_err("[TFA]Calibrate value is out of range.\n");
-				break;
 			}
 		}
 		/* restore the org point*/
 		tfa98xx = tfa98xx_cal;
-		if (num_spkr_in_error == tfa98xx_device_count) {
-			pr_err("[TFA]Calibrate failed and not save mtp, exit.\n");
-			return Tfa9xxx_Error_SpeakerError;
-		}
 
 		*speakerImpedance = tfa_get_calibration_info(tfa98xx->tfa, 0);
 
 		pr_info("%s: devid 0 Calibration value: %d.%3d ohm.\n", __func__, *speakerImpedance/1000, *speakerImpedance%1000);
+
+		if (num_spkr_in_error >= tfa98xx_device_count) {
+			pr_err("[TFA]Calibrate failed and not save mtp, exit.\n");
+			return Tfa9xxx_Error_SpeakerError;
+		}
 
 		list_for_each_entry(tfa98xx, &tfa98xx_device_list, list) {
 			imp = tfa_get_calibration_info(tfa98xx->tfa, 0);
@@ -1459,7 +1476,7 @@ static ssize_t tfa98xx_dbgfs_otc_get(struct file *file,
 	int ret;
 	char *str;
 
-	str = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	str = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!str) {
 		ret = -ENOMEM;
 		pr_err("[0x%x] memory allocation failed\n", tfa98xx->i2c->addr);
@@ -1538,7 +1555,7 @@ static ssize_t tfa98xx_dbgfs_mtpex_get(struct file *file, char __user *user_buf,
     int ret = 0;
 	char *str = NULL;
 
-	str = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	str = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!str) {
 		ret = -ENOMEM;
 		pr_err("[0x%x] memory allocation failed\n", tfa98xx->i2c->addr);
@@ -1616,7 +1633,7 @@ static ssize_t tfa98xx_dbgfs_temp_get(struct file *file, char __user *user_buf, 
     int ret = 0;
 	char *str = NULL;
 
-	str = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	str = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!str) {
 		ret = -ENOMEM;
 		pr_err("[0x%x] memory allocation failed\n", tfa98xx->i2c->addr);
@@ -1844,7 +1861,7 @@ static ssize_t tfa98xx_fres_read(struct file *file,
 	uint16_t fres = 0;
 	struct tfa98xx *tfa98xx = NULL;
 
-	str = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	str = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!str) {
 		ret = -ENOMEM;
 		pr_err("%s memory allocation failed\n", __func__);
@@ -1935,7 +1952,7 @@ static ssize_t tfa98xx_dbgfs_r_read(struct file *file,
 		#endif /* OPLUS_ARCH_EXTENDS */
 	}
 
-	str = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	str = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!str) {
 		ret = -ENOMEM;
 		pr_err("[0x%x] memory allocation failed\n", tfa98xx->i2c->addr);
@@ -2004,7 +2021,7 @@ static ssize_t tfa98xx_dbgfs_range_read(struct file *file,
 		return -EINVAL;
 	}
 
-	str = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	str = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!str) {
 		ret = -ENOMEM;
 		pr_err("[0x%x] memory allocation failed\n", tfa98xx->i2c->addr);
@@ -2057,7 +2074,7 @@ static ssize_t tfa98xx_dbgfs_r_aging_read(struct file *file,
 		pr_err("aging calibration not support now!\n");
 	}
 
-	str = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	str = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!str) {
 	    ret = -ENOMEM;
 	    pr_err("[0x%x] memory allocation failed\n", tfa98xx->i2c->addr);
@@ -2101,7 +2118,7 @@ static ssize_t tfa98xx_dbgfs_r_impedance_read(struct file *file,
 
 	mutex_lock(&tfa98xx->dsp_lock);
 
-	str = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	str = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!str) {
 		ret = -ENOMEM;
 		pr_err("[0x%x] memory allocation failed\n", tfa98xx->i2c->addr);
@@ -2148,7 +2165,7 @@ static ssize_t tfa98xx_dbgfs_r_calibrated_read(struct file *file,
 
 	mutex_lock(&tfa98xx->dsp_lock);
 
-	str = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	str = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!str) {
 		ret = -ENOMEM;
 		pr_err("[0x%x] memory allocation failed\n", tfa98xx->i2c->addr);
@@ -2196,7 +2213,7 @@ static ssize_t tfa98xx_dbgfs_r_tfa_cali_sq_read(struct file *file,
 	pr_info("cali cannel read start now!\n");
 	mutex_lock(&tfa98xx->dsp_lock);
 
-	str = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	str = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!str) {
 		ret = -ENOMEM;
 		pr_err("[0x%x] memory allocation failed\n", tfa98xx->i2c->addr);
@@ -2246,7 +2263,7 @@ static ssize_t tfa98xx_dbgfs_f0_range_read(struct file *file,
 		return -EINVAL;
 	}
 
-	str = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	str = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!str) {
 		ret = -ENOMEM;
 		pr_err("[0x%x] memory allocation failed\n", tfa98xx->i2c->addr);
@@ -2440,7 +2457,7 @@ static ssize_t tfa98xx_dbgfs_rpc_read(struct file *file,
 	if (count == 0)
 		return 0;
 
-	buffer = kmalloc(count, GFP_KERNEL);
+	buffer = kzalloc(count, GFP_KERNEL);
 	if (buffer == NULL)
 		return -ENOMEM;
 
@@ -2498,7 +2515,7 @@ static ssize_t tfa98xx_dbgfs_rpc_send(struct file *file,
 		return 0;
 
 	/* msg_file.name is not used */
-	msg_file = kmalloc(count + sizeof(struct nxpTfaFileDsc), GFP_KERNEL);
+	msg_file = kzalloc(count + sizeof(struct nxpTfaFileDsc), GFP_KERNEL);
 	if (msg_file == NULL)
 		return	-ENOMEM;
 
@@ -4026,7 +4043,7 @@ tfa98xx_write_dsp(struct tfa_device *tfa,
 	enum Tfa98xx_Error error = Tfa98xx_Error_Ok;
 #endif
 
-	buffer = kmalloc(num_bytes, GFP_KERNEL);
+	buffer = kzalloc(num_bytes, GFP_KERNEL);
 	if (buffer == NULL)
 		return	Tfa98xx_Error_Fail;
 
@@ -5650,7 +5667,7 @@ static ssize_t tfa98xx_rw_write(struct file *filp, struct kobject *kobj,
 	int ret;
 	int retries = I2C_RETRIES;
 
-	data = kmalloc(count + 1, GFP_KERNEL);
+	data = kzalloc(count + 1, GFP_KERNEL);
 	if (data == NULL)
 		return  -ENOMEM;
 

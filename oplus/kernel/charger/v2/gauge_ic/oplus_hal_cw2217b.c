@@ -670,13 +670,13 @@ CW_EXECUTE_CMD_RETRY:
 	memset(cw_bat->track_info, 0, sizeof(cw_bat->track_info));
 	if (i >= SIZE_OF_PROFILE)
 		i = SIZE_OF_PROFILE - 1;
-	index = snprintf(cw_bat->track_info, CW_INFO_LEN, "$$init_type@@%d$$index@@0x%x$$profile@@0x%x$$reg_val@@0x%x"
+	index = scnprintf(cw_bat->track_info, CW_INFO_LEN, "$$init_type@@%d$$index@@0x%x$$profile@@0x%x$$reg_val@@0x%x"
 			"$$retry_times@@%d", init_type, reg_index, cw_bat->cw_config_profile[i], reg_val, retry_times);
 	for (i = 0; i < ARRAY_SIZE(cw_standard); i++) {
 		ret = cw_read_word(cw_bat->client, cw_standard[i].addr, reg_data);
 		if (ret < NUM_0)
 			continue;
-		index += snprintf(cw_bat->track_info + index, CW_INFO_LEN - index,
+		index += scnprintf(cw_bat->track_info + index, CW_INFO_LEN - index,
 			  "0x%02x=%02x,%02x|", cw_standard[i].addr, reg_data[NUM_0], reg_data[NUM_1]);
 	}
 
@@ -804,7 +804,7 @@ static int cw2217_get_battery_mvolts(void)
 static int cw2217_get_battery_fc(void)
 {
 	cw_get_soh(g_cw_bat);
-	g_cw_bat->fcc = (g_cw_bat->soh/SOH_INIT_VALUE)*g_cw_bat->design_capacity;
+	g_cw_bat->fcc = (g_cw_bat->soh * g_cw_bat->design_capacity) / SOH_INIT_VALUE;
         return g_cw_bat->fcc;
 }
 

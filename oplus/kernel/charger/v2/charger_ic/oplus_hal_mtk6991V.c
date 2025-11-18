@@ -35,6 +35,10 @@
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 #include <linux/reboot.h>
+#include <linux/version.h>
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+#include <linux/vmalloc.h>
+#endif
 #include <linux/mfd/mt6397/core.h>/* PMIC MFD core header */
 #include <linux/regmap.h>
 #include <linux/of_platform.h>
@@ -65,6 +69,11 @@
 #include <oplus_chg_pps.h>
 #include <oplus_chg_wls.h>
 #include <oplus_chg_monitor.h>
+
+#ifndef CONFIG_DISABLE_OPLUS_FUNCTION
+#include <soc/oplus/system/boot_mode.h>
+#include <soc/oplus/system/oplus_project.h>
+#endif
 
 static int oplus_chg_set_pps_config(struct oplus_chg_ic_dev *ic_dev, int vbus_mv, int ibus_ma);
 static int oplus_chg_set_fixed_pd_config(struct oplus_chg_ic_dev *ic_dev, int vol_mv, int curr_ma);
@@ -133,6 +142,7 @@ extern void oplus_set_hvdcp_flag_clear(void);
 extern int oplus_chg_set_shipping_mode(void);
 #endif
 extern bool mt6379_int_chrdet_attach(void);
+extern int oplus_chg_set_dischg_enable(bool en);
 #endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0))
@@ -3682,7 +3692,11 @@ static void mtk_charger_init_timer(struct mtk_charger *info)
 #endif /* CONFIG_PM */
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+static void mtk_charger_setup_files(struct platform_device *pdev)
+#else
 static int mtk_charger_setup_files(struct platform_device *pdev)
+#endif
 {
 	int ret = 0;
 	struct proc_dir_entry *battery_dir = NULL, *entry = NULL;
@@ -3762,7 +3776,11 @@ static int mtk_charger_setup_files(struct platform_device *pdev)
 	battery_dir = proc_mkdir("mtk_battery_cmd", NULL);
 	if (!battery_dir) {
 		chr_err("%s: mkdir /proc/mtk_battery_cmd failed\n", __func__);
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 		return -ENOMEM;
+#else
+		return;
+#endif
 	}
 
 	entry = proc_create_data("current_cmd", 0644, battery_dir,
@@ -3790,12 +3808,19 @@ static int mtk_charger_setup_files(struct platform_device *pdev)
 		goto fail_procfs;
 	}
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	return 0;
+#endif
 
 fail_procfs:
 	remove_proc_subtree("mtk_battery_cmd", NULL);
 _out:
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	return ret;
+#else
+	return;
+#endif
 }
 
 void mtk_charger_get_atm_mode(struct mtk_charger *info)
@@ -3901,7 +3926,7 @@ static int psy_charger_get_property(struct power_supply *psy,
 
 	info = (struct mtk_charger *)power_supply_get_drvdata(psy);
 
-	chr_err("%s psp:%d\n",
+	chr_debug("%s psp:%d\n",
 		__func__, psp);
 
 
@@ -4401,16 +4426,26 @@ static void oplus_svid_check_work(struct work_struct *work)
 	oplus_get_adapter_svid();
 }
 
+#define DEFAULT_PDO_CURR 500 /*500ma*/
 static int oplus_get_max_current_from_fixed_pdo(struct mtk_charger *chip, int volt)
 {
 	int i = 0;
-	if (chip->pdo[0].pdo_data == 0) {
-		chg_err("get pdo info error\n");
-		return -EINVAL;
-	}
+	int chg_type = oplus_wired_get_chg_type();
 
 	if (!oplus_chg_get_common_charge_icl_support_flags())
 		return -EINVAL;
+
+	if (chip->pdo[0].pdo_data == 0) {
+		if (chg_type == OPLUS_CHG_USB_TYPE_PD ||
+			chg_type == OPLUS_CHG_USB_TYPE_PD_DRP ||
+			chg_type == OPLUS_CHG_USB_TYPE_PD_PPS ||
+			chg_type == OPLUS_CHG_USB_TYPE_PD_SDP) {
+			chg_err("get pdo info error. return %dma\n", DEFAULT_PDO_CURR);
+			return DEFAULT_PDO_CURR;
+		}
+		chg_err("get pdo info error\n");
+		return -EINVAL;
+	}
 
 	for (i = 0; i < (PPS_PDO_MAX - 1); i++) {
 		if (chip->pdo[i].pdo_type != USBPD_PDMSG_PDOTYPE_FIXED_SUPPLY)
@@ -4441,7 +4476,7 @@ static void oplus_sourcecap_done_work(struct work_struct *work)
 }
 
 #define DEFAULT_CURR_BY_CC 100
-#define SINK_SUSPEND_CURRENT 5
+#define SINK_SUSPEND_CURRENT 100
 
 static int pd_tcp_notifier_call(struct notifier_block *pnb,
 				unsigned long event, void *data)
@@ -4468,9 +4503,7 @@ static int pd_tcp_notifier_call(struct notifier_block *pnb,
 		chg_info("pd type:%d. sink vbus %dmV %dmA type(0x%02X)\n",
 		         pinfo->pd_type, noti->vbus_state.mv, noti->vbus_state.ma, noti->vbus_state.type);
 		if (oplus_chg_get_common_charge_icl_support_flags() &&
-		    pinfo->pd_type == MTK_PD_CONNECT_PE_READY_SNK_APDO &&
-		    noti->vbus_state.type == TCP_VBUS_CTRL_PD_STANDBY &&
-		    noti->vbus_state.ma < SINK_SUSPEND_CURRENT) {
+		    noti->vbus_state.ma <= SINK_SUSPEND_CURRENT) {
 			cancel_delayed_work_sync(&pinfo->charger_suspend_recovery_work);
 			oplus_chg_suspend_charger(true, TCPC_IBUS_DRAW_VOTER);
 			schedule_delayed_work(&pinfo->charger_suspend_recovery_work,
@@ -4881,6 +4914,35 @@ static int oplus_mt6379_set_aicl_point(struct oplus_chg_ic_dev *ic_dev, int vbat
 	return 0;
 }
 
+static int oplus_chg_wls_set_vindpm(struct oplus_chg_ic_dev *ic_dev, int vindpm_mv)
+{
+	int rc = 0;
+	int vol = 0;
+
+	if (!ic_dev) {
+		chg_err("wls set vindpm fail, ic_dev is null\n");
+		return -ENODEV;
+	}
+
+	switch (vindpm_mv) {
+	case WLS_VINDPM_BPP:
+	case WLS_VINDPM_EPP:
+	case WLS_VINDPM_AIRVOOC:
+	case WLS_VINDPM_AIRSVOOC:
+		vol = HW_AICL_POINT_VOL_5V_PHASE1;
+		break;
+	case WLS_VINDPM_DEFAULT:
+		return rc;
+	default:
+		vol = HW_AICL_POINT_VOL_5V_PHASE1;
+		break;
+	}
+
+	rc = oplus_mt6379_set_aicl_point(ic_dev, vol);
+	chg_info("wls set vindpm vol: %d\n", vol);
+	return rc;
+}
+
 static int usb_icl[] = {
 	300, 500, 900, 1200, 1350, 1500, 2000, 2400, 3000,
 };
@@ -4998,22 +5060,6 @@ static int oplus_mt6379_input_current_limit_write(struct mtk_charger *info, int 
 		aicl_point = 4500;
 	}
 
-	if (info->usb_aicl_enhance) {
-		mtk_chg_input_present(info->ic_dev, &present);
-		rc = mtk_chg_get_charger_type(info->ic_dev, &charger_type);
-		if (rc >= 0  && (charger_type == OPLUS_CHG_USB_TYPE_SDP ||
-		    charger_type == OPLUS_CHG_USB_TYPE_CDP ||
-		    (charger_type == OPLUS_CHG_USB_TYPE_UNKNOWN && value == UNKONW_CURR)) &&
-		    present) {
-			if (charger_type == OPLUS_CHG_USB_TYPE_SDP) {
-				aicl_point = USB_SW_AICL_POINT;
-				oplus_mt6379_set_aicl_point(info->ic_dev, batt_volt);
-			}
-			rc = oplus_chg_usb_set_input_current(info, value, aicl_point);
-			goto aicl_rerun;
-		}
-	}
-
 	if (oplus_chg_get_common_charge_icl_support_flags()) {
 		max_pdo_current = oplus_get_max_current_from_fixed_pdo(info, info->pd_chg_volt);
 		chg_info("max_pdo_current:%d ma\n", max_pdo_current);
@@ -5031,6 +5077,22 @@ static int oplus_mt6379_input_current_limit_write(struct mtk_charger *info, int 
 			goto common_charge_aicl_end;
 		} else {
 			oplus_chg_suspend_charger(false, PD_PDO_ICL_VOTER);
+		}
+	}
+
+	if (info->usb_aicl_enhance) {
+		mtk_chg_input_present(info->ic_dev, &present);
+		rc = mtk_chg_get_charger_type(info->ic_dev, &charger_type);
+		if (rc >= 0  && (charger_type == OPLUS_CHG_USB_TYPE_SDP ||
+		    charger_type == OPLUS_CHG_USB_TYPE_CDP ||
+		    (charger_type == OPLUS_CHG_USB_TYPE_UNKNOWN && value == UNKONW_CURR)) &&
+		    present) {
+			if (charger_type == OPLUS_CHG_USB_TYPE_SDP) {
+				aicl_point = USB_SW_AICL_POINT;
+				oplus_mt6379_set_aicl_point(info->ic_dev, batt_volt);
+			}
+			rc = oplus_chg_usb_set_input_current(info, value, aicl_point);
+			goto aicl_rerun;
 		}
 	}
 
@@ -6926,6 +6988,10 @@ static void *oplus_chg_get_func(struct oplus_chg_ic_dev *ic_dev,
 		func = OPLUS_CHG_IC_FUNC_CHECK(OPLUS_IC_FUNC_BUCK_GET_USB_AICL_ENHANCE,
 					       mtk_chg_get_usb_aicl_enhance);
 		break;
+	case OPLUS_IC_FUNC_BUCK_SET_VINDPM:
+		func = OPLUS_CHG_IC_FUNC_CHECK(OPLUS_IC_FUNC_BUCK_SET_VINDPM,
+					       oplus_chg_wls_set_vindpm);
+		break;
 	default:
 		chg_err("this func(=%d) is not supported\n", func_id);
 		func = NULL;
@@ -8072,6 +8138,77 @@ static void oplus_mt6379_subscribe_wls_topic(struct oplus_mms *topic, void *prv_
 	oplus_mms_get_item_data(chip->wls_topic, WLS_ITEM_PRESENT, &data, true);
 	chip->wls_online = !!data.intval;
 }
+
+#define WIRED_CHG_CHECK_DELAY	msecs_to_jiffies(500)
+#define WIRED_CHG_CHECK_INTERVAL	msecs_to_jiffies(5000)
+static void oplus_wired_chg_check_work(struct work_struct *work)
+{
+	struct mtk_charger *chip = container_of(work, struct mtk_charger, wired_chg_check_work.work);
+	int rc;
+	bool chg_en = false;
+
+	if (!chip->wired_online) {
+		chg_info("wired is not online\n");
+		return;
+	}
+
+	if (chip->wired_charging_disable && (chip->chg1_dev != NULL)) {
+		rc = charger_dev_is_enabled(chip->chg1_dev, &chg_en);
+		if (rc >= 0 && chg_en) {
+			chg_info("disable charging...\n");
+			charger_dev_enable(chip->chg1_dev, false);
+		}
+	}
+
+	schedule_delayed_work(&chip->wired_chg_check_work, WIRED_CHG_CHECK_INTERVAL);
+}
+
+static void oplus_mt6379_wired_subs_callback(struct mms_subscribe *subs, enum mms_msg_type type, u32 id, bool sync)
+{
+	struct mtk_charger *chip = subs->priv_data;
+	union mms_msg_data data = { 0 };
+
+	switch (type) {
+	case MSG_TYPE_ITEM:
+		switch (id) {
+		case WIRED_ITEM_PRESENT:
+			oplus_mms_get_item_data(chip->wired_topic, id, &data, false);
+			chip->wired_online = !!data.intval;
+			if (!chip->wired_online)
+				cancel_delayed_work(&chip->wired_chg_check_work);
+			break;
+		case WIRED_ITEM_CHARGING_DISABLE:
+			oplus_mms_get_item_data(chip->wired_topic, id, &data, false);
+			chip->wired_charging_disable = !!data.intval;
+			if (chip->wired_charging_disable)
+				schedule_delayed_work(&chip->wired_chg_check_work, WIRED_CHG_CHECK_DELAY);
+			else
+				cancel_delayed_work(&chip->wired_chg_check_work);
+			break;
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+static void oplus_mt6379_subscribe_wired_topic(struct oplus_mms *topic, void *prv_data)
+{
+	struct mtk_charger *chip = prv_data;
+	union mms_msg_data data = { 0 };
+
+	chip->wired_topic = topic;
+	chip->wired_subs = oplus_mms_subscribe(chip->wired_topic, chip, oplus_mt6379_wired_subs_callback, "mt6379");
+	if (IS_ERR_OR_NULL(chip->wired_subs)) {
+		chg_err("subscribe wired topic error, rc=%ld\n", PTR_ERR(chip->wired_subs));
+		return;
+	}
+
+	oplus_mms_get_item_data(chip->wired_topic, WIRED_ITEM_PRESENT, &data, true);
+	chip->wired_online = !!data.intval;
+}
 #endif /* OPLUS_FEATURE_CHG_BASIC */
 
 #ifdef CONFIG_THERMAL
@@ -8249,6 +8386,11 @@ static int mtk_charger_probe(struct platform_device *pdev)
 		chg_err("can't find primary charger!\n");
 	}
 #endif
+
+	if (info && info->chg1_dev) {
+		charger_dev_enable_safety_timer(info->chg1_dev, false);
+		chg_err("charger_dev_enable_safety_timer disable\n");
+	}
 
 	mutex_init(&info->cable_out_lock);
 	mutex_init(&info->charger_lock);
@@ -8447,6 +8589,7 @@ static int mtk_charger_probe(struct platform_device *pdev)
 	pinfo->pd_svooc = false;
 	INIT_DELAYED_WORK(&pinfo->detach_clean_work, oplus_detach_clean_work);
 	INIT_DELAYED_WORK(&pinfo->wls_chg_check_work, oplus_wls_chg_check_work);
+	INIT_DELAYED_WORK(&pinfo->wired_chg_check_work, oplus_wired_chg_check_work);
 	pinfo->pd_chg_volt = VBUS_5V;
 	INIT_DELAYED_WORK(&pinfo->sourcecap_done_work, oplus_sourcecap_done_work);
 	INIT_DELAYED_WORK(&pinfo->charger_suspend_recovery_work, oplus_charger_suspend_recovery_work);
@@ -8464,6 +8607,7 @@ static int mtk_charger_probe(struct platform_device *pdev)
 #endif
 	oplus_mt6379_set_chging_term_disable(info);
 	oplus_mms_wait_topic("wireless", oplus_mt6379_subscribe_wls_topic, info);
+	oplus_mms_wait_topic("wired", oplus_mt6379_subscribe_wired_topic, info);
 reg_ic_err:
 #endif
 
@@ -8471,9 +8615,15 @@ reg_ic_err:
 	return 0;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+static void mtk_charger_remove(struct platform_device *dev)
+#else
 static int mtk_charger_remove(struct platform_device *dev)
+#endif
 {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	return 0;
+#endif
 }
 
 static void mtk_charger_shutdown(struct platform_device *dev)

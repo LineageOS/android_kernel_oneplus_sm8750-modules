@@ -93,6 +93,9 @@ static const struct regmap_config sc6607_regmap_cfg = {
 	.val_bits = 8,
 };
 
+static int sc6607_cp_set_sstimeout_ucp_enable(struct oplus_chg_ic_dev *ic_dev, bool enable);
+static int sc6607_voocphy_set_sstimeout_ucp_enable(struct oplus_voocphy_manager *chip, bool enable);
+
 static int sc6607_field_read(struct sc6607 *chip, enum sc6607_fields field_id, u8 *data)
 {
 	int ret = 0;
@@ -734,7 +737,6 @@ static int sc6607_voocphy_set_chg_enable(struct oplus_voocphy_manager *voocphy, 
 	else
 		ret = sc6607_field_write(chip, F_CP_EN, false);
 	sc6607_voocphy_read_byte(voocphy->client, SC6607_REG_CP_CTRL, &data); /*performance mode , CP mode*/
-
 	return 0;
 }
 
@@ -860,7 +862,7 @@ static int sc6607_voocphy_reset_voocphy(struct oplus_voocphy_manager *voocphy)
 	sc6607_voocphy_write_word(voocphy->client, SC6607_REG_PREDATA_VALUE, 0x0);
 	sc6607_set_charge_watchdog_timer(chip, 0);
 	sc6607_field_write(chip, F_PERFORMANCE_EN, 0);
-
+	sc6607_voocphy_set_sstimeout_ucp_enable(voocphy, true);
 	return VOOCPHY_SUCCESS;
 }
 
@@ -902,7 +904,6 @@ static int sc6607_voocphy_init_device(struct oplus_voocphy_manager *voocphy)
 	sc6607_voocphy_write_byte(voocphy->client, SC6607_REG_DP_HOLD_TIME, 0x60); /*dp hold time to endtime*/
 	sc6607_voocphy_write_byte(voocphy->client, SC6607_REG_CP_INT_MASK, 0x37);
 	/*close ucp rising int,change to bit1 bit2 bit4 bit5 1 mask ucp/adc rising int*/
-
 	return 0;
 }
 
@@ -974,6 +975,7 @@ static int sc6607_voocphy_svooc_hw_setting(struct oplus_voocphy_manager *voocphy
 	ret = sc6607_field_write(chip, F_CHG_EN, true);
 	ret = sc6607_field_write(chip, F_PERFORMANCE_EN, true);
 	sc6607_voocphy_read_byte(voocphy->client, SC6607_REG_CP_CTRL, &data);
+	sc6607_voocphy_set_sstimeout_ucp_enable(voocphy, false);
 	chg_info("data:0x%x\n", data);
 
 	return 0;
@@ -1000,7 +1002,7 @@ static int sc6607_voocphy_vooc_hw_setting(struct oplus_voocphy_manager *voocphy)
 	ret = sc6607_field_write(chip, F_MODE, 0x1);
 	ret = sc6607_field_write(chip, F_CHG_EN, true);
 	ret = sc6607_field_write(chip, F_PERFORMANCE_EN, true);
-
+	sc6607_voocphy_set_sstimeout_ucp_enable(voocphy, false);
 	return 0;
 }
 
@@ -1147,6 +1149,25 @@ static bool sc6607_voocphy_check_cp_int_happened(struct oplus_voocphy_manager *v
 	return false;
 }
 
+static int sc6607_voocphy_set_sstimeout_ucp_enable(struct oplus_voocphy_manager *chip, bool enable)
+{
+	int rc = 0;
+	struct sc6607 *dev;
+	dev = chip->priv_data;
+
+	if (!chip->fcl_support)
+		return -EINVAL;
+
+	if (!dev) {
+		chg_err("sc6607 chip is NULL\n");
+		return -ENODEV;
+	}
+
+	rc = sc6607_cp_set_sstimeout_ucp_enable(dev->cp_ic, enable);
+
+	return rc;
+}
+
 static struct oplus_voocphy_operations sc6607_voocphy_ops = {
 	.hardware_init = sc6607_voocphy_hardware_init,
 	.hw_setting = sc6607_voocphy_hw_setting,
@@ -1171,6 +1192,7 @@ static struct oplus_voocphy_operations sc6607_voocphy_ops = {
 	.get_voocphy_enable = sc6607_get_voocphy_enable,
 	.dump_voocphy_reg = sc6607_voocphy_dump_reg_in_err_issue,
 	.check_cp_int_happened = sc6607_voocphy_check_cp_int_happened,
+	.set_sstimeout_ucp_enable = sc6607_voocphy_set_sstimeout_ucp_enable,
 };
 
 static int sc6607_voocphy_charger_choose(struct oplus_voocphy_manager *voocphy)
@@ -1712,6 +1734,38 @@ static int sc6607_cp_set_work_start(struct oplus_chg_ic_dev *ic_dev, bool start)
 	return 0;
 }
 
+static int sc6607_cp_set_sstimeout_ucp_enable(struct oplus_chg_ic_dev *ic_dev, bool enable)
+{
+	struct sc6607 *chip;
+	int ret;
+	u8 reg_data;
+
+	if (ic_dev == NULL) {
+		chg_err("oplus_chg_ic_dev is NULL");
+		return -ENODEV;
+	}
+	chip = oplus_chg_ic_get_priv_data(ic_dev);
+
+	ret = sc6607_voocphy_read_byte(chip->client, SC6607_REG_CP_CTRL_2, &reg_data);
+	if ((enable && !(reg_data & SC6607_VOOCPHY_IBUS_UCP_DIS_MASK)) ||
+	     (!enable && (reg_data & SC6607_VOOCPHY_IBUS_UCP_DIS_MASK)))
+		return 0;
+
+	if (enable && (reg_data & SC6607_VOOCPHY_IBUS_UCP_DIS_MASK)) {
+		ret = sc6607_field_write(chip, F_IBUS_UCP_DIS, false);
+		ret = sc6607_field_write(chip, F_SS_TIMEOUT, SC6607_VOOCPHY_SS_TIMEOUT_10S);
+	} else {
+		ret = sc6607_field_write(chip, F_IBUS_UCP_DIS, true);
+		ret = sc6607_field_write(chip, F_SS_TIMEOUT, SC6607_VOOCPHY_SS_TIMEOUT_DISABLE);
+	}
+
+	sc6607_voocphy_read_byte(chip->client, SC6607_REG_CP_CTRL_2, &reg_data);
+
+	chg_info("%s %s SC6607_REG_65 = 0x%0x\n", chip->dev->of_node->name, enable ? "enable" : "disable", reg_data);
+
+	return 0;
+}
+
 static int sc6607_cp_get_work_status(struct oplus_chg_ic_dev *ic_dev, bool *start)
 {
 	struct sc6607 *chip;
@@ -1731,6 +1785,26 @@ static int sc6607_cp_get_work_status(struct oplus_chg_ic_dev *ic_dev, bool *star
 	}
 
 	*start = data & BIT(0);
+
+	return 0;
+}
+
+static int sc6607_cp_adc_enable(struct oplus_chg_ic_dev *ic_dev, bool en)
+{
+	struct sc6607 *chip;
+	int rc;
+
+	if (ic_dev == NULL) {
+		chg_err("oplus_chg_ic_dev is NULL");
+		return -ENODEV;
+	}
+	chip = oplus_chg_ic_get_priv_data(ic_dev);
+
+	rc = sc6607_field_write(chip, F_ADC_EN, en);
+	if (rc < 0) {
+		chg_err("read F_ADC_EN error, rc=%d\n", rc);
+		return rc;
+	}
 
 	return 0;
 }
@@ -1853,6 +1927,9 @@ static void *sc6607_cp_get_func(struct oplus_chg_ic_dev *ic_dev, enum oplus_chg_
 	case OPLUS_IC_FUNC_CP_GET_WORK_STATUS:
 		func = OPLUS_CHG_IC_FUNC_CHECK(OPLUS_IC_FUNC_CP_GET_WORK_STATUS, sc6607_cp_get_work_status);
 		break;
+	case OPLUS_IC_FUNC_CP_SET_ADC_ENABLE:
+		func = OPLUS_CHG_IC_FUNC_CHECK(OPLUS_IC_FUNC_CP_SET_ADC_ENABLE, sc6607_cp_adc_enable);
+		break;
 	case OPLUS_IC_FUNC_CP_WATCHDOG_RESET:
 		func = OPLUS_CHG_IC_FUNC_CHECK(OPLUS_IC_FUNC_CP_WATCHDOG_RESET, sc6607_cp_watchdog_reset);
 		break;
@@ -1861,6 +1938,9 @@ static void *sc6607_cp_get_func(struct oplus_chg_ic_dev *ic_dev, enum oplus_chg_
 		break;
 	case OPLUS_IC_FUNC_CP_SET_UCP_DISABLE:
 		func = OPLUS_CHG_IC_FUNC_CHECK(OPLUS_IC_FUNC_CP_SET_UCP_DISABLE, sc6607_cp_set_ucp_disable);
+		break;
+	case OPLUS_IC_FUNC_CP_SET_SSTIMEOUT_UCP_ENABLE:
+		func = OPLUS_CHG_IC_FUNC_CHECK(OPLUS_IC_FUNC_CP_SET_SSTIMEOUT_UCP_ENABLE, sc6607_cp_set_sstimeout_ucp_enable);
 		break;
 	default:
 		chg_err("this func(=%d) is not supported\n", func_id);

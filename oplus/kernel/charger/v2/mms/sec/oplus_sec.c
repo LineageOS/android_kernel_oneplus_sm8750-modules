@@ -413,7 +413,11 @@ static long oplus_sec_dev_ioctl(struct file *filp, unsigned int cmd,
 
 static const struct file_operations oplus_sec_dev_fops = {
 	.owner			= THIS_MODULE,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+	.llseek			= noop_llseek,
+#else
 	.llseek			= no_llseek,
+#endif
 	.write			= oplus_sec_dev_write,
 	.read			= oplus_sec_dev_read,
 	.open			= oplus_sec_dev_open,

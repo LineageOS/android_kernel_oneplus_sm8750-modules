@@ -104,6 +104,7 @@ enum comm_topic_item {
 	COMM_ITEM_NVID_SUPPORT_FLAGS,
 	COMM_ITEM_BOOT_COMPLETED,
 	COMM_ITEM_EIS_STATUS,
+	COMM_ITEM_FLASH_MODE,
 };
 
 /*
@@ -186,4 +187,5 @@ int oplus_comm_get_removed_bat_decidegc(struct oplus_mms *topic);
 void oplus_comm_set_dec_delta(struct oplus_mms *topic, int val);
 void oplus_comm_get_dec_delta(struct oplus_mms *topic, int *val);
 bool oplus_comm_get_hmac_not_pop_up(struct oplus_mms *topic);
+int oplus_comm_get_bdd_voltdiff_trend(struct oplus_mms *topic);
 #endif /* __OPLUS_CHG_COMM_H__ */

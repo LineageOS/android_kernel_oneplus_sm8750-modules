@@ -27,6 +27,7 @@
 #define FAST_NOTIFY_USER_EXIT_FASTCHG   0x5f
 #define FAST_NOTIFY_CHECK_FASTCHG_REAL_ALLOW 0x61
 #define FAST_NOTIFY_CURR_LIMIT_SMALL	0x62
+#define FAST_NOTIFY_IC_BURN		0x64
 
 enum {
 	FASTCHG_CHARGER_TYPE_UNKOWN,
@@ -62,6 +63,7 @@ struct hw_vphy_info {
 	bool (*vphy_get_retry_flag)(struct device *dev);
 	void (*vphy_set_bal_curr_limit)(struct device *dev, int curr);
 	int (*vphy_get_frame_head)(struct device *dev, int *head);
+	void (*vphy_set_wired_online)(struct device *dev, int online);
 };
 
 struct vphy_chip {
@@ -103,6 +105,7 @@ struct vphy_chip {
 	int track_err_type;
 	int cc_detect;
 	int eis_status;
+	int flash_mode;
 };
 
 extern void oplus_chg_adc_switch_ctrl(void);
@@ -131,7 +134,7 @@ bool oplus_chglib_is_switch_temp_range(void);
 int oplus_chglib_get_battery_btb_temp_cal(void);
 int oplus_chglib_get_usb_btb_temp_cal(void);
 bool oplus_chglib_get_chg_stats(void);
-bool oplus_chglib_get_flash_led_status(void);
+bool oplus_chglib_get_flash_led_status(struct device *dev);
 int oplus_chglib_get_charger_voltage(void);
 bool oplus_chglib_get_vooc_is_started(struct device *dev);
 bool oplus_chglib_get_vooc_sid_is_config(struct device *dev);
@@ -144,6 +147,7 @@ struct vphy_chip *oplus_chglib_register_vphy(struct device *dev,
 void oplus_chglib_creat_ic_err(struct device *dev, int type);
 void oplus_chglib_creat_i2c_err(struct device *dev);
 int oplus_chglib_get_cc_detect(struct device *dev);
-
-
+int oplus_chglib_upload_fcl_info(struct device *dev, int batt_volt, int batt_curr, int batt_temp);
+bool oplus_chglib_check_dchg(struct device *dev, int adapter_type);
+int oplus_chglib_fcl_vbatt(struct device *dev);
 #endif /*__OPLUS_CHGLIB_H__*/

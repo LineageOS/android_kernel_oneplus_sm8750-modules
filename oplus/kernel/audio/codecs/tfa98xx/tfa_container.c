@@ -2696,7 +2696,7 @@ int tfa_tib_dsp_msgmulti(struct tfa_device *tfa, int length, const char *buffer)
 			pr_debug("%s, Creating the multi-message\n\n",
 				 __func__);
 
-		blob = kmalloc(tfadsp_max_msg_size, GFP_KERNEL);
+		blob = kzalloc(tfadsp_max_msg_size, GFP_KERNEL);
 		/* add command ID for multi-msg = 0x008015 */
 		if (tfa->convert_dsp32) {
 			blob[0] = 0x15;

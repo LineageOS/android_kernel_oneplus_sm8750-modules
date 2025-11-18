@@ -66,6 +66,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pm_wakeup.h>
+#include <linux/version.h>
 
 #include <linux/types.h>
 
@@ -170,6 +171,10 @@
 #define DEBUG_READY_REG                 0xF7
 #define DEBUG_DATA_REG                  0xF8
 
+#define DEBUG_MODE_V2_REG               0xFB
+#define DEBUG_READY_V2_REG              0xFC
+#define DEBUG_DATA_V2_REG               0xFD
+
 #define DEBUG_RESET_SOURCE_REG          0xB6
 
 #define AP_RESET_MCU_REG                0x01
@@ -183,7 +188,7 @@
 #define AP_WATCH_MODE_REG               0x1d
 
 #define AP_FORCEDATA_REG                0x20
-#define AP_FORCEDATA_LEN                66
+#define AP_FORCEDATA_LEN                68
 
 #define AP_OFFSET_REG                   0x17
 #define AP_DAC_UV_CONVER_REG            0x1c
@@ -251,10 +256,11 @@
 #define CAMERA_KEY_CFG_NAME_LEN         32
 
 #define CH_COUNT                        2
-#define NOISE_TEST_COUNT                100
+#define NOISE_TEST_COUNT                50
 #define LAG_MIN_COUNT                   5
 
 #define  NAME_MAX_LENS                  256
+
 #ifndef MIN
 #define MIN(A, B) ((A) < (B) ? (A) : (B))
 #endif

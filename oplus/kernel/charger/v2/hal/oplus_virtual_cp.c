@@ -80,6 +80,7 @@ struct oplus_virtual_cp_ic {
 	struct oplus_virtual_cp_child *child_list;
 	struct oplus_cp_strategy *strategy;
 	struct delayed_work monitor_work;
+	struct mutex online_lock;
 
 	enum oplus_cp_work_mode work_mode;
 	int work_status_change_count;
@@ -437,6 +438,10 @@ static int oplus_vc_strategy_init(struct oplus_cp_strategy *strategy)
 {
 	int rc;
 
+	if (strategy == NULL) {
+		chg_err("strategy is NULL\n");
+		return -EINVAL;
+	}
 	if (strategy->desc->strategy_init == NULL)
 		return -ENOTSUPP;
 
@@ -451,6 +456,10 @@ static int oplus_vc_strategy_init(struct oplus_cp_strategy *strategy)
 static int oplus_vc_strategy_get_open_data(
 	struct oplus_cp_strategy *strategy, enum oplus_cp_work_mode mode)
 {
+	if (strategy == NULL) {
+		chg_err("strategy is NULL\n");
+		return -EINVAL;
+	}
 	if (!strategy->initialized) {
 		chg_err("%s strategy not init\n", oplus_cp_strategy_type_str(strategy->desc->type));
 		return -EFAULT;
@@ -468,6 +477,10 @@ static int oplus_vc_strategy_get_open_data(
 static int oplus_vc_strategy_get_data(
 	struct oplus_cp_strategy *strategy, enum oplus_cp_work_mode mode, int curr_ma)
 {
+	if (strategy == NULL) {
+		chg_err("strategy is NULL\n");
+		return -EINVAL;
+	}
 	if (!strategy->initialized) {
 		chg_err("%s strategy not init\n", oplus_cp_strategy_type_str(strategy->desc->type));
 		return -EFAULT;
@@ -497,7 +510,7 @@ static struct device_node *oplus_vc_find_ic_root_node(struct device_node *root, 
 
 	for (i = 0; i < rc; i++) {
 		tmp = of_get_oplus_chg_ic_name(root, "oplus,cp_ic", i);
-		if (strcmp(tmp, name) == 0)
+		if ((NULL != tmp) && (NULL != name) && (strcmp(tmp, name) == 0))
 			return root;
 	}
 
@@ -511,7 +524,7 @@ static struct device_node *oplus_vc_find_ic_root_node(struct device_node *root, 
 		}
 		for (i = 0; i < rc; i++) {
 			tmp = of_get_oplus_chg_ic_name(child, "oplus,cp_ic", i);
-			if (strcmp(tmp, name) == 0)
+			if ((NULL != tmp) && (NULL != name) && (strcmp(tmp, name) == 0))
 				return child;
 		}
 	}
@@ -589,14 +602,13 @@ static void oplus_vc_online_work(struct work_struct *work)
 			continue;
 		if (!chip->child_list[i].ic_dev->online)
 			continue;
+		if (chip->main_cp != i)
+			continue;
 		online = true;
-		chip->main_cp = i;
-		chg_info("main cp change to %s\n", chip->child_list[i].ic_dev->manu_name);
 		break;
 	}
 
 	if (!child->parent->online && online) {
-		child->parent->online = true;
 		oplus_chg_ic_func(child->parent, OPLUS_IC_FUNC_INIT);
 	}
 }
@@ -606,7 +618,7 @@ static void oplus_vc_offline_work(struct work_struct *work)
 	struct oplus_virtual_cp_child *child =
 		container_of(work, struct oplus_virtual_cp_child, offline_work);
 	struct oplus_virtual_cp_ic *chip;
-	bool online = false;
+	bool online = true;
 	int i;
 
 	chg_info("%s offline\n", child->ic_dev->manu_name);
@@ -616,19 +628,15 @@ static void oplus_vc_offline_work(struct work_struct *work)
 		if (chip->child_list[i].ic_dev == NULL)
 			continue;
 		if (!chip->child_list[i].ic_dev->online) {
+			if (chip->main_cp == i)
+				online = false;
 			clear_bit(i, &chip->open_flag);
 			continue;
 		}
-		if (online)
-			continue;
-		online = true;
-		chip->main_cp = i;
-		chg_info("main cp change to %s\n", chip->child_list[i].ic_dev->manu_name);
-		break;
 	}
 
 	if (child->parent->online && !online) {
-		child->parent->online = false;
+		cancel_delayed_work_sync(&chip->monitor_work);
 		oplus_chg_ic_func(child->parent, OPLUS_IC_FUNC_EXIT);
 	}
 }
@@ -796,9 +804,12 @@ static int oplus_chg_vc_init(struct oplus_chg_ic_dev *ic_dev)
 		return -ENODEV;
 	}
 	chip = oplus_chg_ic_get_drvdata(ic_dev);
-	if (ic_dev->online)
-		return 0;
 
+	mutex_lock(&chip->online_lock);
+	if (ic_dev->online) {
+		mutex_unlock(&chip->online_lock);
+		return 0;
+	}
 	chip->strategy = oplus_vc_strategy_alloc(chip);
 	if (chip->strategy != NULL) {
 		rc = oplus_vc_strategy_init(chip->strategy);
@@ -811,6 +822,7 @@ static int oplus_chg_vc_init(struct oplus_chg_ic_dev *ic_dev)
 	chip->work_mode = CP_WORK_MODE_UNKNOWN;
 	ic_dev->online = true;
 	oplus_chg_ic_virq_trigger(ic_dev, OPLUS_IC_VIRQ_ONLINE);
+	mutex_unlock(&chip->online_lock);
 
 	return 0;
 }
@@ -827,11 +839,14 @@ static int oplus_chg_vc_exit(struct oplus_chg_ic_dev *ic_dev)
 	if (!ic_dev->online)
 		return 0;
 
+	mutex_lock(&chip->online_lock);
 	ic_dev->online = false;
 	oplus_vc_strategy_release(chip->strategy);
 	chip->strategy = NULL;
 	oplus_chg_ic_virq_trigger(ic_dev, OPLUS_IC_VIRQ_OFFLINE);
 	chg_info("unregister success\n");
+	mutex_unlock(&chip->online_lock);
+
 	return 0;
 }
 
@@ -1557,9 +1572,26 @@ static int oplus_chg_vc_set_work_start(struct oplus_chg_ic_dev *ic_dev, bool sta
 	vc->open_flag = 0;
 	vc->pre_open_flag = 0;
 	vc->open_flag_change_count = 0;
+
+	if (vc->strategy == NULL && ic_dev->online) {
+		mutex_lock(&vc->online_lock);
+		vc->strategy = oplus_vc_strategy_alloc(vc);
+		if (vc->strategy != NULL) {
+			rc = oplus_vc_strategy_init(vc->strategy);
+			if (rc < 0) {
+				chg_err("cp strategy init error, rc=%d", rc);
+				oplus_vc_strategy_release(vc->strategy);
+				vc->strategy = NULL;
+			}
+		}
+		mutex_unlock(&vc->online_lock);
+	}
+
 	if (vc->connect_type == OPLUS_CHG_IC_CONNECT_PARALLEL) {
 		if (start) {
 			if (vc->strategy) {
+				chg_info("%s: use %s strategy\n", ic_dev->manu_name,
+					 oplus_cp_strategy_type_str(vc->strategy->desc->type));
 				cancel_delayed_work_sync(&vc->monitor_work);
 				rc = oplus_chg_vc_set_work_start_strategy(vc);
 				/*
@@ -1569,6 +1601,7 @@ static int oplus_chg_vc_set_work_start(struct oplus_chg_ic_dev *ic_dev, bool sta
 				schedule_delayed_work(&vc->monitor_work,
 					msecs_to_jiffies(MONITOR_WORK_DELAY_MS));
 			} else {
+				chg_info("%s: no strategy\n", ic_dev->manu_name);
 				/* Only the main CP is allowed to be turned on here */
 				if (vc->main_cp < 0 || vc->main_cp >= vc->child_num)
 					return -EINVAL;
@@ -1639,6 +1672,27 @@ static int oplus_chg_vc_set_ucp_disable(struct oplus_chg_ic_dev *ic_dev, bool di
 	}
 
 	return err;
+}
+
+static int oplus_chg_vc_set_sstimeout_ucp_enable(struct oplus_chg_ic_dev *ic_dev, bool enable)
+{
+	struct oplus_virtual_cp_ic *vc;
+	int rc = 0;
+
+	if (ic_dev == NULL) {
+		chg_err("oplus_chg_ic_dev is NULL");
+		return -ENODEV;
+	}
+
+	vc = oplus_chg_ic_get_drvdata(ic_dev);
+
+	if (vc->main_cp < 0 || vc->main_cp >= vc->child_num)
+		return -EINVAL;
+	rc = oplus_chg_ic_func(vc->child_list[vc->main_cp].ic_dev,
+			OPLUS_IC_FUNC_CP_SET_SSTIMEOUT_UCP_ENABLE, enable);
+	if (rc < 0 && rc != -ENOTSUPP)
+		chg_err("main cp set sstimeout ucp err, enable = %d, rc=%d\n", enable, rc);
+	return rc;
 }
 
 static int oplus_chg_vc_get_work_status(struct oplus_chg_ic_dev *ic_dev, bool *start)
@@ -1944,6 +1998,12 @@ static void oplus_vc_monitor_work(struct work_struct *work)
 	struct delayed_work *dwork = to_delayed_work(work);
 	struct oplus_virtual_cp_ic *vc =
 		container_of(dwork, struct oplus_virtual_cp_ic, monitor_work);
+	struct oplus_chg_ic_dev *ic_dev = vc->ic_dev;
+
+	if (ic_dev == NULL || !ic_dev->online) {
+		chg_err("vc is offline\n");
+		return;
+	}
 
 	if (vc->open_flag == 0) {
 		chg_info("all CPs are closed, exit\n");
@@ -2041,6 +2101,10 @@ static void *oplus_chg_vc_get_func(struct oplus_chg_ic_dev *ic_dev, enum oplus_c
 		break;
 	case OPLUS_IC_FUNC_CP_WATCHDOG_RESET:
 		func = OPLUS_CHG_IC_FUNC_CHECK(OPLUS_IC_FUNC_CP_WATCHDOG_RESET, oplus_chg_vc_watchdog_reset);
+		break;
+	case OPLUS_IC_FUNC_CP_SET_SSTIMEOUT_UCP_ENABLE:
+		func = OPLUS_CHG_IC_FUNC_CHECK(OPLUS_IC_FUNC_CP_SET_SSTIMEOUT_UCP_ENABLE,
+			oplus_chg_vc_set_sstimeout_ucp_enable);
 		break;
 	default:
 		chg_err("this func(=%d) is not supported\n", func_id);
@@ -2479,14 +2543,29 @@ static const struct proc_ops oplus_vc_connect_type_ops =
 };
 #endif
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+static struct proc_dir_entry *charger_dir = NULL;
+#endif
 static int oplus_virtual_cp_proc_init(struct oplus_virtual_cp_ic *chip)
 {
 	struct proc_dir_entry *cp_entry;
 	struct proc_dir_entry *pr_entry_tmp;
 	char name_buf[CP_NAME_BUF_MAX] = { 0 };
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+	charger_dir = proc_mkdir("charger_cp", NULL);
+	if (!charger_dir) {
+		chg_err("Couldn't create charger proc entry\n");
+		return -EFAULT;
+	}
+
+	snprintf(name_buf, CP_NAME_BUF_MAX - 1, "cp_%d", chip->ic_dev->index);
+	chg_err("oplus_virtual_cp_proc_init index cp_%d\n", chip->ic_dev->index);
+	cp_entry = proc_mkdir(name_buf, charger_dir);
+#else
 	snprintf(name_buf, CP_NAME_BUF_MAX - 1, "charger/cp:%d", chip->ic_dev->index);
 	cp_entry = proc_mkdir(name_buf, NULL);
+#endif
 	if (cp_entry == NULL) {
 		chg_err("Couldn't create charger/cp proc entry\n");
 		return -EFAULT;
@@ -2545,6 +2624,7 @@ static int oplus_virtual_cp_probe(struct platform_device *pdev)
 	chip->dev = &pdev->dev;
 	platform_set_drvdata(pdev, chip);
 
+	mutex_init(&chip->online_lock);
 	INIT_DELAYED_WORK(&chip->monitor_work, oplus_vc_monitor_work);
 
 	rc = of_property_read_u32(node, "oplus,ic_index", &ic_index);
@@ -2584,10 +2664,18 @@ static int oplus_virtual_cp_probe(struct platform_device *pdev)
 	return 0;
 
 child_init_err:
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+	if (chip->reg_proc_node && charger_dir != NULL) {
+		snprintf(name_buf, CP_NAME_BUF_MAX - 1, "cp_%d", chip->ic_dev->index);
+		chg_err("remove virtual_cp index cp_%d\n", chip->ic_dev->index);
+		remove_proc_entry(name_buf, charger_dir);
+	}
+#else
 	if (chip->reg_proc_node) {
 		snprintf(name_buf, CP_NAME_BUF_MAX - 1, "charger/cp:%d", chip->ic_dev->index);
 		remove_proc_entry(name_buf, NULL);
 	}
+#endif
 proc_init_err:
 	devm_oplus_chg_ic_unregister(&pdev->dev, chip->ic_dev);
 reg_ic_err:
@@ -2602,27 +2690,46 @@ reg_ic_err:
 	return rc;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+static void oplus_virtual_cp_remove(struct platform_device *pdev)
+#else
 static int oplus_virtual_cp_remove(struct platform_device *pdev)
+#endif
 {
 	struct oplus_virtual_cp_ic *chip = platform_get_drvdata(pdev);
 	char name_buf[CP_NAME_BUF_MAX] = { 0 };
 
-	if(chip == NULL)
+	if (chip == NULL) {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 		return -ENODEV;
+#else
+		return;
+#endif
+	}
 
 	if (chip->ic_dev->online)
 		oplus_chg_vc_exit(chip->ic_dev);
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+	if (chip->reg_proc_node && charger_dir != NULL) {
+		snprintf(name_buf, CP_NAME_BUF_MAX - 1, "cp_%d", chip->ic_dev->index);
+		chg_err("oplus_virtual_cp_remove index cp_%d\n", chip->ic_dev->index);
+		remove_proc_entry(name_buf, charger_dir);
+	}
+#else
 	if (chip->reg_proc_node) {
 		snprintf(name_buf, CP_NAME_BUF_MAX - 1, "charger/cp:%d", chip->ic_dev->index);
 		remove_proc_entry(name_buf, NULL);
 	}
+#endif
 	devm_oplus_chg_ic_unregister(&pdev->dev, chip->ic_dev);
 	devm_kfree(&pdev->dev, chip->child_list);
 	devm_kfree(&pdev->dev, chip);
 	platform_set_drvdata(pdev, NULL);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	return 0;
+#endif
 }
 
 static const struct of_device_id oplus_virtual_cp_match[] = {
