@@ -183,9 +183,9 @@ void oplus_bridge_pre_enable(struct dsi_display *display, struct dsi_display_mod
 	return;
 }
 
-void oplus_bridge_post_enable(struct dsi_display *display, struct dsi_display_mode *mode)
+void oplus_bridge_post_enable(struct dsi_display *display, struct dsi_display_mode *mode, bool flag)
 {
-	oplus_panel_switch_vid_mode_post(display, mode);
+	oplus_panel_switch_vid_mode_post(display, mode, flag);
 
 	return;
 }
@@ -302,6 +302,7 @@ int oplus_panel_enable_post(struct dsi_panel *panel)
 void oplus_panel_switch_pre(struct dsi_panel *panel)
 {
 	panel->oplus_panel.ts_timestamp = ktime_get();
+	oplus_panel_all_timing_switch_frame_delay(panel);
 	oplus_panel_timing_switch_lut_set(panel);
 
 	return;

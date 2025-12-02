@@ -27,7 +27,7 @@ enum oplus_apuir_log_level {
 	OPLUS_APUIR_LOG_LEVEL_DEBUG = 4,
 };
 /* for nvt start */
-#define APUIR_DS_READ_LENGTH 51
+#define APUIR_DS_READ_LENGTH 75
 #define APUIR_BUF_STR_LEN (APUIR_DS_READ_LENGTH * 3 + 1)
 #define APUIR_DS_READ_ROW 1
 #define APUIR_OFF_FRAME_COUNT 2
@@ -37,7 +37,7 @@ u8 apuirregs_loading_mode2[APUIR_DS_READ_LENGTH] = {0};
 u8 apuirregs_loading_modeoff[APUIR_DS_READ_LENGTH] = {0};
 /* for nvt end */
 
-unsigned int oplus_apuir_log_level = OPLUS_APUIR_LOG_LEVEL_DEBUG;
+unsigned int oplus_apuir_log_level = OPLUS_APUIR_LOG_LEVEL_INFO;
 EXPORT_SYMBOL(oplus_apuir_log_level);
 unsigned int oplus_apuir_display_id = 0;
 EXPORT_SYMBOL(oplus_apuir_display_id);
@@ -45,6 +45,7 @@ uint32_t m_apuirdim_ds = 0;
 bool m_apuirdim_ds_update = false;
 struct workqueue_struct *apuir_setcmd_wq;
 static struct work_struct apuir_setcmd_work;
+static bool apuir_work_inited;
 static enum dsi_cmd_set_type mAPuirType = DSI_CMD_APUIR_ON;
 int off_framecount = 0;
 static int first_loading = 0;
@@ -78,6 +79,26 @@ void oplus_apuir_init(void *dsi_panel)
 		apuir_setcmd_wq = create_singlethread_workqueue("apuir_setcmd1");
 	}
 	INIT_WORK(&apuir_setcmd_work, oplus_apuir_setcmd_work_handler);
+	apuir_work_inited = true;
+}
+
+static void oplus_apuir_ensure_workqueue(struct dsi_panel *panel)
+{
+	const char *type = (panel && panel->type) ? panel->type : "unknown";
+
+	if (!apuir_work_inited) {
+		INIT_WORK(&apuir_setcmd_work, oplus_apuir_setcmd_work_handler);
+		apuir_work_inited = true;
+	}
+
+	if (!apuir_setcmd_wq) {
+		if (!strcmp(type, "primary"))
+			apuir_setcmd_wq = create_singlethread_workqueue("apuir_setcmd0");
+		else if (!strcmp(type, "secondary"))
+			apuir_setcmd_wq = create_singlethread_workqueue("apuir_setcmd1");
+		else
+			apuir_setcmd_wq = create_singlethread_workqueue("apuir_setcmd");
+	}
 }
 /* -------------------- aod -------------------- */
 void oplus_apuir_setcmd_work_handler(struct work_struct *work_item)
@@ -99,7 +120,6 @@ void oplus_apuir_setcmd_work_handler(struct work_struct *work_item)
 	oplus_panel_cmd_reg_replace_specific_row(display->panel, display->panel->cur_mode, mAPuirType, apuirregs_loading, APUIR_DS_READ_LENGTH, APUIR_DS_READ_ROW);
 	SDE_ATRACE_END("oplus_apuir_set_cmd_replace");
 
-	/* mutex_lock(&display->display_lock); */
 	mutex_lock(&panel->panel_lock);
 	SDE_ATRACE_BEGIN("cmdset");
 	rc = dsi_panel_tx_cmd_set(display->panel, mAPuirType, false);
@@ -108,7 +128,6 @@ void oplus_apuir_setcmd_work_handler(struct work_struct *work_item)
 		APUIR_ERR("[%s] failed to send DSI_CMD_POST_ON_BACKLIGHT cmd, rc=%d\n", display->name, rc);
 	}
 	mutex_unlock(&panel->panel_lock);
-	/* mutex_unlock(&display->display_lock); */
 	SDE_ATRACE_END("oplus_apuir_setcmd_work_handler");
 
 	APUIR_DEBUG("end\n");
@@ -247,18 +266,17 @@ static void transfer_ds(u32* aplds, u32* oprds) {
 
 void oplus_apuir_set_cmd(void *dsi_display, unsigned int ds)
 {
-	int rc = 0;
 	struct dsi_display *display = dsi_display;
 	struct dsi_panel *panel = NULL;
 	int seed_mode = 0;
 	u8* apuirregs = apuirregs_loading;
 	u32 aplds = ds & 0xfff, oprds = ds >> 12;
-	u32 modepose = 5;
-	u32 apl_lpose = 48, apl_hpose = 49;
+	u32 modepose = 73;
+	u32 apl_lpose = 60, apl_hpose = 61;
 	u32 aplmode = 0x11, oprmode = 0x17;
-	int index0 = 35, index1 = 38, index2 = 37, index3 = 39;
+	int index0 = 40, index1 = 48, index2 = 47, index3 = 49;
 	/* int index0 = 14, index1 = 17, index2 = 16, index3 = 18; */
-	int index4 = 27, index5 = 35, index6 = 29, index7 = 36;
+	int index4 = 37, index5 = 40, index6 = 39, index7 = 41;
 	/* int index4 = 11, index5 = 14, index6 = 13, index7 = 15; */
 	/* ds */
 	u32 ds_min = m_ds1x0_real, ds_max = m_ds2x0_real;
@@ -278,7 +296,6 @@ void oplus_apuir_set_cmd(void *dsi_display, unsigned int ds)
 	}
 	panel = display->panel;
 	if (!dsi_panel_initialized(panel)) {
-		rc = -EINVAL;
 		ADFR_DEBUG("should not send cmd sets if panel is not initialized\n");
 		return;
 	}
@@ -292,6 +309,7 @@ void oplus_apuir_set_cmd(void *dsi_display, unsigned int ds)
 		return;
 	}
 
+	SDE_ATRACE_BEGIN("oplus_apuir_set_cmd");
 	transfer_ds(&aplds, &oprds);
 	/*for nvt start*/
 	if (!first_loading) {
@@ -334,22 +352,22 @@ void oplus_apuir_set_cmd(void *dsi_display, unsigned int ds)
 	if (aplds > 0) {
 		if (aplds > m_ds1x3_real) {
 			ds2 = ds2_max;
-			APUIR_INFO("apuirdriver aplds > 0 ds2 = %d 0x%x\n", ds2, ds2);
+			APUIR_DEBUG("apuirdriver aplds > 0 ds2 = %d 0x%x\n", ds2, ds2);
 		} else {
 			ratio = (aplds - ds_min) * 100000 / (ds_max - ds_min);
 			ds2 = ratio * (ds2_max - ds2_min) / 30000 + ds2_min;
-			APUIR_INFO("apuirdriver aplds > 0 ds2 = %d 0x%x ratio = %d / 100000\n", ds2, ds2, ratio);
+			APUIR_DEBUG("apuirdriver aplds > 0 ds2 = %d 0x%x ratio = %d / 100000\n", ds2, ds2, ratio);
 		}
 		mAPuirType = DSI_CMD_APUIR_ON;
 		exchangeregs(ds2, apuirregs, index4, index5, index6, index7);
 	} else if (off_framecount < APUIR_OFF_FRAME_COUNT - 1) {
 		if (oprds > m_ds1x3_real) {
 			ds2 = ds2_max;
-			APUIR_INFO("apuirdriver aplds == 0 ds2 = %d 0x%x\n", ds2, ds2);
+			APUIR_DEBUG("apuirdriver aplds == 0 ds2 = %d 0x%x\n", ds2, ds2);
 		} else {
 			ratio = (oprds - ds_min) * 100000 / (ds_max - ds_min);
 			ds2 = ratio * (ds2_max - ds2_min) / 30000 + ds2_min;
-			APUIR_INFO("apuirdriver aplds == 0 ds2 = %d 0x%x ratio = %d / 100000\n", ds2, ds2, ratio);
+			APUIR_DEBUG("apuirdriver aplds == 0 ds2 = %d 0x%x ratio = %d / 100000\n", ds2, ds2, ratio);
 		}
 		exchangeregs(ds2, apuirregs, index4, index5, index6, index7);
 	}
@@ -376,13 +394,14 @@ void oplus_apuir_set_cmd(void *dsi_display, unsigned int ds)
 
 	APUIR_INFO("apuirdriver replace off_framecount %d DSI_CMD_APUIR_ON %d DSI_CMD_APUIR_OFF %d mAPuirType = %d seed_mode = %d regs len=%d\n",
 			off_framecount, DSI_CMD_APUIR_ON, DSI_CMD_APUIR_OFF, mAPuirType, seed_mode, APUIR_DS_READ_LENGTH);
-	SDE_ATRACE_BEGIN("oplus_apuir_set_cmd");
-	queue_work(apuir_setcmd_wq, &apuir_setcmd_work);
-	APUIR_INFO("apuirdriver dsi_panel_tx_cmd_set\n");
-	SDE_ATRACE_END("oplus_apuir_set_cmd");
-	if (rc) {
-		APUIR_ERR("apuirdriver failed to send DSI_CMD_APUIR_CMD\n");
+	oplus_apuir_ensure_workqueue(display->panel);
+	if (unlikely(!apuir_setcmd_wq)) {
+		APUIR_WARN("workqueue not ready, calling handler directly\n");
+		oplus_apuir_setcmd_work_handler(&apuir_setcmd_work);
+	} else {
+		queue_work(apuir_setcmd_wq, &apuir_setcmd_work);
 	}
+	SDE_ATRACE_END("oplus_apuir_set_cmd");
 }
 /*for nvt end*/
 

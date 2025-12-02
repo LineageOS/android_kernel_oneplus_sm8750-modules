@@ -226,6 +226,7 @@ const char *cmd_set_prop_map[DSI_CMD_SET_MAX] = {
 	"qcom,mdss-dsi-panel-init-command",
 	"qcom,mdss-dsi-optimize-on-command",
 	"qcom,mdss-dsi-optimize-vice-on-command",
+	"qcom,mdss-dsi-vid-165hz-switch-command",
 	"qcom,mdss-dsi-vid-144hz-switch-command",
 	"qcom,mdss-dsi-vid-120hz-switch-command",
 	"qcom,mdss-dsi-vid-90hz-switch-command",
@@ -291,6 +292,8 @@ const char *cmd_set_prop_map[DSI_CMD_SET_MAX] = {
 	"qcom,mdss-dsi-fps-switch-enter-165Hz-command",
 	"qcom,mdss-dsi-fps-switch-144Hz-enter-165Hz-command",
 	"qcom,mdss-dsi-fps-switch-enter-144Hz-command",
+	"qcom,mdss-dsi-fps-switch-60-to-120-compensation-command",
+	"qcom,mdss-dsi-fps-switch-120-to-60-compensation-command",
 #endif /* OPLUS_FEATURE_DISPLAY */
 
 #ifdef OPLUS_FEATURE_AP_UIR_DIMMING
@@ -500,6 +503,7 @@ const char *cmd_set_state_map[DSI_CMD_SET_MAX] = {
 	"qcom,mdss-dsi-panel-init-command-state",
 	"qcom,mdss-dsi-optimize-on-command-state",
 	"qcom,mdss-dsi-optimize-vice-on-command-state",
+	"qcom,mdss-dsi-vid-165hz-switch-command-state",
 	"qcom,mdss-dsi-vid-144hz-switch-command-state",
 	"qcom,mdss-dsi-vid-120hz-switch-command-state",
 	"qcom,mdss-dsi-vid-90hz-switch-command-state",
@@ -565,6 +569,8 @@ const char *cmd_set_state_map[DSI_CMD_SET_MAX] = {
 	"qcom,mdss-dsi-fps-switch-enter-165Hz-command-state",
 	"qcom,mdss-dsi-fps-switch-144Hz-enter-165Hz-command-state",
 	"qcom,mdss-dsi-fps-switch-enter-144Hz-command-state",
+	"qcom,mdss-dsi-fps-switch-60-to-120-compensation-command-state",
+	"qcom,mdss-dsi-fps-switch-120-to-60-compensation-command-state",
 #endif /* OPLUS_FEATURE_DISPLAY */
 #ifdef OPLUS_FEATURE_AP_UIR_DIMMING
 	"oplus,dsi-panel-apuir-on-command-state",
@@ -738,6 +744,20 @@ int oplus_panel_cmd_print(struct dsi_panel *panel, enum dsi_cmd_set_type type)
 
 void oplus_panel_timing_switch_cmd_replace_handle(struct dsi_panel *panel, enum dsi_cmd_set_type *type)
 {
+	if(!strcmp(panel->name, "AA605 P 7 A0020 dsc cmd mode panel")) {
+		if (panel->oplus_panel.last_refresh_rate == 120 && panel->cur_mode->timing.refresh_rate == 60) {
+			if (*type == DSI_CMD_SET_TIMING_SWITCH) {
+				*type = DSI_CMD_SET_FPS_SWITCH_120_TO_60_COMPENSATION;
+				return;
+			}
+		} else if (panel->oplus_panel.last_refresh_rate == 60 && panel->cur_mode->timing.refresh_rate == 120) {
+			if (*type == DSI_CMD_SET_TIMING_SWITCH) {
+				*type = DSI_CMD_SET_FPS_SWITCH_60_TO_120_COMPENSATION;
+				return;
+			}
+		}
+	}
+
 	if (panel->oplus_panel.last_refresh_rate != 165) {
 		return;
 	}

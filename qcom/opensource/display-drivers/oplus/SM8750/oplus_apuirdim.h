@@ -34,7 +34,7 @@ extern unsigned int oplus_adfr_display_id;
 
 #define APUIR_DEBUG(fmt, arg...)	\
 	do {	\
-		if ((oplus_apuir_log_level >= OPLUS_APUIR_LOG_LEVEL_DEBUG) && (oplus_display_log_type & OPLUS_DEBUG_LOG_APUIR))	\
+		if ((oplus_apuir_log_level >= OPLUS_APUIR_LOG_LEVEL_DEBUG) || (oplus_display_log_type & OPLUS_DEBUG_LOG_APUIR))	\
 			pr_info("[APUIR][%u][DEBUG][%s:%d]"pr_fmt(fmt), oplus_apuir_display_id, __func__, __LINE__, ##arg);	\
 	} while (0)
 

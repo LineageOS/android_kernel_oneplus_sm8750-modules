@@ -323,6 +323,9 @@ int oplus_ofp_init(void *dsi_panel)
 		OFP_INFO("aod_off_frame_cost:%d\n", panel->oplus_panel.aod_off_frame_cost);
 	}
 
+	p_oplus_ofp_params->ilitek_write_cmd_before_refresh_rate30hz = utils->read_bool(utils->data, "oplus,ofp-ilitek-write-cmd-before-refresh-rate30hz");
+	OFP_INFO("ilitek_write_cmd_before_refresh_rate30hz:%d\n", p_oplus_ofp_params->ilitek_write_cmd_before_refresh_rate30hz);
+
 	/* parse video mode aod brightness config */
 	rc = oplus_panel_parse_video_mode_aod_brightness_config(panel);
 	if (rc) {
@@ -2943,6 +2946,11 @@ bool oplus_ofp_backlight_filter(void *dsi_panel, unsigned int bl_level)
 			OFP_INFO("aod layer exist, hbm_state is true, filter backlight %u setting\n", bl_level);
 			need_filter_backlight = true;
 		}
+		if ((p_oplus_ofp_params->aod_unlocking || p_oplus_ofp_params->fp_press) && (hbm_enable & OPLUS_OFP_PROPERTY_FINGERPRESS_LAYER)
+				&& bl_level && display->panel->oplus_panel.ofp_configuration_enable_for_ili7838e) {
+			OFP_INFO("lhbm press status is true, filter backlight %u setting\n", bl_level);
+			need_filter_backlight = true;
+		}
 	} else if ((p_oplus_ofp_params->aod_unlocking && !oplus_ofp_ultrasonic_is_enabled()) && p_oplus_ofp_params->fp_press && bl_level
 					&& !((p_oplus_ofp_params->longrui_aod_config & OPLUS_OFP_FULL_SCREEN_AOD_CONFIG)
 						&& (p_oplus_ofp_params->longrui_aod_mode & OPLUS_OFP_FULL_SCREEN_AOD_MODE))) {
@@ -3695,7 +3703,7 @@ void oplus_ofp_video_mode_aod_brightness_change(struct dsi_panel *panel)
 		return;
 	}
 
-	OPLUS_OFP_TRACE_BEGIN("oplus_ofp_video_mode_aod_handle");
+	OPLUS_OFP_TRACE_BEGIN("oplus_ofp_video_mode_aod_brightness_change");
 
 	custom_cmd_set = panel->cur_mode->priv_info->cmd_sets[DSI_CMD_SET_LP1];
 	for (i = 0; i < custom_cmd_set.count; i++) {
@@ -3720,7 +3728,7 @@ void oplus_ofp_video_mode_aod_brightness_change(struct dsi_panel *panel)
 		}
 	}
 
-	OPLUS_OFP_TRACE_END("oplus_ofp_video_mode_aod_handle");
+	OPLUS_OFP_TRACE_END("oplus_ofp_video_mode_aod_brightness_change");
 	OFP_DEBUG("end\n");
 }
 
@@ -3773,8 +3781,8 @@ int oplus_ofp_video_mode_aod_handle(void *sde_encoder_virt)
 	refresh_rate = display->panel->cur_mode->timing.refresh_rate;
 
 	/* due to aod sequence requirements, the aod of video mode is bound to 30hz timing */
-	if (!oplus_ofp_get_aod_state() && (refresh_rate == 30)
-			&& (oplus_ofp_refresh_flag == OPLUS_OFP_VIDEO_AOD_STATE_READY_END)) {
+	if ((!oplus_ofp_get_aod_state() && (refresh_rate == 30) && (oplus_ofp_refresh_flag == OPLUS_OFP_VIDEO_AOD_STATE_READY_END))
+			|| (!oplus_ofp_get_aod_state() && (refresh_rate == 30) && p_oplus_ofp_params->ilitek_write_cmd_before_refresh_rate30hz)) {
 		if (oplus_ofp_get_hbm_state()) {
 			if (oplus_ofp_local_hbm_is_enabled()) {
 				rc = oplus_ofp_display_cmd_set(display, DSI_CMD_LHBM_PRESSED_ICON_OFF);
