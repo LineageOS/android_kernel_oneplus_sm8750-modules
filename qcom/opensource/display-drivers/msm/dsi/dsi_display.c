@@ -881,6 +881,12 @@ static void dsi_display_set_cmd_tx_ctrl_flags(struct dsi_display *display,
 			}
 #endif /* OPLUS_FEATURE_DISPLAY */
 		} else {
+			if (display->panel->oplus_panel.ofp_configuration_enable_for_ili7838e) {
+				if (((unsigned char*)(msg->tx_buf))[0] == 0x51  && (display->panel->oplus_panel.aod_backlight_async)) {
+					flags |= DSI_CTRL_CMD_ASYNC_WAIT;
+				}
+			}
+
 			if (msg->flags & MIPI_DSI_MSG_CMD_DMA_SCHED)
 				flags |= DSI_CTRL_CMD_CUSTOM_DMA_SCHED;
 			if (flags & DSI_CTRL_CMD_BROADCAST)
@@ -1199,6 +1205,15 @@ int dsi_display_check_status(struct drm_connector *connector, void *display,
 	/* Prevent another ESD check,when ESD recovery is underway */
 	if (atomic_read(&panel->esd_recovery_pending))
 		goto release_panel_lock;
+
+#ifdef OPLUS_FEATURE_DISPLAY
+	if (panel->oplus_panel.doze_disable_esdcheck) {
+		if (oplus_ofp_get_aod_state()) {
+			DSI_WARN("[ESD] Panel in aod state, skip esd check!\n");
+			goto release_panel_lock;
+		}
+	}
+#endif /* OPLUS_FEATURE_DISPLAY */
 
 	status_mode = panel->esd_config.status_mode;
 
@@ -9739,7 +9754,7 @@ int dsi_display_enable(struct dsi_display *display)
 			oplus_display_ops.bridge_pre_enable(display, mode);
 		}
 		if (oplus_display_ops.bridge_post_enable) {
-			oplus_display_ops.bridge_post_enable(display, mode);
+			oplus_display_ops.bridge_post_enable(display, mode, true);
 		}
 #endif /* OPLUS_FEATURE_DISPLAY */
 #ifdef OPLUS_FEATURE_DISPLAY_ADFR

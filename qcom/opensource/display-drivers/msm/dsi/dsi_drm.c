@@ -230,7 +230,7 @@ static void dsi_bridge_pre_enable(struct drm_bridge *bridge)
 #ifdef OPLUS_FEATURE_DISPLAY_ONSCREENFINGERPRINT
 	mutex_lock(&c_bridge->display->display_lock);
 	if (oplus_display_ops.bridge_post_enable) {
-		oplus_display_ops.bridge_post_enable(c_bridge->display, &c_bridge->dsi_mode);
+		oplus_display_ops.bridge_post_enable(c_bridge->display, &c_bridge->dsi_mode, false);
 	}
 	mutex_unlock(&c_bridge->display->display_lock);
 	if (oplus_ofp_is_supported() && oplus_ofp_video_mode_30hz_aod_is_enabled()) {

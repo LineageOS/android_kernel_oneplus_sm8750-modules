@@ -41,4 +41,8 @@ void oplus_sensor_ov_bypass_framedrop(struct cam_sensor_ctrl_t *s_ctrl,enum cam_
 void oplus_sensor_sony_bypass_vsync(struct cam_sensor_ctrl_t *s_ctrl,struct i2c_settings_list *i2c_list);
 
 void oplus_sensor_sony_get_vsync_data(struct device_node *of_node,struct sensor_vsync_info *vsync_info);
+
+int cam_sensor_match_id_oem(struct cam_sensor_ctrl_t *s_ctrl,uint32_t chip_id);
+
+int32_t cam_sensor_update_id_info(struct cam_cmd_probe_v2 *probe_info, struct cam_sensor_ctrl_t *s_ctrl);
 #endif /* _OPLUS_CAM_SENSOR_H_ */

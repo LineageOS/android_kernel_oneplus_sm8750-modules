@@ -53,7 +53,7 @@ struct oplus_display_ops {
 
 	/* power on */
 	void (*bridge_pre_enable)(struct dsi_display *display, struct dsi_display_mode *mode);
-	void (*bridge_post_enable)(struct dsi_display *display, struct dsi_display_mode *mode);
+	void (*bridge_post_enable)(struct dsi_display *display, struct dsi_display_mode *mode, bool flag);
 	void (*display_enable_pre)(struct dsi_display *display);
 	void (*display_enable_mid)(struct dsi_display *display);
 	void (*display_enable_post)(struct dsi_display *display);

@@ -12,6 +12,7 @@
 #define OVSENSOR_FRAMEDROP_ADDR 0x15
 #define OVSENSOR_FRAMEDROP_ENABLE 0x10
 #define OVSENSOR_FRAMEDROP_DISABLE 0x00
+#define CAM_HP5_SENSOR_ID 0X1B75
 
 struct sony_dfct_tbl_t sony_dfct_tbl;
 
@@ -574,4 +575,81 @@ void oplus_sensor_sony_get_vsync_data(struct device_node *of_node,struct sensor_
 #ifdef OPLUS_FEATURE_CAMERA_COMMON
 EXPORT_SYMBOL(oplus_sensor_sony_get_dpc_data);
 #endif
+
+int32_t cam_sensor_update_id_info(struct cam_cmd_probe_v2 *probe_info,
+	struct cam_sensor_ctrl_t *s_ctrl)
+{
+	int32_t rc = 0;
+
+	s_ctrl->sensordata->id_info.sensor_slave_addr =
+		probe_info->pipeline_delay;
+	s_ctrl->sensordata->id_info.sensor_id_reg_addr =
+		probe_info->reg_addr;
+	s_ctrl->sensordata->id_info.sensor_id_mask =
+		probe_info->data_mask;
+	s_ctrl->sensordata->id_info.sensor_id =
+		probe_info->expected_data;
+	s_ctrl->sensordata->id_info.sensor_addr_type =
+		probe_info->addr_type;
+	s_ctrl->sensordata->id_info.sensor_data_type =
+		probe_info->data_type;
+
+	CAM_ERR(CAM_SENSOR,
+		"vendor_slave_addr:  0x%x, vendor_id_Addr: 0x%x, vendorID: 0x%x, vendor_mask: 0x%x",
+		s_ctrl->sensordata->id_info.sensor_slave_addr,
+		s_ctrl->sensordata->id_info.sensor_id_reg_addr,
+		s_ctrl->sensordata->id_info.sensor_id,
+		s_ctrl->sensordata->id_info.sensor_id_mask);
+	return rc;
+}
+
+int cam_sensor_match_id_oem(struct cam_sensor_ctrl_t *s_ctrl,uint32_t chip_id)
+{
+	uint32_t vendor_id =0;
+	uint32_t read_status = 0;
+	int rc=0;
+	if(chip_id == CAM_HP5_SENSOR_ID){
+		rc=camera_io_dev_read(
+			&(s_ctrl->io_master_info),
+			0x0010,&read_status,s_ctrl->sensordata->id_info.sensor_addr_type,
+			CAMERA_SENSOR_I2C_TYPE_BYTE,FALSE);//Read Fab Id
+		if(rc == 0 && read_status == 0x01)
+		{
+			rc=camera_io_dev_read(
+			&(s_ctrl->io_master_info),
+			s_ctrl->sensordata->id_info.sensor_id_reg_addr,
+			&vendor_id,s_ctrl->sensordata->id_info.sensor_addr_type,
+			CAMERA_SENSOR_I2C_TYPE_BYTE,FALSE);
+
+			CAM_ERR(CAM_SENSOR, "Read vendor_id_addr=0x%x vendor_id: 0x%x expected vendor_id 0x%x: rc=%d",
+			s_ctrl->sensordata->id_info.sensor_id_reg_addr,
+			vendor_id,
+			s_ctrl->sensordata->id_info.sensor_id,
+			rc);
+		}
+		/*if vendor_id id is > 511(0x02xx),it is 0.94 module if vendor_id <= 511(0x01xx),it is 0.92 module*/
+		if(vendor_id > 511){
+			if(s_ctrl->sensordata->id_info.sensor_id > 511)
+			{
+				return 0;
+			}
+			else
+			{
+				return -1;
+			}
+		}
+		else if(vendor_id <= 511)
+		{
+			if(s_ctrl->sensordata->id_info.sensor_id <= 511)
+			{
+				return 0;
+			}
+			else
+			{
+				return -1;
+			}
+		}
+	}
+	return 0;
+}
 

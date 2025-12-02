@@ -60,10 +60,10 @@ enum {
 
 enum {
 	CNN_NORMAL_MODEL0 = 0,
-	CNN_NORMAL_MODEL1 = 1, /* Default for Right-Buffer */
-	CNN_NORMAL_MODEL2 = 2, /* Default for Left-Buffer */
-	CNN_NORMAL_MODEL3,
-	CNN_NORMAL_MODEL4,
+	CNN_NORMAL_MODEL1 = 1,
+	CNN_NORMAL_MODEL2 = 2,
+	CNN_NORMAL_MODEL3 = 3, /* Default for Right-Buffer */
+	CNN_NORMAL_MODEL4 = 4, /* Default for Left-Buffer */
 	CNN_NORMAL_MODEL5,
 	CNN_NORMAL_MODEL6,
 	CNN_NORMAL_MODEL7,

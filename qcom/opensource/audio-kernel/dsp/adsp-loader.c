@@ -66,8 +66,11 @@ static char *rproc_state_string[RPROC_ADSP_MAX] = {
 #ifdef OPLUS_ARCH_EXTENDS
 /* Add for limit ssr */
 #define ADSP_SSR_LIMIT_MS 60000
+#define ADSP_SSR_DEFER_ENABLE  1
+#define ADSP_SSR_DEFER_DISABLE 0
 static ktime_t ssr_time = 0;
 static DEFINE_MUTEX(oplus_ssr_lock);
+bool oplus_daemon_adsp_ssr(void);
 #endif /* OPLUS_ARCH_EXTENDS */
 
 static ssize_t adsp_boot_store(struct kobject *kobj,
@@ -78,12 +81,22 @@ static ssize_t adsp_ssr_store(struct kobject *kobj,
 	struct kobj_attribute *attr,
 	const char *buf, size_t count);
 
+#ifdef OPLUS_ARCH_EXTENDS
+static ssize_t adsp_ssr_defer_store(struct kobject *kobj,
+	struct kobj_attribute *attr,
+	const char *buf, size_t count);
+#endif /* OPLUS_ARCH_EXTENDS */
+
 struct adsp_loader_private {
 	void *pil_h;
 	struct kobject *boot_adsp_obj;
 	struct attribute_group *attr_group;
 	char *adsp_fw_name;
 	bool ssr_triggered;
+#ifdef OPLUS_ARCH_EXTENDS
+	bool ssr_deferred;
+	bool ssr_pending;
+#endif /* OPLUS_ARCH_EXTENDS */
 };
 
 static struct kobj_attribute adsp_boot_attribute =
@@ -92,9 +105,17 @@ static struct kobj_attribute adsp_boot_attribute =
 static struct kobj_attribute adsp_ssr_attribute =
 	__ATTR(ssr, 0220, NULL, adsp_ssr_store);
 
+#ifdef OPLUS_ARCH_EXTENDS
+static struct kobj_attribute adsp_ssr_defer_attribute =
+	__ATTR(ssr_defer, 0220, NULL, adsp_ssr_defer_store);
+#endif /* OPLUS_ARCH_EXTENDS */
+
 static struct attribute *attrs[] = {
 	&adsp_boot_attribute.attr,
 	&adsp_ssr_attribute.attr,
+#ifdef OPLUS_ARCH_EXTENDS
+	&adsp_ssr_defer_attribute.attr,
+#endif /* OPLUS_ARCH_EXTENDS */
 	NULL,
 };
 
@@ -313,6 +334,7 @@ static ssize_t adsp_ssr_store(struct kobject *kobj,
 #ifdef OPLUS_ARCH_EXTENDS
 /* Add for limit ssr */
 	ssr_time = ktime_get();
+	priv->ssr_pending = false;
 #endif /* OPLUS_ARCH_EXTENDS */
 	priv->ssr_triggered = true;
 	rproc_shutdown(adsp_dev);
@@ -333,6 +355,36 @@ static ssize_t adsp_ssr_store(struct kobject *kobj,
 }
 
 #ifdef OPLUS_ARCH_EXTENDS
+static ssize_t adsp_ssr_defer_store(struct kobject *kobj,
+	struct kobj_attribute *attr,
+	const char *buf,
+	size_t count)
+{
+	int defer_command = 0;
+	struct platform_device *pdev = adsp_private;
+	struct adsp_loader_private *priv = NULL;
+
+	priv = platform_get_drvdata(pdev);
+	if (!priv)
+		return -EINVAL;
+
+	if (kstrtoint(buf, 10, &defer_command) < 0)
+		return -EINVAL;
+
+	pr_info("%s: defer_command %d\n", __func__, defer_command);
+
+	if (defer_command == ADSP_SSR_DEFER_ENABLE) {
+		priv->ssr_deferred = true;
+	} else if (defer_command == ADSP_SSR_DEFER_DISABLE) {
+		priv->ssr_deferred = false;
+		if (priv->ssr_pending) {
+			pr_info("%s: ssr is pending, do adsp ssr\n", __func__);
+			oplus_daemon_adsp_ssr();
+		}
+	}
+	return count;
+}
+
 bool oplus_daemon_adsp_ssr(void)
 {
 	struct rproc *adsp_dev = NULL;
@@ -364,6 +416,12 @@ bool oplus_daemon_adsp_ssr(void)
 		goto exit;
 	}
 
+	if (priv->ssr_deferred) {
+		priv->ssr_pending = true;
+		pr_info("%s: deferred adsp ssr\n", __func__);
+		goto exit;
+	}
+
 	adsp_dev = (struct rproc *)priv->pil_h;
 	if (!adsp_dev) {
 		goto exit;
@@ -377,6 +435,7 @@ bool oplus_daemon_adsp_ssr(void)
 	}
 
 	ssr_time = ktime_get();
+	priv->ssr_pending = false;
 	/* Add for always load adsp image when ssr is triggered */
 	priv->ssr_triggered = true;
 	rproc_shutdown(adsp_dev);
@@ -459,6 +518,10 @@ static int adsp_loader_init_sysfs(struct platform_device *pdev)
 	priv->boot_adsp_obj = NULL;
 
 	priv->ssr_triggered = false;
+#ifdef OPLUS_ARCH_EXTENDS
+	priv->ssr_deferred = false;
+	priv->ssr_pending = false;
+#endif /* OPLUS_ARCH_EXTENDS */
 	priv->attr_group = devm_kzalloc(&pdev->dev,
 				sizeof(*(priv->attr_group)),
 				GFP_KERNEL);

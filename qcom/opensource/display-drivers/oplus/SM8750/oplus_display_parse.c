@@ -101,6 +101,11 @@ static int oplus_panel_parse_common_config(struct dsi_panel *panel)
 		OPLUS_DSI_INFO("oplus,pcd-lvd-check-time-gap is not config, default 0\n");
 	}
 
+	panel->oplus_panel.all_timing_switch_frame_delay = utils->read_bool(utils->data,
+			"oplus,panel-all-timing-switch-frame-delay");
+	OPLUS_DSI_INFO("oplus,panel-all-timing-switch-frame-delay: %s\n",
+			panel->oplus_panel.all_timing_switch_frame_delay ? "true" : "false");
+
 	return 0;
 }
 
@@ -359,6 +364,17 @@ int oplus_panel_parse_features_config(struct dsi_panel *panel)
 		"oplus,video-mode-fps-switch-compenstate-enable");
 	OPLUS_DSI_INFO("oplus,video-mode-fps-switch-compenstate-enable: %s\n",
 		panel->oplus_panel.vid_fps_switch_compenstate_enable ? "true" : "false");
+
+	panel->oplus_panel.ofp_configuration_enable_for_ili7838e = utils->read_bool(utils->data,
+		"oplus,ofp-configuration-enable-for-ili7838E");
+	OPLUS_DSI_INFO("ofp-configuration-enable-for-ili7838E: %s\n",
+		panel->oplus_panel.ofp_configuration_enable_for_ili7838e ? "true" : "false");
+
+	panel->oplus_panel.doze_disable_esdcheck = utils->read_bool(utils->data,
+		"oplus,doze_disable_esdcheck");
+	OPLUS_DSI_INFO("oplus,doze_disable_esdcheck: %s\n",
+		panel->oplus_panel.doze_disable_esdcheck ? "true" : "false");
+
 
 	return 0;
 }

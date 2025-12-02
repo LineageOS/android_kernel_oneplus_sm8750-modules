@@ -306,10 +306,16 @@ struct oplus_panel {
 	"0" means once aod off cmd sent the next frame will be normal frame */
 	unsigned int aod_off_frame_cost;
 
+	bool all_timing_switch_frame_delay;
+
 	/* add for factory test fps switch, ignore some fps */
 	int ignore_mode_count;
 	u32 *ignore_mode;
 	struct oplus_dynamic_float_te_params dfte_params;
+	/* add a common configuration item for ili7838E */
+	bool ofp_configuration_enable_for_ili7838e;
+
+	bool doze_disable_esdcheck;
 };
 
 #endif /* _OPLUS_PANEL_H_ */
