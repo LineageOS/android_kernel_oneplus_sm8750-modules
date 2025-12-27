@@ -186,6 +186,9 @@ struct cam_vfe_bus_ver3_comp_grp_data {
 	enum cam_vfe_bus_ver3_comp_grp_type          comp_grp_type;
 	struct cam_vfe_bus_ver3_common_data         *common_data;
 
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+	uint32_t                                     comp_dst_hw_ctxt_id_mask;
+#endif /* OPLUS_FEATURE_CAMERA_COMMON */
 	uint64_t                                     composite_mask;
 	uint32_t                                     comp_done_mask;
 	uint32_t                                     mc_comp_done_mask;
@@ -1428,9 +1431,15 @@ static int cam_vfe_bus_ver3_start_wm(struct cam_isp_resource_node *wm_res)
 		rsrc_data->common_data->core_index, rsrc_data->index,
 		wm_res->res_name, (uint32_t) rsrc_data->hw_regs->cfg,
 		rsrc_data->cfg.en_cfg, rsrc_data->cfg.width, rsrc_data->cfg.height);
+#ifndef OPLUS_FEATURE_CAMERA_COMMON
 	CAM_DBG(CAM_ISP, "VFE:%u WM:%d pk_fmt:%d stride:%d burst len:%d hw_ctxt_mask:0x%x",
 		rsrc_data->common_data->core_index, rsrc_data->index, rsrc_data->cfg.pack_fmt,
 		rsrc_data->cfg.stride, 0xF, rsrc_data->out_rsrc_data->dst_hw_ctxt_id_mask);
+#else /* OPLUS_FEATURE_CAMERA_COMMON */
+	CAM_INFO(CAM_ISP, "VFE:%u WM:%d pk_fmt:%d stride:%d burst len:%d hw_ctxt_mask:0x%x",
+		rsrc_data->common_data->core_index, rsrc_data->index, rsrc_data->cfg.pack_fmt,
+		rsrc_data->cfg.stride, 0xF, rsrc_data->out_rsrc_data->dst_hw_ctxt_id_mask);
+#endif /* OPLUS_FEATURE_CAMERA_COMMON */
 
 	wm_res->res_state = CAM_ISP_RESOURCE_STATE_STREAMING;
 	common_data->cntr = 0;
@@ -1683,6 +1692,9 @@ static int cam_vfe_bus_ver3_release_comp_grp(
 		in_comp_grp->res_state = CAM_ISP_RESOURCE_STATE_AVAILABLE;
 
 	}
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+	in_rsrc_data->comp_dst_hw_ctxt_id_mask = 0x0;
+#endif /* OPLUS_FEATURE_CAMERA_COMMON */
 
 	return 0;
 }
@@ -1756,17 +1768,30 @@ skip_comp_cfg:
 			common_data->common_reg->ubwc_static_ctrl);
 	}
 
+#ifndef OPLUS_FEATURE_CAMERA_COMMON
 	if (comp_grp_rsrc_data->mc_comp_done_mask)
+#else /* OPLUS_FEATURE_CAMERA_COMMON */
+	if (comp_grp_rsrc_data->mc_comp_done_mask && (comp_grp_rsrc_data->comp_dst_hw_ctxt_id_mask > 1))
+#endif /* OPLUS_FEATURE_CAMERA_COMMON */
 		bus_irq_reg_mask[CAM_VFE_BUS_VER3_IRQ_REG0] = comp_grp_rsrc_data->mc_comp_done_mask;
 	else
 		bus_irq_reg_mask[CAM_VFE_BUS_VER3_IRQ_REG0] = comp_grp_rsrc_data->comp_done_mask;
 
+#ifndef OPLUS_FEATURE_CAMERA_COMMON
 	CAM_DBG(CAM_ISP,
 		"Start Done VFE:%u comp_grp:%d mc_based:%s bus_irq_mask_0: 0x%x comp_done_mask:0x%x mc_comp_done_mask:0x%x",
 		comp_grp_rsrc_data->common_data->core_index, comp_grp_rsrc_data->comp_grp_type,
 		CAM_BOOL_TO_YESNO(vfe_out_data->mc_based),
 		bus_irq_reg_mask[CAM_VFE_BUS_VER3_IRQ_REG0], comp_grp_rsrc_data->comp_done_mask,
 		comp_grp_rsrc_data->mc_comp_done_mask);
+#else /* OPLUS_FEATURE_CAMERA_COMMON */
+	CAM_DBG(CAM_ISP,
+		"Start Done VFE:%u comp_grp:%d mc_based:%s bus_irq_mask_0: 0x%x comp_done_mask:0x%x mc_comp_done_mask:0x%x comp_dst_hw_ctxt_id_mask 0x%x",
+		comp_grp_rsrc_data->common_data->core_index, comp_grp_rsrc_data->comp_grp_type,
+		CAM_BOOL_TO_YESNO(vfe_out_data->mc_based),
+		bus_irq_reg_mask[CAM_VFE_BUS_VER3_IRQ_REG0], comp_grp_rsrc_data->comp_done_mask,
+		comp_grp_rsrc_data->mc_comp_done_mask, comp_grp_rsrc_data->comp_dst_hw_ctxt_id_mask);
+#endif /* OPLUS_FEATURE_CAMERA_COMMON */
 
 	comp_grp->res_state = CAM_ISP_RESOURCE_STATE_STREAMING;
 
@@ -1815,7 +1840,11 @@ static int cam_vfe_bus_ver3_handle_comp_done_bottom_half(
 
 	if ((status_0 & comp_grp_rsrc_data->comp_done_mask) ||
 		(evt_payload->is_hw_ctxt_comp_done &&
+#ifndef OPLUS_FEATURE_CAMERA_COMMON
 		(status_0 & comp_grp_rsrc_data->mc_comp_done_mask)) || evt_payload->is_early_done) {
+#else /* OPLUS_FEATURE_CAMERA_COMMON */
+		((status_0 & comp_grp_rsrc_data->mc_comp_done_mask) && (comp_grp_rsrc_data->comp_dst_hw_ctxt_id_mask > 1))) || evt_payload->is_early_done) {
+#endif /* OPLUS_FEATURE_CAMERA_COMMON */
 		evt_payload->evt_id = CAM_ISP_HW_EVENT_DONE;
 		rc = CAM_VFE_IRQ_STATUS_SUCCESS;
 	}
@@ -1974,6 +2003,16 @@ static int cam_vfe_bus_ver3_acquire_vfe_out(void *bus_priv, void *acquire_args,
 			rsrc_data->dst_hw_ctxt_id_mask |=
 				out_acquire_args->out_port_info->hw_context_id;
 			out_acquire_args->rsrc_node = rsrc_node;
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+			comp_grp_rsrc_data->comp_dst_hw_ctxt_id_mask |=
+				out_acquire_args->out_port_info->hw_context_id;
+			CAM_INFO(CAM_ISP, "VFE:%u out_type:0x%x use_hw_ctxt:%s hw_ctx_id:0x%x comp_grp %d comp_dst_hw_ctxt_id_mask 0x%x",
+				ver3_bus_priv->common_data.core_index,
+				out_acquire_args->out_port_info->res_type,
+				CAM_BOOL_TO_YESNO(out_acquire_args->use_hw_ctxt),
+				out_acquire_args->out_port_info->hw_context_id,
+				comp_grp_rsrc_data->comp_grp_type, comp_grp_rsrc_data->comp_dst_hw_ctxt_id_mask);
+#endif /* OPLUS_FEATURE_CAMERA_COMMON */
 			rc = 0;
 			goto end;
 		} else {
@@ -1998,8 +2037,22 @@ static int cam_vfe_bus_ver3_acquire_vfe_out(void *bus_priv, void *acquire_args,
 	rsrc_data->limiter_enabled = false;
 	comp_acq_args.composite_mask = (1ULL << vfe_out_res_id);
 
+#ifndef OPLUS_FEATURE_CAMERA_COMMON
 	if (out_acquire_args->use_hw_ctxt)
 		rsrc_data->dst_hw_ctxt_id_mask |= out_acquire_args->out_port_info->hw_context_id;
+#else /* OPLUS_FEATURE_CAMERA_COMMON */
+	if (out_acquire_args->use_hw_ctxt) {
+		rsrc_data->dst_hw_ctxt_id_mask |= out_acquire_args->out_port_info->hw_context_id;
+		comp_grp_rsrc_data->comp_dst_hw_ctxt_id_mask |=
+			out_acquire_args->out_port_info->hw_context_id;
+		CAM_INFO(CAM_ISP, "VFE:%u out_type:0x%x use_hw_ctxt:%s hw_ctx_id:0x%x comp_grp %d comp_dst_hw_ctxt_id_mask 0x%x",
+			ver3_bus_priv->common_data.core_index,
+			out_acquire_args->out_port_info->res_type,
+			CAM_BOOL_TO_YESNO(out_acquire_args->use_hw_ctxt),
+			out_acquire_args->out_port_info->hw_context_id,
+			comp_grp_rsrc_data->comp_grp_type, comp_grp_rsrc_data->comp_dst_hw_ctxt_id_mask);
+	}
+#endif /* OPLUS_FEATURE_CAMERA_COMMON */
 
 
 	/* for some hw versions, buf done is not received from vfe but
@@ -2263,7 +2316,11 @@ static int cam_vfe_bus_ver3_start_vfe_out(
 	if (rsrc_data->is_dual && !rsrc_data->is_master)
 		goto end;
 
+#ifndef OPLUS_FEATURE_CAMERA_COMMON
 	if (comp_grp_rsrc_data->mc_comp_done_mask) {
+#else /* OPLUS_FEATURE_CAMERA_COMMON */
+	if (comp_grp_rsrc_data->mc_comp_done_mask && (comp_grp_rsrc_data->comp_dst_hw_ctxt_id_mask > 1)) {
+#endif /* OPLUS_FEATURE_CAMERA_COMMON */
 		if (!common_data->mc_comp_buf_done_controller) {
 			CAM_ERR(CAM_ISP, "MC comp buf done ctrler is NULL");
 			return -EPERM;
@@ -2469,13 +2526,21 @@ static int cam_vfe_bus_ver3_out_done_top_half_util(uint32_t evt_id,
 
 	status_0 = th_payload->evt_status_arr[CAM_IFE_IRQ_BUS_VER3_REG_STATUS0];
 
+#ifndef OPLUS_FEATURE_CAMERA_COMMON
 	if (evt_payload->is_hw_ctxt_comp_done && (!comp_rsrc_data->mc_comp_done_mask)) {
+#else /* OPLUS_FEATURE_CAMERA_COMMON */
+	if (evt_payload->is_hw_ctxt_comp_done && (!(comp_rsrc_data->mc_comp_done_mask && (comp_rsrc_data->comp_dst_hw_ctxt_id_mask > 1)))) {
+#endif /* OPLUS_FEATURE_CAMERA_COMMON */
 		CAM_ERR(CAM_ISP, "Invalid configuration for hw ctxt comp buf done");
 		return -EPERM;
 	}
 
 	if ((status_0 & comp_rsrc_data->comp_done_mask)  || (evt_payload->is_hw_ctxt_comp_done &&
+#ifndef OPLUS_FEATURE_CAMERA_COMMON
 		(status_0 & comp_rsrc_data->mc_comp_done_mask))) {
+#else /* OPLUS_FEATURE_CAMERA_COMMON */
+		(status_0 & comp_rsrc_data->mc_comp_done_mask && (comp_rsrc_data->comp_dst_hw_ctxt_id_mask > 1)))) {
+#endif /* OPLUS_FEATURE_CAMERA_COMMON */
 		evt_payload->last_consumed_addr = cam_io_r_mb(wm_rsrc_data->common_data->mem_base +
 			wm_rsrc_data->hw_regs->addr_status_0);
 		trace_cam_log_event("bufdone", "bufdone_IRQ",

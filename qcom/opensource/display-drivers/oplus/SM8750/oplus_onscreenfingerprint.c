@@ -3459,12 +3459,12 @@ int oplus_ofp_power_mode_handle(void *dsi_display, int power_mode)
 				if (p_oplus_ofp_params->need_to_sync_data_in_aod_on) {
 					oplus_ofp_aod_wait_handle(c_conn, 1);
 				}
-				oplus_ofp_set_aod_state(true);
 
 				rc = dsi_panel_set_lp1(display->panel);
 				if (rc) {
 					OFP_ERR("[%s] failed to send DSI_CMD_SET_LP1 cmds, rc=%d\n", display->name, rc);
 				}
+				oplus_ofp_set_aod_state(true);
 				rc = dsi_panel_set_lp2(display->panel);
 				if (rc) {
 					OFP_ERR("[%s] failed to send DSI_CMD_SET_LP2 cmds, rc=%d\n", display->name, rc);

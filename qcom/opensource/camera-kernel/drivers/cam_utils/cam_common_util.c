@@ -12,6 +12,10 @@
 #include <linux/module.h>
 #include <linux/iopoll.h>
 #include <linux/moduleparam.h>
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+#include <linux/atomic.h>
+#include <linux/spinlock.h>
+#endif
 #include "cam_common_util.h"
 #include "cam_debug_util.h"
 #include "cam_presil_hw_access.h"
@@ -24,13 +28,370 @@ static struct cam_common_mini_dump_dev_info g_minidump_dev_info;
 
 #define CAM_PRESIL_POLL_DELAY 20
 
-static struct cam_common_inject_evt_info g_inject_evt_info;
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+static const uint32_t block_sizes[MEMORY_POOL_COUNT] = {
+	MEMORY_BLOCK_1,
+	MEMORY_BLOCK_2
+};
 
+static const uint32_t block_counts[MEMORY_POOL_COUNT] = {
+	MEMORY_BLOCK_1_COUNT,
+	MEMORY_BLOCK_2_COUNT
+};
+
+static memory_block_t *mem_pools[MEMORY_POOL_COUNT];
+/* Sensor power management structures */
+static atomic_t sensor_power_count = ATOMIC_INIT(0);
+static struct mutex sensor_power_mutex;
+static memory_pool_state_t memory_pool_state = MEMORY_POOL_STATE_DESTROYED;
+
+/* Thread management */
+static struct task_struct *memory_pool_thread = NULL;
+static atomic_t thread_task_count = ATOMIC_INIT(0);
+static wait_queue_head_t thread_wait_queue;
+
+
+/* Delay mechanism for sensor power down */
+static struct timer_list power_down_timer;
+static bool power_down_timer_pending = false;
+
+#endif
+static struct cam_common_inject_evt_info g_inject_evt_info;
 static uint timeout_multiplier = 1;
 module_param(timeout_multiplier, uint, 0644);
 typedef int (*cam_common_evt_inject_cmd_parse_handler)(
 	struct cam_common_inject_evt_param *inject_params,
 	uint32_t param_counter, char *token);
+
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+static void power_down_timer_callback(struct timer_list *t);
+static int memory_pool_thread_func(void *data);
+static void createOrDestroyMemPools(void);
+
+bool common_mem_pools_init(void) {
+	int i, j;
+
+	/* Allocate memory pool arrays (structures only, no blocks yet) */
+	for (i = 0; i < MEMORY_POOL_COUNT; i++) {
+		mem_pools[i] = kmalloc_array(block_counts[i], sizeof(memory_block_t), GFP_KERNEL);
+		if (!mem_pools[i]) {
+			CAM_ERR(CAM_UTIL, "common Memory pool, Failed to allocate memory pool array %d", i);
+			/* Cleanup already allocated arrays */
+			for (int cleanup_i = 0; cleanup_i < i; cleanup_i++) {
+				kfree(mem_pools[cleanup_i]);
+				mem_pools[cleanup_i] = NULL;
+			}
+			return false;
+		}
+
+		/* Initialize memory block structures */
+		for (j = 0; j < block_counts[i]; j++) {
+			mem_pools[i][j].address = NULL;  /* No blocks allocated yet */
+			mem_pools[i][j].size = block_sizes[i];
+			atomic_set(&mem_pools[i][j].allocated, 0);  /* false = 0 */
+			CAM_DBG(CAM_UTIL, "common Memory pool, Initialized block %d in pool %d: size=%zu, address=%p",
+					j, i, mem_pools[i][j].size, mem_pools[i][j].address);
+		}
+	}
+
+	memory_pool_state = MEMORY_POOL_STATE_DESTROYED;
+	power_down_timer_pending = false;
+
+	/* Initialize mutex for sensor power management */
+	mutex_init(&sensor_power_mutex);
+
+	/* Initialize wait queue for thread */
+	init_waitqueue_head(&thread_wait_queue);
+
+	/* Create memory pool management thread */
+	memory_pool_thread = kthread_create(memory_pool_thread_func, NULL, "memory_pool_mgr");
+	if (IS_ERR(memory_pool_thread)) {
+		CAM_ERR(CAM_UTIL, "common Memory pool, Failed to create memory pool management thread");
+		return -ENOMEM;
+	}
+	wake_up_process(memory_pool_thread);
+
+	/* Initialize timer for delayed memory pool destruction */
+	timer_setup(&power_down_timer, power_down_timer_callback, 0);
+
+	CAM_INFO(CAM_UTIL, "common Memory pool, management system initialized successfully");
+	return true;
+}
+EXPORT_SYMBOL(common_mem_pools_init);
+
+int get_pool_index(size_t size) {
+	for (int i = 0; i < MEMORY_POOL_COUNT; i++) {
+		if (size <= block_sizes[i]) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+void* pools_allocate_memory(size_t size) {
+	/* Only allow allocation when memory pools are in CREATED or DESTROY_DELAY state */
+	if (memory_pool_state & MEMORY_POOL_CANNOT_ALLOC_MASK) {
+		CAM_DBG(CAM_UTIL, "common Memory pool, allocate_memory: Memory pools not in CREATED or DESTROY_DELAY state (current state: 0x%02x)", memory_pool_state);
+		return NULL;
+	}
+
+	int pool_index = get_pool_index(size);
+	if (pool_index < 0) {
+		CAM_ERR(CAM_UTIL, "common Memory pool, allocate_memory: Requested size %zu exceeds maximum pool sizes.\n", size);
+		return NULL;
+	}
+
+	/* Try to allocate using atomic compare and exchange */
+	for (int j = 0; j < block_counts[pool_index]; j++) {
+		if (atomic_cmpxchg(&mem_pools[pool_index][j].allocated, 0, 1) == 0) {
+			if (NULL != mem_pools[pool_index][j].address) {
+				return mem_pools[pool_index][j].address;
+			} else {
+				/* Reset allocation flag since address is NULL */
+				atomic_set(&mem_pools[pool_index][j].allocated, 0);
+				CAM_ERR(CAM_UTIL, "common Memory pool, Block %d in pool %d has NULL address", j, pool_index);
+			}
+		}
+	}
+
+	CAM_INFO(CAM_UTIL, "common Memory pool, can't alloc pool memory, no free block found.");
+	return NULL;
+}
+
+bool pools_free_memory(void *ptr) {
+	/* Memory block can be freed regardless of memory pool state
+	 * because allocated blocks should always be returnable to avoid memory leaks */
+	for (int i = 0; i < MEMORY_POOL_COUNT; i++) {
+		for (int j = 0; j < block_counts[i]; j++) {
+			if (mem_pools[i][j].address == ptr) {
+				/* Use atomic compare and exchange to ensure thread safety */
+				if (atomic_cmpxchg(&mem_pools[i][j].allocated, 1, 0) == 1) {
+					/* Block returned to pool, keep address for future allocation */
+					return true;
+				} else {
+					/* Block was not allocated or already freed by another thread */
+					CAM_WARN(CAM_UTIL, "common Memory pool, fail to free unallocated block at %pK", ptr);
+					return false;
+				}
+			}
+		}
+	}
+
+	/* Pointer not found in any pool */
+	return false;
+}
+
+/* Memory pool management thread function */
+static int memory_pool_thread_func(void *data) {
+	while (!kthread_should_stop()) {
+		wait_event_interruptible(thread_wait_queue,
+			atomic_read(&thread_task_count) > 0 || kthread_should_stop());
+
+		if (kthread_should_stop())
+			break;
+
+		/* Process one task */
+		if (atomic_dec_return(&thread_task_count) >= 0) {
+			createOrDestroyMemPools();
+		}
+	}
+	return 0;
+}
+
+/* Unified memory pool creation and destruction function */
+static void createOrDestroyMemPools(void) {
+	mutex_lock(&sensor_power_mutex);
+
+	CAM_DBG(CAM_UTIL, "common Memory pool, createOrDestroyMemPools: sensor_count=%d, current_state=%d",
+			atomic_read(&sensor_power_count), memory_pool_state);
+
+	if (atomic_read(&sensor_power_count) > 0) {
+		/* Cancel pending power down timer if sensors are powered up */
+		if (power_down_timer_pending) {
+			del_timer(&power_down_timer);
+			power_down_timer_pending = false;
+			CAM_INFO(CAM_UTIL, "common Memory pool, Cancelled pending power down timer due to sensor power up, count: %d", atomic_read(&sensor_power_count));
+			if (memory_pool_state == MEMORY_POOL_STATE_DESTROY_DELAY) {
+				memory_pool_state = MEMORY_POOL_STATE_CREATED;
+				CAM_INFO(CAM_UTIL, "common Memory pool, Memory pools state rechanged to CREATED");
+			} else {
+				CAM_ERR(CAM_UTIL, "common Memory pool, state error:0x%02x", memory_pool_state);
+			}
+		}
+		/* Need to create memory pools */
+		if (memory_pool_state == MEMORY_POOL_STATE_DESTROYED) {
+			memory_pool_state = MEMORY_POOL_STATE_CREATING;
+			CAM_INFO(CAM_UTIL, "common Memory pool, Creating memory pools for sensor_count=%d", atomic_read(&sensor_power_count));
+
+			/* Create memory pools */
+			/* Allocate memory blocks (structures already allocated in init) */
+			int total_new_allocated = 0;
+			int total_existing = 0;
+
+			for (int i = 0; i < MEMORY_POOL_COUNT; i++) {
+				if (!mem_pools[i]) {
+					CAM_ERR(CAM_UTIL, "common Memory pool, Memory pool array %d not initialized", i);
+					memory_pool_state = MEMORY_POOL_STATE_DESTROYED;
+					goto unlock_exit;
+				}
+
+				int pool_new_allocated = 0;
+				int pool_existing = 0;
+
+				for (int j = 0; j < block_counts[i]; j++) {
+					if (mem_pools[i][j].address) {
+						/* Block already allocated, skip */
+						pool_existing++;
+						continue;
+					}
+
+					/* Save block size to local variable to avoid compiler optimization issues */
+					const size_t current_block_size = block_sizes[i];
+
+					/* Try to allocate memory with retry mechanism */
+					int retry_count = 0;
+					do {
+						mem_pools[i][j].address = kmalloc(current_block_size, GFP_KERNEL);
+						if (mem_pools[i][j].address) {
+							break; /* Success, exit retry loop */
+						}
+						retry_count++;
+						CAM_WARN(CAM_UTIL, "common Memory pool, Memory allocation failed, retry %d/%d for block %d in pool %d (size: %zu), free_mem: %luKB", 
+							retry_count, MEMORY_ALLOC_RETRY_COUNT, j, i, current_block_size,
+							si_mem_available());
+						if (retry_count < MEMORY_ALLOC_RETRY_COUNT) {
+							/* Delay before retry to allow memory cleanup */
+							msleep(MEMORY_ALLOC_RETRY_DELAY_MS);
+						}
+					} while (retry_count < MEMORY_ALLOC_RETRY_COUNT);
+
+					if (!mem_pools[i][j].address) {
+						CAM_ERR(CAM_UTIL, "common Memory pool, Failed to allocate memory block %d in pool %d (size: %zu) after %d retries, keeping existing blocks for next allocation", 
+								j, i, current_block_size, MEMORY_ALLOC_RETRY_COUNT);
+						/* Keep existing memory blocks for next allocation attempt */
+						memory_pool_state = MEMORY_POOL_STATE_DESTROYED;
+						goto unlock_exit;
+					}
+					pool_new_allocated++;
+				}
+
+				total_new_allocated += pool_new_allocated;
+				total_existing += pool_existing;
+
+				CAM_DBG(CAM_UTIL, "common Memory pool, Initialized memory pool %d: %zu bytes x %d blocks (new: %d, existing: %d)",
+						i, block_sizes[i], block_counts[i], pool_new_allocated, pool_existing);
+			}
+
+			memory_pool_state = MEMORY_POOL_STATE_CREATED;
+			CAM_INFO(CAM_UTIL, "common Memory pool, All memory pools created successfully - new allocated: %d blocks, existing: %d blocks, state changed to CREATED", 
+					total_new_allocated, total_existing);
+		} else {
+			CAM_DBG(CAM_UTIL, "common Memory pool, Memory pools already created, no action needed, state: 0x%02x", memory_pool_state);
+		}
+	} else {
+		/* Need to destroy memory pools */
+		if (memory_pool_state == MEMORY_POOL_STATE_CREATED) {
+			/* Set to destroy delay state and start timer */
+			memory_pool_state = MEMORY_POOL_STATE_DESTROY_DELAY;
+			CAM_INFO(CAM_UTIL, "common Memory pool, Setting to DESTROY_DELAY state, will destroy after delay %ds", MEMORY_POOL_DESTROY_DELAY_SEC);
+
+			/* Schedule actual destruction after delay */
+			power_down_timer_pending = true;
+			mod_timer(&power_down_timer, jiffies + msecs_to_jiffies(MEMORY_POOL_DESTROY_DELAY_SEC * 1000));
+		} else if (memory_pool_state == MEMORY_POOL_STATE_DESTROY_DELAY && !power_down_timer_pending) {
+			/* Timer expired, set to warning state and sleep 200ms */
+			memory_pool_state = MEMORY_POOL_STATE_DESTROY_WARNING;
+			CAM_INFO(CAM_UTIL, "common Memory pool, Setting to DESTROY_WARNING state, sleeping %dms with lock held", MEMORY_POOL_DESTROY_WARNING_DELAY_MS);
+
+			/* Sleep 200ms in thread context while holding the lock
+			 * This prevents new memory allocations during the warning period */
+			msleep(MEMORY_POOL_DESTROY_WARNING_DELAY_MS);
+
+			/* After sleep, proceed to actual destruction */
+			memory_pool_state = MEMORY_POOL_STATE_DESTROYING;
+			CAM_INFO(CAM_UTIL, "common Memory pool, Destroying memory pools for sensor_count=%d", atomic_read(&sensor_power_count));
+
+			/* Free each block individually using atomic operations */
+			int total_allocated = 0;
+			int total_freed = 0;
+
+			for (int i = 0; i < MEMORY_POOL_COUNT; i++) {
+				if (mem_pools[i]) {
+					for (int j = 0; j < block_counts[i]; j++) {
+						if (atomic_read(&mem_pools[i][j].allocated) == 1) {
+							/* Skip allocated blocks and log */
+							total_allocated++;
+							CAM_INFO(CAM_UTIL, "common Memory pool, Skipping allocated block %d in pool %d (size: %zu), address: %pK",
+									j, i, block_sizes[i], mem_pools[i][j].address);
+						} else if (mem_pools[i][j].address) {
+							/* Free unused block */
+							kfree(mem_pools[i][j].address);
+							mem_pools[i][j].address = NULL;
+							total_freed++;
+						}
+					}
+				}
+			}
+
+			if (total_allocated > 0) {
+				/* Keep pool structures if there are allocated blocks */
+				CAM_INFO(CAM_UTIL, "common Memory pool, Partial destruction: freed %d blocks, kept %d allocated blocks",
+						total_freed, total_allocated);
+			} else {
+				/* All blocks were free, mark as uninitialized but keep pool structures */
+				CAM_INFO(CAM_UTIL, "common Memory pool, Complete destruction: freed all %d blocks, pool structures kept", total_freed);
+			}
+
+			memory_pool_state = MEMORY_POOL_STATE_DESTROYED;
+			CAM_INFO(CAM_UTIL, "common Memory pool, Memory pools state changed to DESTROYED");
+
+		} else {
+			CAM_DBG(CAM_UTIL, "common Memory pool, no need destroy, state:0x%02x", memory_pool_state);
+		}
+	}
+
+unlock_exit:
+	mutex_unlock(&sensor_power_mutex);
+}
+
+
+/* Sensor power management functions */
+void mempool_set_sensor_powerup(void) {
+	int count;
+
+	/* Increment sensor power count atomically */
+	count = atomic_inc_return(&sensor_power_count);
+	CAM_DBG(CAM_UTIL, "common Memory pool, Sensor power up, count: %d", count);
+
+	/* Increment thread task count and wake up thread */
+	atomic_inc(&thread_task_count);
+	wake_up(&thread_wait_queue);
+}
+EXPORT_SYMBOL(mempool_set_sensor_powerup);
+
+/* Timer callback for delayed memory pool destruction */
+static void power_down_timer_callback(struct timer_list *t) {
+	CAM_INFO(CAM_UTIL, "common Memory pool, power_down_timer_callback");
+	/* Increment thread task count and wake up thread */
+	atomic_inc(&thread_task_count);
+	/* Reset timer pending flag */
+	power_down_timer_pending = false;
+	wake_up(&thread_wait_queue);
+}
+
+void mempool_set_sensor_powerdown(void) {
+	int count;
+
+	/* Decrement sensor power count atomically */
+	count = atomic_dec_return(&sensor_power_count);
+	CAM_DBG(CAM_UTIL, "common Memory pool, Sensor power down, count: %d", count);
+
+	/* Increment thread task count and wake up thread */
+	atomic_inc(&thread_task_count);
+	wake_up(&thread_wait_queue);
+}
+EXPORT_SYMBOL(mempool_set_sensor_powerdown);
+#endif
 
 int cam_common_util_get_string_index(const char **strings,
 	uint32_t num_strings, const char *matching_string, uint32_t *index)
@@ -856,7 +1217,9 @@ module_param_cb(cam_event_inject, &cam_common_evt_inject, NULL, 0644);
 int cam_common_mem_kdup(void **dst,
 	void *src, size_t size)
 {
+#ifndef OPLUS_FEATURE_CAMERA_COMMON
 	gfp_t flag = GFP_KERNEL;
+#endif
 
 	if (!src || !dst || !size) {
 		CAM_ERR(CAM_UTIL, "Invalid params src: %pK dst: %pK size: %u",
@@ -864,10 +1227,24 @@ int cam_common_mem_kdup(void **dst,
 		return -EINVAL;
 	}
 
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+	if (in_task()) {
+		*dst = pools_allocate_memory(size);
+		if (!*dst) {
+			*dst = vzalloc(size);
+			CAM_DBG(CAM_UTIL, "common Memory pool, use vzalloc size: %u, *dst: %p", size, *dst);
+		}
+	} else {
+		*dst = kvzalloc(size, GFP_ATOMIC);
+		CAM_INFO(CAM_UTIL, "common Memory pool, use kvzalloc size: %u, *dst: %p", size, *dst);
+	}
+#else
 	if (!in_task())
 		flag = GFP_ATOMIC;
 
 	*dst = kvzalloc(size, flag);
+#endif
+
 	if (!*dst) {
 		CAM_ERR(CAM_UTIL, "Failed to allocate memory with size: %u", size);
 		return -ENOMEM;
@@ -882,6 +1259,12 @@ EXPORT_SYMBOL(cam_common_mem_kdup);
 
 void cam_common_mem_free(void *memory)
 {
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+	if (!pools_free_memory(memory)) {
+		kvfree(memory);
+	}
+#else
 	kvfree(memory);
+#endif
 }
 EXPORT_SYMBOL(cam_common_mem_free);

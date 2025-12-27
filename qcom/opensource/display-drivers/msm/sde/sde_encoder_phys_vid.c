@@ -1332,12 +1332,6 @@ not_flushed:
 
 	spin_unlock_irqrestore(phys_enc->enc_spinlock, lock_flags);
 
-	if (get_eng_version() == FACTORY || get_eng_version() == AGING || get_eng_version() == HIGH_TEMP_AGING) {
-		if (reset_status) {
-			SDE_DBG_DUMP_WQ(SDE_DBG_BUILT_IN_ALL, "panic");
-		}
-	}
-
 	if (event && phys_enc->parent_ops.handle_frame_done)
 		phys_enc->parent_ops.handle_frame_done(phys_enc->parent,
 			phys_enc, event);
@@ -2381,7 +2375,11 @@ static int sde_encoder_phys_vid_prepare_for_kickoff(
 				sde_encoder_helper_unregister_irq(
 					phys_enc, INTR_IDX_VSYNC);
 
-			SDE_DBG_DUMP(SDE_DBG_BUILT_IN_ALL);
+			if (get_eng_version() == FACTORY || get_eng_version() == AGING || get_eng_version() == HIGH_TEMP_AGING) {
+				SDE_DBG_DUMP(SDE_DBG_BUILT_IN_ALL, "panic");
+			} else {
+				SDE_DBG_DUMP(SDE_DBG_BUILT_IN_ALL);
+			}
 
 			if (irq_enable)
 				sde_encoder_helper_register_irq(

@@ -14935,7 +14935,12 @@ static int cam_ife_mgr_prepare_hw_update(void *hw_mgr_priv,
 	 * bits to get the type of operation since UMD definition
 	 * of op_code has some difference from KMD.
 	 */
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+	if ((prepare_hw_data->packet_opcode_type == CAM_ISP_PACKET_INIT_DEV) &&
+		(prepare->init_pending_req_cnt < 1)) {
+#else
 	if (prepare_hw_data->packet_opcode_type == CAM_ISP_PACKET_INIT_DEV) {
+#endif /* OPLUS_FEATURE_CAMERA_COMMON */
 		if ((!prepare->num_reg_dump_buf) || (prepare->num_reg_dump_buf >
 			CAM_REG_DUMP_MAX_BUF_ENTRIES))
 			goto end;

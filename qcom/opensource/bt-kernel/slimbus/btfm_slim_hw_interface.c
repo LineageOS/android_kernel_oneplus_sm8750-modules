@@ -27,6 +27,10 @@
 static int bt_soc_enable_status;
 int btfm_feedback_ch_setting;
 static uint8_t usecase_codec;
+//#ifdef OPLUS_ARCH_EXTENDS
+int oplus_bt_timeout_status = 0;
+int oplus_bt_init_err = 0;
+//#endif /* OPLUS_ARCH_EXTENDS */
 
 static int btfm_slim_hwep_write(struct snd_soc_component *codec,
 			unsigned int reg, unsigned int value)
@@ -88,9 +92,40 @@ static int btfm_put_codec_type(struct snd_kcontrol *kcontrol,
 	BTFMSLIM_DBG("codec type set to:%s", codec_text[usecase_codec]);
 	return 1;
 }
+
+//#ifdef OPLUS_ARCH_EXTENDS
+static int oplus_bt_get_timout_status(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	BTFMSLIM_INFO("oplus_bt_init_err = %d, oplus_bt_timeout_status = %d",
+		oplus_bt_init_err, oplus_bt_timeout_status);
+
+	if (oplus_bt_init_err < oplus_bt_timeout_status) {
+		ucontrol->value.integer.value[0] = oplus_bt_timeout_status;
+	} else {
+		ucontrol->value.integer.value[0] = oplus_bt_init_err;
+	}
+	return 1;
+}
+
+static int oplus_bt_put_timout_status(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	BTFMSLIM_INFO("%ld", ucontrol->value.integer.value[0]);
+	oplus_bt_timeout_status = ucontrol->value.integer.value[0];
+	oplus_bt_init_err = ucontrol->value.integer.value[0];
+	return 1;
+}
+//#endif /* OPLUS_ARCH_EXTENDS */
+
 static struct snd_kcontrol_new status_controls[] = {
 	SOC_SINGLE_EXT("BT SOC status", 0, 0, 1, 0,
 	btfm_soc_status_get, btfm_soc_status_put),
+//#ifdef OPLUS_ARCH_EXTENDS
+	SOC_SINGLE_EXT("BT timeout status", 0, 0, 1000, 0,
+			oplus_bt_get_timout_status,
+			oplus_bt_put_timout_status),
+//#endif /* OPLUS_ARCH_EXTENDS */
 	SOC_SINGLE_EXT("BT set feedback channel", 0, 0, 1, 0,
 	btfm_get_feedback_ch_setting,
 	btfm_put_feedback_ch_setting),

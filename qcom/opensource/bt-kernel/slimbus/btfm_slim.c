@@ -94,6 +94,10 @@ int btfm_slim_read(struct btfmslim *btfmslim, uint32_t reg, uint8_t pgd)
 	return ret;
 }
 
+//#ifdef OPLUS_ARCH_EXTENDS
+extern int oplus_bt_timeout_status;
+extern int oplus_bt_init_err;
+//#endif /* OPLUS_ARCH_EXTENDS */
 int btfm_slim_enable_ch(struct btfmslim *btfmslim, struct btfmslim_ch *ch,
 	uint8_t rxport, uint32_t rates, uint8_t nchan)
 {
@@ -160,6 +164,9 @@ int btfm_slim_enable_ch(struct btfmslim *btfmslim, struct btfmslim_ch *ch,
 		goto error;
 	}
 
+//#ifdef OPLUS_ARCH_EXTENDS
+	oplus_bt_timeout_status = 0;
+//#endif /* OPLUS_ARCH_EXTENDS */
 	if (ret == 0)
 		btfm_num_ports_open++;
 	BTFMSLIM_INFO("btfm_num_ports_open: %d", btfm_num_ports_open);
@@ -169,6 +176,12 @@ error:
 			ret, btfm_num_ports_open);
 	kfree(chan->dai.sconfig.chs);
 	chan->dai.sconfig.chs = NULL;
+//#ifdef OPLUS_ARCH_EXTENDS
+	if (ret == -ETIMEDOUT && oplus_bt_timeout_status < 1000) {
+		oplus_bt_timeout_status++;
+		BTFMSLIM_ERR("ret = %d, oplus_bt_timeout_status %d", ret, oplus_bt_timeout_status);
+	}
+//#endif /* OPLUS_ARCH_EXTENDS */
 	return ret;
 }
 
@@ -487,7 +500,16 @@ int btfm_slim_hw_init(struct btfmslim *btfmslim)
 	 * enabled status
 	 */
 	btfmslim->enabled = 1;
+//#ifdef OPLUS_ARCH_EXTENDS
+	oplus_bt_init_err = 0;
+//#endif /* OPLUS_ARCH_EXTENDS */
 error:
+//#ifdef OPLUS_ARCH_EXTENDS
+	if (((ret == -ETIMEDOUT) || (ret == -ENOMEM) || (ret == -EAGAIN)) && oplus_bt_init_err < 1000) {
+		oplus_bt_init_err++;
+		BTFMSLIM_ERR("ret = %d, oplus_bt_init_err %d", ret, oplus_bt_init_err);
+	}
+//#endif /* OPLUS_ARCH_EXTENDS */
 	mutex_unlock(&btfmslim->io_lock);
 	return ret;
 }

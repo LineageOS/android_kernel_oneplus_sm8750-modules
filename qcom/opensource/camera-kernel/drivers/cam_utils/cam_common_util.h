@@ -122,6 +122,44 @@
 typedef unsigned long (*cam_common_mini_dump_cb) (void *dst,
 	unsigned long len, void *priv_data);
 
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+/* Memory pool configuration */
+#define MEMORY_POOL_COUNT 2
+
+#define MEMORY_BLOCK_1    6144
+#define MEMORY_BLOCK_2    30720
+
+#define MEMORY_BLOCK_1_COUNT	8
+#define MEMORY_BLOCK_2_COUNT	15
+
+#define MEMORY_POOL_DESTROY_DELAY_SEC 600  // 10min delay (600 seconds)
+#define MEMORY_POOL_DESTROY_WARNING_DELAY_MS 100  // 50ms warning delay before destruction
+
+/* Memory pool state machine - using binary flags */
+typedef enum {
+	MEMORY_POOL_STATE_DESTROYED = 0x01,    /* 000001 - Destroyed */
+	MEMORY_POOL_STATE_CREATING = 0x02,     /* 000010 - Creating */
+	MEMORY_POOL_STATE_CREATED = 0x04,      /* 000100 - Created */
+	MEMORY_POOL_STATE_DESTROY_DELAY = 0x08, /* 001000 - Destroy Delay */
+	MEMORY_POOL_STATE_DESTROY_WARNING = 0x10, /* 010000 - Destroy Warning */
+	MEMORY_POOL_STATE_DESTROYING = 0x20    /* 100000 - Destroying */
+} memory_pool_state_t;
+
+/* 11110011 ~(MEMORY_POOL_STATE_CREATED|MEMORY_POOL_STATE_DESTROY_DELAY)*/
+#define MEMORY_POOL_CANNOT_ALLOC_MASK 0xF3
+
+/* Memory allocation retry configuration */
+#define MEMORY_ALLOC_RETRY_COUNT 5
+#define MEMORY_ALLOC_RETRY_DELAY_MS 5
+
+
+typedef struct {
+	void *address;
+	size_t size;
+	atomic_t allocated;
+} memory_block_t;
+#endif
+
 /**
  * struct cam_common_mini_dump_dev_info
  * @dump_cb       : address of data dumped
@@ -460,4 +498,26 @@ int cam_common_mem_kdup(void **dst, void *src, size_t size);
  * @memory:                Address of memory
  */
 void cam_common_mem_free(void *memory);
+
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+/**
+ * @brief:                 Initialize memory pools with dynamic management
+ *
+ * @return:                true if success, false if failed
+ */
+bool common_mem_pools_init(void);
+
+/**
+ * @brief:                 Memory pool sensor power up notification
+ *                        Increments sensor power count and wakes up management thread
+ */
+void mempool_set_sensor_powerup(void);
+
+/**
+ * @brief:                 Memory pool sensor power down notification
+ *                        Decrements sensor power count and wakes up management thread
+ */
+void mempool_set_sensor_powerdown(void);
+
+#endif /* OPLUS_FEATURE_CAMERA_COMMON */
 #endif /* _CAM_COMMON_UTIL_H_ */
