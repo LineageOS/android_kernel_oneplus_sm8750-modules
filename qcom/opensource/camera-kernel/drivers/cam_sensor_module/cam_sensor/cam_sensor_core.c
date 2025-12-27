@@ -2191,6 +2191,7 @@ int cam_sensor_power_up(struct cam_sensor_ctrl_t *s_ctrl)
 	s_ctrl->sensor_qsc_setting.qscsetting_state = CAM_SENSOR_SETTING_WRITE_INVALID;
 	mutex_unlock(&(s_ctrl->sensor_initsetting_mutex));
 	mutex_unlock(&(s_ctrl->sensor_power_state_mutex));
+	mempool_set_sensor_powerup();
 #endif
 
 	return rc;
@@ -2305,6 +2306,7 @@ int cam_sensor_power_down(struct cam_sensor_ctrl_t *s_ctrl)
 	s_ctrl->sensor_qsc_setting.qscsetting_state = CAM_SENSOR_SETTING_WRITE_INVALID;
 	mutex_unlock(&(s_ctrl->sensor_initsetting_mutex));
 	mutex_unlock(&(s_ctrl->sensor_power_state_mutex));
+	mempool_set_sensor_powerdown();
 #endif
 	return rc;
 }

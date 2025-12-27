@@ -6006,6 +6006,10 @@ static void sde_crtc_disable(struct drm_crtc *crtc)
 	/* Try to disable uidle */
 	sde_core_perf_crtc_update_uidle(crtc, false);
 
+	for (i = 0; i < SDE_SYS_CACHE_MAX; i++)
+		sde_crtc->new_perf.llcc_active[i] = 0;
+	sde_core_perf_crtc_update_llcc(crtc);
+
 	if (atomic_read(&sde_crtc->frame_pending)) {
 		SDE_ERROR("crtc%d frame_pending%d\n", crtc->base.id,
 				atomic_read(&sde_crtc->frame_pending));

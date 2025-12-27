@@ -1734,6 +1734,11 @@ void oplus_panel_frame_delay(struct dsi_panel *panel, u32 per_frame_us, u32 fram
 		return;
 	}
 
+	/* add 700us to vsync width(first half of frame time) to
+	 * 1. avoid command sent in the middle of TE cycle
+	 * 2. compensate the TE shift period */
+	frame_delay_us += 700;
+
 	last_te_timestamp = panel->oplus_panel.te_timestamp;
 	duration = ktime_to_us(ktime_sub(ktime_get(), last_te_timestamp));
 	if(duration > 3 * per_frame_us || sde_enc->rc_state == 4) {

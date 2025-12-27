@@ -63,7 +63,9 @@
 #include "cam_tfe_csid.h"
 #include "cam_csid_ppi100.h"
 #include "camera_main.h"
-
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+#include "cam_common_util.h"
+#endif
 #ifndef CAMERA_COMPILE_BY
 #include "cam_generated_h"
 #endif
@@ -300,6 +302,9 @@ static int camera_init(void)
 	int rc;
 	uint i, j, num_inits;
 
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+	common_mem_pools_init();
+#endif
 	CAM_INFO(CAM_UTIL, "%s", camera_banner);
 	rc = camera_verify_submodules();
 	if (rc)

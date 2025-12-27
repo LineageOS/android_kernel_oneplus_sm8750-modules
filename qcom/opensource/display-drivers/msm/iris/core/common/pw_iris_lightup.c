@@ -1789,6 +1789,12 @@ int iris_parse_cmd_param(struct device_node *lightup_node)
 		return rc;
 	}
 
+	rc = iris_parse_lp_ctrl(lightup_node, pcfg);
+	if (rc) {
+		IRIS_LOGE("parse low power control error");
+		return rc;
+	}
+
 	//iris_parse_memc_param1();
 
 	_iris_parse_default_aux_size(pcfg);
@@ -1871,12 +1877,6 @@ static int  _pw_iris_parse_subnode(void *node)
 	rc = _iris_parse_chip_ver(lightup_node, pcfg);
 	if (rc) {
 		IRIS_LOGE("parse chip ver error");
-		return rc;
-	}
-
-	rc = iris_parse_lp_ctrl(lightup_node, pcfg);
-	if (rc) {
-		IRIS_LOGE("parse low power control error");
 		return rc;
 	}
 

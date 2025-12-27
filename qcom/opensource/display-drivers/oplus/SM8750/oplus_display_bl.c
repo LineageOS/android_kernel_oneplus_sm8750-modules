@@ -164,6 +164,18 @@ int oplus_panel_parse_bl_cfg(struct dsi_panel *panel)
 		panel->oplus_panel.bl_cfg.oplus_limit_max_bl = val;
 	}
 
+	rc = utils->read_u32(utils->data, "oplus,dsi-bl-limit-normal-min-level", &val);
+	if (rc) {
+		OPLUS_DSI_INFO("[%s] oplus,dsi-bl-limit-normal-min-level undefined, default to 1\n",
+			panel->oplus_panel.vendor_name);
+		panel->oplus_panel.bl_cfg.oplus_limit_min_bl_mode = false;
+		panel->oplus_panel.bl_cfg.oplus_limit_min_bl = 1;
+	} else {
+		panel->oplus_panel.bl_cfg.oplus_limit_min_bl_mode = true;
+		panel->oplus_panel.bl_cfg.oplus_limit_min_bl = val;
+		OPLUS_DSI_INFO("oplus,dsi-bl-limit-normal-min-level : %d\n", panel->oplus_panel.bl_cfg.oplus_limit_min_bl);
+	}
+
 	panel->oplus_panel.bl_cfg.oplus_demura2_offset_support = utils->read_bool(utils->data,
 			"oplus,dsi_demura2_offset_support");
 	OPLUS_DSI_INFO("oplus,dsi_demura2_offset_support: %s\n",
@@ -1100,6 +1112,13 @@ void oplus_panel_update_backlight(struct dsi_panel *panel,
 		pr_info("Brightness time: %s\n", brightness_time);
 	}
 
+#ifdef OPLUS_FEATURE_DISPLAY
+	if (panel->oplus_panel.bl_cfg.oplus_limit_min_bl_mode) {
+		if (bl_lvl && bl_lvl < panel->oplus_panel.bl_cfg.oplus_limit_min_bl)
+			bl_lvl = panel->oplus_panel.bl_cfg.oplus_limit_min_bl;
+	}
+#endif
+
 #ifdef OPLUS_FEATURE_DISPLAY_ADFR
 	if (oplus_adfr_osync_backlight_filter(panel, bl_lvl)) {
 		return;
@@ -1161,6 +1180,10 @@ void oplus_panel_update_backlight(struct dsi_panel *panel,
 		OPLUS_DSI_DEBUG("Oplus Brightness config No panel dsi\n");
 	} else {
 		mutex_lock(&panel->oplus_panel.panel_tx_lock);
+		if (panel->oplus_panel.dsi_cmd_need_to_package) {
+			dsi_cmd_set_type_status = 0;
+			panel->oplus_panel.dsi_cmd_need_to_package = false;
+		}
 #if defined(CONFIG_PXLW_IRIS)
 		if (panel->oplus_panel.bl_cfg.need_set_demura == false) {
 			if (iris_is_chip_supported() && iris_is_pt_mode(panel->is_secondary))
@@ -1176,10 +1199,6 @@ void oplus_panel_update_backlight(struct dsi_panel *panel,
 			rc = mipi_dsi_dcs_set_display_brightness(dsi, inverted_dbv_bl_lvl);
 #endif /* CONFIG_PXLW_IRIS */
 
-		if (panel->oplus_panel.dsi_cmd_need_to_package) {
-			dsi_cmd_set_type_status = 0;
-			panel->oplus_panel.dsi_cmd_need_to_package = false;
-		}
 		mutex_unlock(&panel->oplus_panel.panel_tx_lock);
 	}
 
