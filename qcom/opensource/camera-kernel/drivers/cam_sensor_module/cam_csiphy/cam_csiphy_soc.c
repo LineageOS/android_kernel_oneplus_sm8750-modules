@@ -19,9 +19,12 @@
 #ifdef OPLUS_FEATURE_CAMERA_COMMON
 #include "include/cam_csiphy_2_3_0_hwreg_dodge_tele.h"
 #include "include/cam_csiphy_2_3_0_hwreg_dodge_ultrawide.h"
+#include "include/cam_csiphy_2_3_0_hwreg_pista_front.h"
 #include "include/cam_csiphy_2_3_0_hwreg_hummer_main.h"
 #include "include/cam_csiphy_2_3_0_hwreg_pagani_front.h"
 #include "include/cam_csiphy_2_3_0_hwreg_pagani_main.h"
+#include "include/cam_csiphy_2_3_0_hwreg_piloti_ultrawide.h"
+#include "include/cam_csiphy_2_3_0_hwreg_piloti_main.h"
 #include "include/cam_csiphy_2_3_0_hwreg_ktm_main.h"
 #endif
 
@@ -386,6 +389,11 @@ int32_t cam_csiphy_parse_dt_info(struct platform_device *pdev,
 		csiphy_dev->hw_version = CSIPHY_VERSION_V230_DODGE_ULTRAWIDE;
 		csiphy_dev->is_divisor_32_comp = true;
 		csiphy_dev->clk_lane = 0;
+	} else if (of_device_is_compatible(soc_info->dev->of_node, "qcom,csiphy-pistafront")) {
+		csiphy_dev->ctrl_reg = &ctrl_reg_2_3_0_pista_front;
+		csiphy_dev->hw_version = CSIPHY_VERSION_V230_PISTA_FRONT;
+		csiphy_dev->is_divisor_32_comp = true;
+		csiphy_dev->clk_lane = 0;
 	} else if (of_device_is_compatible(soc_info->dev->of_node, "qcom,csiphy-hummermain")) {
 		csiphy_dev->ctrl_reg = &ctrl_reg_2_3_0_hummer_main;
 		csiphy_dev->hw_version = CSIPHY_VERSION_V230_HUMMER_MAIN;
@@ -399,6 +407,16 @@ int32_t cam_csiphy_parse_dt_info(struct platform_device *pdev,
 	} else if (of_device_is_compatible(soc_info->dev->of_node, "qcom,csiphy-paganimain")) {
 		csiphy_dev->ctrl_reg = &ctrl_reg_2_3_0_pagani_main;
 		csiphy_dev->hw_version = CSIPHY_VERSION_V230_PAGANI_MAIN;
+		csiphy_dev->is_divisor_32_comp = true;
+		csiphy_dev->clk_lane = 0;
+	} else if (of_device_is_compatible(soc_info->dev->of_node, "qcom,csiphy-pilotiultrawide")) {
+		csiphy_dev->ctrl_reg = &ctrl_reg_2_3_0_piloti_ultrawide;
+		csiphy_dev->hw_version = CSIPHY_VERSION_V230_PILOTI_ULTRAWIDE;
+		csiphy_dev->is_divisor_32_comp = true;
+		csiphy_dev->clk_lane = 0;
+        } else if (of_device_is_compatible(soc_info->dev->of_node, "qcom,csiphy-pilotimain")) {
+		csiphy_dev->ctrl_reg = &ctrl_reg_2_3_0_piloti_main;
+		csiphy_dev->hw_version = CSIPHY_VERSION_V230_PILOTI_MAIN;
 		csiphy_dev->is_divisor_32_comp = true;
 		csiphy_dev->clk_lane = 0;
 	} else if (of_device_is_compatible(soc_info->dev->of_node, "qcom,csiphy-ktm")) {
