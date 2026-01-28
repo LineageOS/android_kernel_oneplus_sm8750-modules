@@ -60,6 +60,7 @@
 #define SUPPORT_MIXED_CHIPSET     1
 #define NOT_SUPPORT_MIXED_CHIPSET     0
 #define SUPPORT_CHIPSET_LIST     "SN100T|SN110T|SN220T|SN220U|SN220P|SN220E|PN560|PN560DZ"
+#define INVALID_ID    -1
 
 struct id_entry {
     u32 key;
@@ -390,6 +391,7 @@ static int nxp_nfc_read_id_properties(struct device_node *np, u32 id_count, stru
     return 0;
 }
 
+#if 0
 static int nxp_nfc_get_gpio_value(struct device_node *np, int *gpio_value)
 {
     int gpio_num = of_get_named_gpio(np, "id-gpio", 0);
@@ -403,6 +405,7 @@ static int nxp_nfc_get_gpio_value(struct device_node *np, int *gpio_value)
     pr_info("%s, id gpio value is %d", __func__, *gpio_value);
     return 0;
 }
+
 static int nxp_nfc_set_gpio_state_and_read(struct pinctrl *pinctrl, struct pinctrl_state *state, int gpio_num, int *gpio_value)
 {
     int ret = 0;
@@ -525,6 +528,7 @@ free_gpio:
 
     return ret;
 }
+#endif
 
 static int checkNfcChip(struct device *dev)
 {
@@ -591,15 +595,30 @@ static int checkNfcChip(struct device *dev)
             pr_info("id_count: %u\n", id_count);
             switch (id_count) {
                 case 2:
-                    err = nxp_nfc_get_gpio_value(np, &gpio_value);
-                    break;
+                    fallthrough;
                 case 3:
-                    err = nxp_nfc_get_gpio_value_three(dev, &gpio_value);
+                    gpio_value = get_nfc_id();
+                    pr_info("%s, final gpio_value = %d\n", __func__, gpio_value);
+                    if (gpio_value == INVALID_ID) {
+                        for (int delay = 0; delay < 6; delay++) {
+                            msleep(500);
+                            gpio_value = get_nfc_id();
+                            if(gpio_value != INVALID_ID) {
+                                pr_info("retry times = %d\n",delay);
+                                break;
+                            }
+                        }
+                        if(gpio_value == INVALID_ID) {
+                            err = -EINVAL;
+                        }
+                    }
+                    //err = nxp_nfc_get_gpio_value_three(dev, &gpio_value);
                     break;
                 default:
                     pr_err("Unexpected id_count value: %u\n", id_count);
                     break;
             }
+
             if (err)
             {
                 pr_err("%s error: get_gpio_value failed", __func__);
