@@ -524,6 +524,8 @@ int skip , struct PMICGen3RecordKernelStruct *pmic_record_ptr , struct PmicGen3P
 	int i;
 	u8 tmp_state;
 	u8 tmp_event;
+	u8 tmp_data0;
+	u8 tmp_data1;
 
 	if ((NULL == pmic_record_ptr) || (NULL == pon_log)) {
 		return -1;
@@ -532,7 +534,9 @@ int skip , struct PMICGen3RecordKernelStruct *pmic_record_ptr , struct PmicGen3P
 	for (i = 0 ; i < MAX_STATE_RECORDS ; i++) {
 		tmp_state = pmic_record_ptr->pmic_state_machine_log[i].state;
 		tmp_event = pmic_record_ptr->pmic_state_machine_log[i].event;
-		if(0 == tmp_state && 0 == tmp_event) {
+		tmp_data0 = pmic_record_ptr->pmic_state_machine_log[i].data0;
+		tmp_data1 = pmic_record_ptr->pmic_state_machine_log[i].data1;
+		if (0 == tmp_state && 0 == tmp_event) {
 			pon_log->state = 0;
 			pon_log->event = 0;
 			pon_log->data1 = 0;
@@ -544,10 +548,13 @@ int skip , struct PMICGen3RecordKernelStruct *pmic_record_ptr , struct PmicGen3P
 			((state == tmp_state) && (event == PMIC_PON_EVENT_PMIC_MAX)) /* match state */) {
 				if (skip > 0) {
 					skip = skip - 1;
+				} else if ((tmp_data0 == 0xC2) && (tmp_data1 == 0x71)) {    /* Identified as usb_charge, need to continue to determine the next sentence type*/
+					*pon_log = pmic_record_ptr->pmic_state_machine_log[i];
+					continue;
 				} else {
 					*pon_log = pmic_record_ptr->pmic_state_machine_log[i];
-					return i;
 				}
+			return i;
 		}
 	}
 

@@ -198,6 +198,8 @@ enum gesture_type {
 	PenDetect,
 	SGesture,
 	FingerprintEarlyDown,
+	FP_GESTURE_HOLD,
+	FP_GESTURE_RELEASE,
 };
 
 struct point_info {
@@ -315,6 +317,10 @@ struct hbp_device {
 	bool create_with_power_on_support;
 	char clk_name[16];
 	struct clk *pen_ck;
+	/* edge grip for fingerprint */
+	bool fp_grip_support;
+	bool fp_grip_hold;
+	int fp_grip_enable;
 };
 
 struct device_state {

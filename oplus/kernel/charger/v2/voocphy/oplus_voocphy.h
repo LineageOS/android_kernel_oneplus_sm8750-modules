@@ -24,7 +24,7 @@
 
 #define BIDIRECT_IRQ_EVNET_NUM			12
 #define IRQ_EVNET_NUM_HL7138			16
-#define DEFAULT_CP_IBUS_DEVATION		800
+#define DEFAULT_CP_IBUS_DEVATION		1000
 #define MAX_IGNORE				6
 #define FIRST_FRAME				0xA8
 #define SVOOC_INIT_VBUS_VOL_LOW			5000
@@ -1009,6 +1009,7 @@ struct voocphy_log_buf {
 };
 
 bool oplus_voocphy_chip_is_null(void);
+bool oplus_voocphy_slave_chip_is_null(void);
 void oplus_voocphy_slave_init(struct oplus_voocphy_manager *chip);
 void oplus_voocphy_get_chip(struct oplus_voocphy_manager **chip);
 int oplus_register_voocphy(struct oplus_voocphy_manager *chip);

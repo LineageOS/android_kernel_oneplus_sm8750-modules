@@ -402,7 +402,7 @@ static void sih688x_set_play_mode(sih_haptic_t *sih_haptic,
 		break;
 	case SIH_RTP_MODE:
 		sih_haptic->chip_ipara.play_mode = SIH_RTP_MODE;
-		sih688x_upload_f0(sih_haptic, SIH_OSC_CALI_LRA);
+		sih688x_upload_f0(sih_haptic, SIH_WRITE_ZERO);
 		break;
 	case SIH_TRIG_MODE:
 		sih_haptic->chip_ipara.play_mode = SIH_TRIG_MODE;

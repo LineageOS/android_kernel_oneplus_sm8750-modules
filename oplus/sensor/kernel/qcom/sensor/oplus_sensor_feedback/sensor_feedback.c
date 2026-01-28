@@ -176,6 +176,8 @@ struct sensor_fb_conf g_fb_conf[] = {
 	{GYRO_DATA_BLOCK_ID, "device_gyro_data_block", SENSOR_DEVICE_TYPE},
 	{GYRO_OTC_K_ID, "device_gyro_otc_k", SENSOR_DEVICE_TYPE},
 	{GYRO_OTC_B_ID, "device_gyro_otc_b", SENSOR_DEVICE_TYPE},
+	{GYRO_OTC_BIAS_ID, "device_gyro_otc_bias", SENSOR_DEVICE_TYPE},
+	{GYRO_OTC_TEMP_ID, "device_gyro_otc_temp", SENSOR_DEVICE_TYPE},
 	{GYRO_SUB_DATA_BLOCK_ID, "device_gyro_sub_data_block", SENSOR_DEVICE_TYPE},
 
 

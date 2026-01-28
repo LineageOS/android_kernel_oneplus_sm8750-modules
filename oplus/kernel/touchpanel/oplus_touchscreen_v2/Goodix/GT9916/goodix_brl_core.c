@@ -3664,7 +3664,7 @@ static void goodix_register_info_read(void *chip_data,
 {
 	/*struct chip_data_brl *chip_info = (struct chip_data_brl *)chip_data;
 
-	TODO need change oppo framework to support u32 address*/
+	TODO need change oplus framework to support u32 address*/
 }
 
 static void goodix_set_touch_direction(void *chip_data, uint8_t dir)
@@ -3993,7 +3993,7 @@ struct oplus_touchpanel_operations goodix_ops = {
 	.communicate_test            = goodix_communicate_test,
 	.freq_hop_trigger            = goodix_freq_hop_trigger,
 };
-/********* End of implementation of oppo_touchpanel_operations callbacks**********************/
+/********* End of implementation of oplus_touchpanel_operations callbacks**********************/
 static void gt_brld_data_reset(struct chip_data_brl *chip_info,
 	u32 addr, u8 clear_state, debug_type debug_type)
 {
@@ -4574,9 +4574,10 @@ exit:
 
 /************** Start of auto test func**************************/
 #define ABS(val)			((val < 0)? -(val) : val)
-#ifndef MAX
-#define MAX(a, b)			((a > b)? a : b)
+#ifdef MAX
+#undef MAX
 #endif
+#define MAX(a, b)			((a > b)? a : b)
 static void goodix_cache_deltadata(struct chip_data_brl *chip_data)
 {
 	u32 data_size;

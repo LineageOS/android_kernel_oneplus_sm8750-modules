@@ -451,15 +451,34 @@ int32_t EEPROM_Sem1217sWrite(struct cam_eeprom_ctrl_t *e_ctrl,
 	return rc;
 }
 
+
+static uint32_t get_align_addr(uint32_t data_base,int32_t data_writelen) {
+	uint32_t multiple = 0;
+	uint32_t surplus = 0;
+	uint32_t addr_align = 0;
+
+	multiple = data_base / data_writelen;
+	surplus = data_base % data_writelen;
+	if(surplus) {
+		addr_align = (multiple + 1) * data_writelen;
+	} else {
+		addr_align = multiple * data_writelen;
+	}
+	return addr_align;
+}
+
 #define WRITE_EEPROM_MAX_LENGTH 64
+#define MIN(a,b)((a) < (b) ? (a) : (b))
 int32_t EEPROM_CommonWrite(struct cam_eeprom_ctrl_t *e_ctrl,
 	struct cam_write_eeprom_t *cam_write_eeprom) {
-	int i = 0;
 	int j = 0;
 	uint32_t readcalibData;
 	int32_t  rc = 0;
 	uint32_t    star_addr = 0x0000;
 	int32_t  m_eeprom_size;
+	uint32_t addr_align = 0;
+	uint32_t part1_length = 0;
+	uint32_t part2_length = 0;
 	struct cam_sensor_i2c_reg_setting  i2c_reg_settings;
 	struct cam_sensor_i2c_reg_array    i2c_reg_arrays[WRITE_EEPROM_MAX_LENGTH];
 	struct cam_sensor_i2c_reg_array    i2c_reg_array;
@@ -507,26 +526,71 @@ int32_t EEPROM_CommonWrite(struct cam_eeprom_ctrl_t *e_ctrl,
 				cam_write_eeprom->calibData[0]);
 
 	m_eeprom_size = cam_write_eeprom->calibDataSize;
-	for (i = 0; i < m_eeprom_size;) {
-		i2c_reg_settings.size = 0;
-		star_addr = (cam_write_eeprom->baseAddr + i);
-		for (j = 0; j < WRITE_EEPROM_MAX_LENGTH && i < m_eeprom_size; j++) {
-			i2c_reg_arrays[j].reg_addr = star_addr;
-			i2c_reg_arrays[j].reg_data = cam_write_eeprom->calibData[i];
-			i2c_reg_arrays[j].delay = 0;
-			i2c_reg_settings.size++;
-			i++;
-		}
-		i2c_reg_settings.data_type = CAMERA_SENSOR_I2C_TYPE_BYTE;
-		i2c_reg_settings.reg_setting = i2c_reg_arrays;
-		i2c_reg_settings.delay = 10;
-		rc = cam_ext_cci_i2c_write_continuous_table(e_ctrl->io_master_info.cci_client, &i2c_reg_settings, 1);
-		if (rc) {
-			CAM_EXT_ERR(CAM_EXT_EEPROM,"eeprom write failed rc %d, calibDataSize: %d", rc, m_eeprom_size);
-			return rc;
-		}
+	if (!cam_write_eeprom->writelen) {
+	    cam_write_eeprom->writelen = 64;
 	}
-
+	addr_align = get_align_addr(cam_write_eeprom->baseAddr,cam_write_eeprom->writelen);
+	part1_length = addr_align - cam_write_eeprom->baseAddr;
+	if (part1_length > cam_write_eeprom->writelen) {
+	    part1_length = cam_write_eeprom->writelen;
+	}
+	if (part1_length < 0) {
+	    part1_length = 0;
+	}
+	if (part1_length > m_eeprom_size) {
+	    part1_length = m_eeprom_size;
+	}
+	part2_length = m_eeprom_size - part1_length;
+	if (part1_length > 0) {
+        uint32_t bytes_remaining = part1_length;
+        uint32_t current_offset = 0;
+        while (bytes_remaining > 0) {
+               i2c_reg_settings.size = 0;
+               uint32_t chunk_size = MIN(bytes_remaining, cam_write_eeprom->writelen);
+               star_addr = cam_write_eeprom->baseAddr + current_offset;
+               for (j = 0; j < chunk_size; j++) {
+                    i2c_reg_arrays[j].reg_addr = star_addr + j;
+                    i2c_reg_arrays[j].reg_data = cam_write_eeprom->calibData[current_offset + j];
+                    i2c_reg_arrays[j].delay = 0;
+                    i2c_reg_settings.size++;
+                }
+                CAM_EXT_INFO(CAM_EXT_EEPROM, "Writing part1: addr 0x%x, size %d", star_addr, chunk_size);
+                i2c_reg_settings.reg_setting = i2c_reg_arrays;
+                rc = cam_ext_cci_i2c_write_continuous_table(e_ctrl->io_master_info.cci_client,&i2c_reg_settings, 1);
+                if (rc) {
+                    CAM_EXT_INFO(CAM_EXT_EEPROM, "eeprom write part1 failed rc %d, size: %d",rc, i2c_reg_settings.size);
+                    return rc;
+                }
+                current_offset += chunk_size;
+                bytes_remaining -= chunk_size;
+                msleep(10);
+        }
+    }
+    if (part2_length > 0) {
+        uint32_t bytes_remaining = part2_length;
+        uint32_t current_offset = part1_length;
+        while (bytes_remaining > 0) {
+               i2c_reg_settings.size = 0;
+               uint32_t chunk_size = MIN(bytes_remaining, cam_write_eeprom->writelen);
+               star_addr = addr_align + (current_offset - part1_length);
+               for (j = 0; j < chunk_size; j++) {
+                    i2c_reg_arrays[j].reg_addr = star_addr + j;
+                    i2c_reg_arrays[j].reg_data = cam_write_eeprom->calibData[current_offset + j];
+                    i2c_reg_arrays[j].delay = 0;
+                    i2c_reg_settings.size++;
+                }
+                CAM_EXT_INFO(CAM_EXT_EEPROM, "Writing part2: addr 0x%x, size %d", star_addr, chunk_size);
+                i2c_reg_settings.reg_setting = i2c_reg_arrays;
+                rc = cam_ext_cci_i2c_write_continuous_table(e_ctrl->io_master_info.cci_client, &i2c_reg_settings, 1);
+                if (rc) {
+                    CAM_EXT_ERR(CAM_EXT_EEPROM, "eeprom write part2 failed rc %d, size: %d", rc, i2c_reg_settings.size);
+                    return rc;
+                }
+                current_offset += chunk_size;
+                bytes_remaining -= chunk_size;
+                msleep(10);
+        }
+    }
 	if (cam_write_eeprom->isWRP == 0x01) {
 		i2c_reg_settings.size = 1;
 	//new add WRPaddr and data in xml

@@ -1485,7 +1485,7 @@ static int32_t nvt_nf_detect_chip(struct chip_data_nt36523 *chip_info)
 }
 
 
-/********* Start of implementation of oppo_touchpanel_operations callbacks********************/
+/********* Start of implementation of oplus_touchpanel_operations callbacks********************/
 /*extern int tp_util_get_vendor(struct hw_resource *hw_res, struct panel_info *panel_data);*/
 
 static int nvt_ftm_process(void *chip_data)

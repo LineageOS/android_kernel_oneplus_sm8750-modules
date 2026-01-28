@@ -54,6 +54,7 @@ struct sc6607 {
 	int interrupt_flag;
 	int ovp_reg;
 	int ocp_reg;
+	int vac_vbus_ovp_reg;
 	struct device *dev;
 	struct i2c_client *client;
 	struct oplus_voocphy_manager *voocphy;
@@ -316,6 +317,24 @@ static s32 sc6607_voocphy_write_word(struct i2c_client *client, u8 reg, u16 val)
 	return 0;
 }
 
+static int oplus_voocphy_get_fastchg_commu_ing(void)
+{
+	int fastchg_commu_ing = 0;
+	struct oplus_mms *vooc_topic;
+	union mms_msg_data data = { 0 };
+	int rc;
+
+	vooc_topic = oplus_mms_get_by_name("vooc");
+	if (!vooc_topic)
+		return 0;
+
+	rc = oplus_mms_get_item_data(vooc_topic, VOOC_ITEM_FASTCHG_COMMU_ING, &data, true);
+	if (!rc)
+		fastchg_commu_ing = data.intval;
+
+	return fastchg_commu_ing;
+}
+
 static const u32 sy6607_adc_step[] = {
 	2500, 3750, 5000, 1250, 1250, 1220, 1250, 9766, 9766, 5, 156,
 };
@@ -348,6 +367,7 @@ static int sc6607_hk_get_adc(struct sc6607 *chip, enum SC6607_ADC_MODULE id)
 	u32 reg = SC6607_REG_HK_IBUS_ADC + id * SC6607_ADC_REG_STEP;
 	u8 val[2] = { 0 };
 	u64 ret;
+	int rc = 0;
 	u8 adc_open = 0;
 
 	if (!chip)
@@ -361,10 +381,10 @@ static int sc6607_hk_get_adc(struct sc6607 *chip, enum SC6607_ADC_MODULE id)
 
 	mutex_lock(&chip->adc_read_lock);
 	sc6607_field_write(chip, F_ADC_FREEZE, 1);
-	ret = sc6607_bulk_read(chip, reg, val, sizeof(val));
+	rc = sc6607_bulk_read(chip, reg, val, sizeof(val));
 	sc6607_field_write(chip, F_ADC_FREEZE, 0);
 	mutex_unlock(&chip->adc_read_lock);
-	if (ret < 0) {
+	if (rc < 0) {
 		return -EINVAL;
 	}
 	ret = val[1] + (val[0] << 8);
@@ -373,35 +393,19 @@ static int sc6607_hk_get_adc(struct sc6607 *chip, enum SC6607_ADC_MODULE id)
 	}  else {
 		ret *= sy6607_adc_step[id];
 	}
-	return ret;
+	return (int)ret;
 }
 
 static int sc6607_adc_read_ibus(struct sc6607 *chip)
 {
 	int ibus = 0;
-	int slave_ibus = 0;
-	int ibus_devation = 0;
-	bool reset_read_ibus = false;
 
 	if (!chip || !chip->voocphy)
 		return -EINVAL;
 
-	ibus = chip->voocphy->master_cp_ichg;
-	if (chip->voocphy->voocphy_dual_cp_support) {
-		slave_ibus = chip->voocphy->slave_cp_ichg;
-		ibus_devation = abs(ibus - slave_ibus);
-		if (ibus_devation > chip->voocphy->cp_ibus_devation)
-			reset_read_ibus = true;
-	}
-
-	if (chip->voocphy->fastchg_commu_ing && !reset_read_ibus) {
-		chg_info("svooc in communication\n");
-		return ibus;
-	} else {
-		ibus = sc6607_hk_get_adc(chip, SC6607_ADC_IBUS);
-		ibus /= SC6607_UA_PER_MA;
-		return ibus;
-	}
+	ibus = sc6607_hk_get_adc(chip, SC6607_ADC_IBUS);
+	ibus /= SC6607_UA_PER_MA;
+	return ibus;
 }
 
 static int sc6607_adc_read_vbus_volt(struct sc6607 *chip)
@@ -411,7 +415,7 @@ static int sc6607_adc_read_vbus_volt(struct sc6607 *chip)
 	if (!chip || !chip->voocphy)
 		return -EINVAL;
 
-	if (chip->voocphy != NULL && chip->voocphy->fastchg_commu_ing) {
+	if (oplus_voocphy_get_fastchg_commu_ing()) {
 		chg_info("svooc in communication\n");
 		return chip->voocphy ->cp_vbus;
 	}
@@ -426,6 +430,11 @@ static int sc6607_adc_read_vac(struct sc6607 *chip)
 	int vac_vol = 0;
 	if (!chip)
 		return -EINVAL;
+
+	if (chip->voocphy && oplus_voocphy_get_fastchg_commu_ing()) {
+		chg_info("svooc in communication\n");
+		return chip->voocphy->cp_vac;
+	}
 
 	vac_vol = sc6607_hk_get_adc(chip, SC6607_ADC_VAC);
 	vac_vol /= SC6607_UV_PER_MV;
@@ -558,11 +567,27 @@ static int sc6607_voocphy_get_cp_ichg(struct oplus_voocphy_manager *voocphy)
 	int cp_ichg = 0;
 	u8 cp_enable = 0;
 	struct sc6607 *chip;
+	bool reset_read_ibus = false;
+	int ibus_devation = 0;
+	int slave_ibus = 0;
 
 	if (!voocphy || !voocphy->priv_data)
 		return 0;
 
 	chip = voocphy->priv_data;
+
+	if (voocphy->voocphy_dual_cp_support) {
+		slave_ibus = voocphy->slave_cp_ichg;
+		ibus_devation = abs(voocphy->cp_ichg - slave_ibus);
+		if (ibus_devation > voocphy->cp_ibus_devation) {
+			chg_info("ibus_devation is %d\n" , ibus_devation);
+			reset_read_ibus = true;
+		}
+	}
+	if (oplus_voocphy_get_fastchg_commu_ing() && !reset_read_ibus) {
+		chg_info("svooc in communication\n");
+		return voocphy->cp_ichg;
+	}
 
 	sc6607_voocphy_get_chg_enable(voocphy, &cp_enable);
 
@@ -663,7 +688,7 @@ static int sc6607_adc_read_vbat(struct sc6607 *chip)
 	if (!chip || !chip->voocphy)
 		return -EINVAL;
 
-	if (chip->voocphy->fastchg_commu_ing) {
+	if (oplus_voocphy_get_fastchg_commu_ing()) {
 		chg_info("svooc in communication\n");
 		return chip->voocphy->cp_vbat;
 	}
@@ -843,7 +868,7 @@ static int sc6607_voocphy_reset_voocphy(struct oplus_voocphy_manager *voocphy)
 	if (chip->chip_id == SC6607_1P0_CHIP_ID)
 		sc6607_voocphy_write_byte(voocphy->client, SC6607_REG_VAC_VBUS_OVP, 0x21); /*Vac ovp 6.5V,Vbus OVP 10V*/
 	else
-		sc6607_voocphy_write_byte(voocphy->client, SC6607_REG_VAC_VBUS_OVP, 0x01); /*Vac ovp 12V,Vbus OVP 10V*/
+		sc6607_voocphy_write_byte(voocphy->client, SC6607_REG_VAC_VBUS_OVP, chip->vac_vbus_ovp_reg); /*Vac ovp 12V,Vbus OVP 10V*/
 	sc6607_voocphy_write_byte(voocphy->client, SC6607_REG_IBUS_OCP_UCP, 0x6B); /*ucp deglitch1 160ms,IBUS OCP 3.75A*/
 
 	/* clear tx data */
@@ -896,7 +921,7 @@ static int sc6607_voocphy_init_device(struct oplus_voocphy_manager *voocphy)
 	if (chip->chip_id == SC6607_1P0_CHIP_ID)
 		sc6607_voocphy_write_byte(voocphy->client, SC6607_REG_VAC_VBUS_OVP, 0x11); /*Vac ovp 6.5V	 Vbus_ovp 10V*/
 	else
-		sc6607_voocphy_write_byte(voocphy->client, SC6607_REG_VAC_VBUS_OVP, 0x01); /*Vac ovp 12V	 Vbus_ovp 10V*/
+		sc6607_voocphy_write_byte(voocphy->client, SC6607_REG_VAC_VBUS_OVP, chip->vac_vbus_ovp_reg); /*Vac ovp 12V	 Vbus_ovp 10V*/
 	reg_data = 0x20 | (voocphy->ovp_reg & 0x1f);
 	sc6607_voocphy_write_byte(voocphy->client, SC6607_REG_VBATSNS_OVP, reg_data); /*VBAT_OVP:4.65V */
 	sc6607_voocphy_write_byte(voocphy->client, SC6607_REG_IBUS_OCP_UCP, 0x6B); /* IBUS_OCP_UCP:3.75A */
@@ -2294,6 +2319,11 @@ static int sc6607_voocphy_probe(struct i2c_client *client, const struct i2c_devi
 
 	chip->vac_support = of_property_read_bool(chip->dev->of_node, "oplus,vac_support");
 	chg_info("vac_support=%d\n", chip->vac_support);
+
+	ret = of_property_read_u32(chip->dev->of_node, "vac_vbus_ovp_reg", &chip->vac_vbus_ovp_reg);
+	if(ret < 0)
+		chip->vac_vbus_ovp_reg = 0x01;
+	chg_info("vac_vbus_ovp_reg = 0x%2x\n", chip->vac_vbus_ovp_reg);
 
 	voocphy->ops = &sc6607_voocphy_ops;
 	ret = oplus_register_voocphy(voocphy);

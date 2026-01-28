@@ -84,6 +84,7 @@ void __attribute__((weak)) oplus_vooc_get_fastchg_ing_pfunc(int (*pfunc)(void))
 	return;
 }
 #else /*IS_ENABLED(CONFIG_OPLUS_ADSP_CHARGER)*/
+void __attribute__((weak)) oplus_get_gauge_chip_is_null_pfunc(bool (*pfunc)(void));
 void __attribute__((weak)) oplus_vooc_get_fastchg_started_pfunc(int (*pfunc)(void));
 void __attribute__((weak)) oplus_vooc_get_fastchg_ing_pfunc(int (*pfunc)(void));
 #endif /*IS_ENABLED(CONFIG_OPLUS_ADSP_CHARGER)*/
@@ -168,7 +169,7 @@ static int battery_spec_obtaining(struct cw_battery *cw_bat);
 static int battery_type_check(struct cw_battery *cw_bat);
 static int cw2217_parse_dt(struct cw_battery *cw_bat)
 {
-	struct device_node *node = cw_bat->dev->of_node;
+	struct device_node *node = oplus_get_node_by_type(cw_bat->dev->of_node);
 	int rc = 0;
 	int length = 0;
 	char config_profile_name[128] = {0};
@@ -881,7 +882,7 @@ static int oplus_get_iio_channel(struct cw_battery *cw_bat, const char *propname
 static int battery_spec_obtaining(struct cw_battery *cw_bat)
 {
 	int ret = 0;
-	struct device_node *node = cw_bat->dev->of_node;
+	struct device_node *node = oplus_get_node_by_type(cw_bat->dev->of_node);
 
 	ret = of_property_read_u32(node, "oplus,batt_num", &cw_bat->batt_num);
 	if (ret < 0) {
@@ -945,7 +946,7 @@ static int battery_type_check(struct cw_battery *cw_bat)
 	int ret = 0;
 	int value = 0;
 	int length = 0, i = 0;
-	struct device_node *node = cw_bat->dev->of_node;
+	struct device_node *node = oplus_get_node_by_type(cw_bat->dev->of_node);
 
 	if (cw_bat->batid_voltage_range[0][0] == 0) {
 		length = of_property_count_elems_of_size(node, "batid_voltage_range", sizeof(u32));
@@ -1794,6 +1795,7 @@ static int cw2217_probe(struct i2c_client *client, const struct i2c_device_id *i
 		goto error;
 
 #ifndef CONFIG_OPLUS_CHARGER_MTK
+	oplus_get_gauge_chip_is_null_pfunc(&oplus_gauge_check_chip_is_null);
 	oplus_vooc_get_fastchg_started_pfunc(&oplus_vooc_get_fastchg_started);
 	oplus_vooc_get_fastchg_ing_pfunc(&oplus_vooc_get_fastchg_ing);
 #endif

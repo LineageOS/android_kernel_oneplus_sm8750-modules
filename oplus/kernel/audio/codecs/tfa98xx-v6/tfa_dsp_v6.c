@@ -285,17 +285,6 @@ void tfa_set_query_info(struct tfa_device *tfa)
 		tfanone_ops(&tfa->dev_ops); /* register device operations via tfa hal*/
 		tfa->bus=1;
 		break;
-	case 0x65:
-		/* tfa9865 */
-		tfa->supportDrc = supportYes;
-		tfa->tfa_family = 2;
-		tfa->spkr_count = 1;
-		tfa->is_probus_device = 1;
-		tfa->is_otp_device = 1;
-		tfa->advance_keys_handling = 1; /*artf65038*/
-		tfa->daimap = Tfa98xx_DAI_TDM;
-		tfa9865_ops(&tfa->dev_ops); /* register device operations */
-		break;
 	case 0x66:
 		/* tfa9866 */
 		tfa->supportDrc = supportYes;
@@ -427,7 +416,6 @@ int tfa98xx_dev2family_v6(int dev_type)
 	case 0x73:
 	case 0x13:
 	case 0x74:
-	case 0x65:
 	case 0x66:
 	case 0x94:
 		return 2;
@@ -4200,8 +4188,8 @@ int tfa_dev_probe(int slave, struct tfa_device *tfa)
 			pr_err("Error: Unable to read revid from slave:0x%02x \n", slave);
 			return -1;
 		}
-		msb_rev = (reg_6 >> 8) + 0x0a;
-		rev = msb_rev << 8 | (rev & 0xff);
+		msb_rev = reg_6 >> 8;
+		rev  = ((msb_rev & 0xf0) + ((msb_rev & 0x0c) >> 2) + 0x0a) << 8 | (rev & 0xff);
 	}
 
 	tfa->rev = rev;

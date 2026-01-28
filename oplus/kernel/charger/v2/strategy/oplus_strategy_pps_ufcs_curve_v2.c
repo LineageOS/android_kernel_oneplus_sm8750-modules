@@ -675,8 +675,8 @@ static int puc_strategy_init(struct oplus_chg_strategy *strategy)
 		}
 	}
 	if (i >= puc->curve->num) {
+		puc->curr_level = puc->curve->num - 1;
 		chg_err("The battery voltage is too high, there is no suitable range, vbat=%d\n", vbat);
-		return -EINVAL;
 	}
 	if (puc->curve->data[puc->curr_level].target_time > 0)
 		puc->timeout = jiffies + msecs_to_jiffies(puc->curve->data[puc->curr_level].target_time * 1000);

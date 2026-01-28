@@ -74,6 +74,7 @@
 #endif
 #include <oplus_chg_wls.h>
 #include <oplus_chg_monitor.h>
+#include <oplus_chg_cpa.h>
 
 #ifndef CONFIG_DISABLE_OPLUS_FUNCTION
 #include <soc/oplus/system/boot_mode.h>
@@ -6288,6 +6289,21 @@ out:
 	return rc;
 }
 
+static bool mtk_chg_vooc_protocol_is_disabled(struct mtk_charger *chip)
+{
+	static struct oplus_mms *cpa_topic;
+
+	if (IS_ERR_OR_NULL(cpa_topic)) {
+		cpa_topic = oplus_mms_get_by_name("cpa");
+		if (IS_ERR_OR_NULL(cpa_topic)) {
+			chg_err("cpa topic not found\n");
+			return false;
+		}
+	}
+
+	return !oplus_cpa_protocol_check_enable(cpa_topic, CHG_PROTOCOL_VOOC);
+}
+
 static int mtk_chg_should_disable_pd(struct oplus_chg_ic_dev *ic_dev)
 {
 	struct mtk_charger *chip;
@@ -6306,6 +6322,9 @@ static int mtk_chg_should_disable_pd(struct oplus_chg_ic_dev *ic_dev)
 		vooc_disable = get_effective_result(vooc_disable_votable);
 	else
 		chg_err("VOOC_DISABLE votable not found\n");
+
+	if (mtk_chg_vooc_protocol_is_disabled(chip))
+		vooc_disable = true;
 
 	disable_pd = chip->pd_svooc;
 	if (chip->pd_svooc && vooc_disable) {
@@ -7224,7 +7243,9 @@ static struct temp_param sub_board_temp_table[] = {
 	{96,     6132}, {97,     5934}, {98,     5744}, {99,     5561}, {100,    5384}, {101,    5214}, {102,    5051}, {103,    4893},
 	{104,    4741}, {105,    4594}, {106,    4453}, {107,    4316}, {108,    4184}, {109,    4057}, {110,    3934}, {111,    3816},
 	{112,    3701}, {113,    3591}, {114,    3484}, {115,    3380}, {116,    3281}, {117,    3185}, {118,    3093}, {119,    3003},
-	{120,    2916}, {121,    2832}, {122,    2751}, {123,    2672}, {124,    2596}, {125,    2522}
+	{120,    2916}, {121,    2832}, {122,    2751}, {123,    2672}, {124,    2596}, {125,    2522}, {125,    2522}, {125,    2522},
+	{125,    2522}, {125,    2522}, {125,    2522}, {125,    2522}, {125,    2522}, {125,    2522}, {125,    2522}, {125,    2522},
+	{125,    2522}, {125,    2522}, {125,    2522}, {125,    2522},
 };
 
 static struct temp_param charger_ic_temp_table[] = {
@@ -7873,7 +7894,7 @@ static int oplus_mtk_ic_register(struct device *dev, struct mtk_charger *info)
 	struct device_node *node = NULL;
 	struct device_node *child;
 	struct oplus_chg_ic_dev *ic_dev = NULL;
-	struct oplus_chg_ic_cfg ic_cfg;
+	struct oplus_chg_ic_cfg ic_cfg = { 0 };
 	int rc;
 
 	if (NULL == dev || NULL == dev->of_node || NULL == info) {
@@ -8603,12 +8624,10 @@ static int mtk_charger_probe(struct platform_device *pdev)
 		chg_err("can't find primary charger!\n");
 	}
 #endif
-#ifndef CONFIG_DISABLE_OPLUS_FUNCTION
-	if (info->chg1_dev && (get_eng_version() == AGING || get_eng_version() == HIGH_TEMP_AGING)) {
-		chg_err("charger_dev_enable_safety_timer disable\n");
+	if (info && info->chg1_dev) {
 		charger_dev_enable_safety_timer(info->chg1_dev, false);
+		chg_err("charger_dev_enable_safety_timer disable\n");
 	}
-#endif
 
 	mutex_init(&info->cable_out_lock);
 	mutex_init(&info->charger_lock);

@@ -42,6 +42,8 @@
 #define FTS_REG_FOD_EN                          0xCF
 #define FTS_REG_FOD_INFO                        0xE1
 #define FTS_REG_FOD_INFO_LEN                    9
+#define FTS_REG_FOD_ERROR_INFO                  0xE0
+#define FTS_REG_FOD_ERROR_INFO_LEN              14
 #define FTS_REG_AOD_INFO                        0xD3
 #define FTS_REG_AOD_INFO_LEN                    6
 #define FTS_REG_DIFFER_VERSION                	0xCD
@@ -72,7 +74,7 @@
 #define FTS_REG_TEMPERATURE                     0x97
 #define FTS_REG_PALM_TO_SLEEP_STATUS            0x9B
 #define FTS_REG_FREQUENCE_WATER_MODE			0xBF
-
+#define FTS_REG_SET_FP_ERROR_REPORT             0xBF /* bit7 */
 #define FTS_REG_GESTURE_OUTPUT_ADDRESS          0xD3
 #define FTS_REG_MODULE_ID                       0xE3
 #define FTS_REG_LIC_VER                         0xE4
@@ -82,6 +84,7 @@
 #define FTS_REG_HEALTH_2                        0xFE
 #define FTS_REG_GLOVE_MODE_SWITCH               0xC0
 #define FTS_REG_GLOVE_MODE_STATE                0x01
+#define FTS_REG_EDGE_LIMIT_SWITCH               0xCE
 
 #define FTS_120HZ_REPORT_RATE                   0x0C
 #define FTS_180HZ_REPORT_RATE                   0x12
@@ -90,6 +93,7 @@
 #define FTS_720HZ_REPORT_RATE                   0x24            /*not support*/
 
 #define FTS_GET_RATE_120                        120
+#define FTS_GET_RATE_180                        180
 #define FTS_GET_RATE_240                        10
 #define FTS_GET_RATE_300                        300
 #define FTS_GET_RATE_600                        600
@@ -231,6 +235,14 @@ enum _FTS_RST_REASON {
 	FTS_RST_REASON_WDT      = 0x02,
 	FTS_RST_REASON_EXTERNAL = 0x04,
 	FTS_RST_REASON_PWR      = 0x08,
+};
+
+enum _FTS_FP_ERROR_TYPE {
+	FTS_FINGERPRINT_DOWN_BEFORE_FP_ENABLE = 0,
+	FTS_FINGERPRINT_X_Y_NOT_MATCH = 0x02,
+	FTS_ANOTHER_FINGER_ON_NON_FP_ZONE = 0x04,
+	FTS_FINGERPRINT_AREA_NOT_MATCH = 0x10,
+	FTS_FINGERPRINT_OUT_MOVE_IN = 0x40,
 };
 
 enum _FTS_TOUCH_ETYPE {
@@ -415,6 +427,7 @@ struct chip_data_ft3683g {
 	bool water_mode;
 	int extreme_game_report_rate;
 	bool extreme_game_flag;
+	bool fingerprint_error_report_support;              /*fingerprint error report support*/
 };
 
 

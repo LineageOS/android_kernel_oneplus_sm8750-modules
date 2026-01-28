@@ -53,7 +53,7 @@ struct mm_kevent_packet {
 	char tag[MAX_PAYLOAD_TAG];			/* logTag */
 	char event_id[MAX_PAYLOAD_EVENTID]; /* eventID */
 	size_t len; 						/* Length of packet data */
-	unsigned char data[0];				/* Optional packet data */
+	unsigned char data[];				/* Optional packet data */
 }__attribute__((packed));
 
 #if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)

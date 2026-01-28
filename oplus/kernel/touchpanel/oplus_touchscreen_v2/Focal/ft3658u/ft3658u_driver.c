@@ -2500,7 +2500,7 @@ static int fts3658u_refresh_switch(void *chip_data, int fps)
 }
 
 #ifdef FTS_KIT
-static struct oppo_touchpanel_operations fts_ops = {
+static struct oplus_touchpanel_operations fts_ops = {
 #endif
 #ifndef FTS_KIT
 static struct oplus_touchpanel_operations fts_ops = {
@@ -2668,7 +2668,7 @@ static int fts3658u_tp_probe(struct i2c_client * client,
 
 #ifdef FTS_KIT
 	/*proc/touchpanel/baseline_test*/
-	/*create baseline_test, oppo driver delete*/
+	/*create baseline_test, oplus driver delete*/
 	fts_create_proc_baseline_test(ts);
 #endif
 

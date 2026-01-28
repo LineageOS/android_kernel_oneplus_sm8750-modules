@@ -380,6 +380,10 @@
 #define BQ28Z610_BATT_USED_FLAG_WLEN		4
 #define BQ28Z610_BATT_USED_FLAG_WADDR		0x4056
 
+#define BQ28Z610_REG_DELTA_VOL                  0x4219
+#define BQ28Z610_REG_CELL0_RA                   0x4116
+#define BQ28Z610_REG_CELL1_RA                   0x4156
+
 #define U_DELAY_1_MS	1000
 #define U_DELAY_5_MS	5000
 #define M_DELAY_10_S	10000
@@ -723,6 +727,7 @@ struct chip_bq27541 {
 	unsigned long rst_ing;
 	int gauge_type;
 	int bq28z610_seal_flag;
+	bool sn_match;
 };
 
 struct gauge_track_info_reg {

@@ -1,5 +1,5 @@
 /**************************************************************
- * Copyright (c)  2008- 2030  Oppo Mobile communication Corp.ltd.
+ * Copyright (c)  2008- 2030  oplus Mobile communication Corp.ltd.
  * File       : goodix_drivers_gt9886.h
  * Description: header file for Goodix GT9886 driver
  * Version   : 1.0
@@ -112,6 +112,7 @@
 #define GOODIX_FP_EVENT				0x08
 #define POINT_TYPE_STYLUS_HOVER		0x01
 #define POINT_TYPE_STYLUS			0x03
+#define POINT_TYPE_TOUCH			0x02
 /* TODO need confirm those event value*/
 #define GOODIX_FINGER_PRINT_EVENT   0x08
 #define GOODIX_FINGER_STATUS_EVENT  0x02
@@ -829,6 +830,7 @@ struct chip_data_brl {
 	bool                                motor_max_limit;
 	bool                                snr_read_support;
 	bool                                fpga_spi_agg_support;
+	bool                                kb_matrix_cal_num_support;
 
 	unsigned int                        pen_osc_frequency;
 	unsigned int                        hardware_trx_direction;
@@ -904,6 +906,7 @@ struct chip_data_brl {
 	u32 diff_size;
 	unsigned int                       high_volume_invalid_touch_cnt;
 	s16                                *rawdata;
+	u16                                kb_matrix_cal_num;
 	bool                               diff_sync_check;
 };
 
