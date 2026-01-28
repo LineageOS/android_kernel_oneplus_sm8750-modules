@@ -60,7 +60,7 @@
 #endif /* OPLUS_ARCH_EXTENDS */
 
 #ifdef CONFIG_SND_SOC_SIPA
-#include "sipa_aux_dev_if.h"
+#include "../oplus/codecs/sipa/sipa_aux_dev_if.h"
 #endif /* CONFIG_SND_SOC_SIPA */
 
 #if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
