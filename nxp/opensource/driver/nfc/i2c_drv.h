@@ -67,4 +67,5 @@ int i2c_read(struct nfc_dev *dev, char *buf, size_t count, int timeout);
 
 #endif
 
+extern int get_nfc_id(void);
 #endif //_I2C_DRV_H_
