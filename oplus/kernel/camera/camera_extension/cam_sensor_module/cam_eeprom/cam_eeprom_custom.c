@@ -468,6 +468,9 @@ static uint32_t get_align_addr(uint32_t data_base,int32_t data_writelen) {
 }
 
 #define WRITE_EEPROM_MAX_LENGTH 64
+#ifdef MIN
+#undef MIN
+#endif
 #define MIN(a,b)((a) < (b) ? (a) : (b))
 int32_t EEPROM_CommonWrite(struct cam_eeprom_ctrl_t *e_ctrl,
 	struct cam_write_eeprom_t *cam_write_eeprom) {
