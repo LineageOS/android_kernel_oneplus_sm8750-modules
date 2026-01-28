@@ -51,6 +51,7 @@ endif
 #lcd uiready for gki
 ccflags-$(CONFIG_DRM_MEDIATEK_V2) += -I$(srctree)/drivers/gpu/drm/mediatek/mediatek_v2/
 ccflags-$(CONFIG_DRM_MEDIATEK_V2) += -DCONFIG_DRM_MEDIATEK_V2
+ccflags-$(CONFIG_QCOM_PANEL_EVENT_NOTIFIER) += -DCONFIG_QCOM_PANEL_EVENT_NOTIFIER
 
 # wl2868c supply for gki
 ccflags-$(CONFIG_FP_SUPPLY_MODE_LDO) += -I$(srctree)/drivers/misc/mediatek/wl2868c

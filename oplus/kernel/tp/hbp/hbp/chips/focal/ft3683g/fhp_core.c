@@ -332,6 +332,7 @@ static int fhp_read_fod_info(struct fts_core *ts_data, struct fod_info *fod)
 	fod->fp_area_rate = val[2];
 	fod->fp_x = (val[4] << 8) + val[5];
 	fod->fp_y = (val[6] << 8) + val[7];
+	fod->fp_time = val[9];
 
 	return 0;
 }
@@ -587,11 +588,11 @@ static int fhp_chip_get_gesture(void *priv, struct gesture_info *gesture)
 			} else {
 				gesture->type = FingerprintUp;
 			}
-
 			gesture->Point_start.x = fod.fp_x;
 			gesture->Point_start.y = fod.fp_y;
 			gesture->Point_end.x = fod.fp_area_rate;
 			gesture->Point_end.y = 0;
+			gesture->tp_firmware_time = fod.fp_time;
 		}
 		break;
 	case GESTURE_FINGER_PRINT_ERROR:

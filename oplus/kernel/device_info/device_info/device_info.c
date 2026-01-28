@@ -1192,7 +1192,8 @@ static uint32_t get_mr_value(unsigned int mr_index) {
 	unsigned int ret_value = 0;
 #if (defined(CONFIG_MTK_PLATFORM) || defined(CONFIG_OPLUS_DEVICE_INFO_MTK_PLATFORM)) /* MTK */
 	if (mr_info != NULL) {
-		for (int i = 0; i < DRAMC_MR_CNT; i++) {
+		int i = 0;
+		for (i = 0; i < DRAMC_MR_CNT; i++) {
 			if(mr_info[i].mr_index == mr_index) {
 				pr_info("mr_info:idx= %d, value, %x \n", mr_info[i].mr_index, mr_info[i].mr_value & 0xFF);
 				ret_value = mr_info[i].mr_value & 0xFF;
@@ -1383,12 +1384,6 @@ static int __attribute__((__unused__)) init_ddr_vendor_size(struct device_info *
 	const char *vendor_name = NULL;
 	char process_name[DDR_INFO_LEN] = {0};
 
-	info = (struct manufacture_info *) kzalloc(sizeof(*info), GFP_KERNEL);
-	if (!info) {
-		pr_err("kzalloc info failed\n");
-		return -ENOMEM;
-	}
-
 	const struct {
 		const char *path;
 		int shift;
@@ -1399,7 +1394,14 @@ static int __attribute__((__unused__)) init_ddr_vendor_size(struct device_info *
 		{"/soc/dramc@1022a000", 4},
 	};
 
-	for (int i = 0; i < ARRAY_SIZE(path_configs); i++) {
+	info = (struct manufacture_info *) kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info) {
+		pr_err("kzalloc info failed\n");
+		return -ENOMEM;
+	}
+
+
+	for (i = 0; i < ARRAY_SIZE(path_configs); i++) {
 		mem_node = of_find_node_by_path(path_configs[i].path);
 		if (mem_node) {
 			shift = path_configs[i].shift;

@@ -174,7 +174,7 @@
 /*
  *  Customer/platform config
  */
-/* #define JD_OPPO_FUNC */
+/* #define JD_OPLUS_FUNC */
 
 /*
  *  Suspend/Resume function

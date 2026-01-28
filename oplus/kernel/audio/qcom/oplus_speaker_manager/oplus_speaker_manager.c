@@ -569,13 +569,15 @@ int oplus_spkr_pa_event(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcon
 				oplus_speaker_amp_set(R_SPK, WORK_STATUS_ON);
 			}
 		} else {
-			oplus_speaker_amp_set(L_SPK, WORK_STATUS_ON);
+			oplus_speaker_amp_set(contrl_status->chipset, WORK_STATUS_ON);
 		}
 		break;
 	case SND_SOC_DAPM_PRE_PMD :
-		oplus_speaker_amp_set(L_SPK, WORK_STATUS_OFF);
 		if (contrl_status->chipset == ALL_SPK) {
 			oplus_speaker_amp_set(R_SPK, WORK_STATUS_OFF);
+			oplus_speaker_amp_set(L_SPK, WORK_STATUS_OFF);
+		} else {
+			oplus_speaker_amp_set(contrl_status->chipset, WORK_STATUS_OFF);
 		}
 		break;
 	default :

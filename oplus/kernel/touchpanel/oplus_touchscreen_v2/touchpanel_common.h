@@ -35,7 +35,6 @@
 #define PDE_DATA pde_data
 #endif
 
-#define LCD_CTL_AOD_ON 0x02
 
 #define TP_SUPPORT_MAX 3
 #define TP_NAME_SIZE_MAX 30
@@ -200,6 +199,22 @@
 
 #define SCEN_SINGLE_CMD_SIZE        (64)
 #define SCEN_ALL_CMD_SIZE           (8192)
+#define MAX_SCENE_LENS              5
+typedef enum {
+	SCREEN_LOCK_MODE = 0,
+	SENSITIVE_LEVEL,
+	SET_PACKAGE_TYPE,
+	PEN_SENSITIVE_LEVEL,
+	TOUCH_LEAVE_JITTER,
+} scene_type;
+
+static const char buffer_scen[MAX_SCENE_LENS][SCEN_SINGLE_CMD_SIZE] = { \
+	"screen_lock_mode", \
+	"sensitive_level", \
+	"set_package_type", \
+	"pen_sensitive_level", \
+	"touch_leave_jitter" \
+};
 
 #define NOTIFY_TIME_OUT             60
 
@@ -366,6 +381,7 @@ typedef enum lcd_event_type {
 	LCD_CTL_IRQ_ON,
 	LCD_CTL_IRQ_OFF,
 	LCD_CTL_AOD_OFF,
+	LCD_CTL_AOD_ON,
 } lcd_event_type;
 
 typedef enum {
@@ -514,6 +530,14 @@ struct tp_aiunit_game_info {
 	u16 top;
 	u16 right;
 	u16 bottom;
+};
+
+/******For Long Strip Abnormal Detect******/
+struct long_strip_abnormal_detect_info {
+	u8  channels_max_thd;
+	u8  er_max;
+	u8  er_min;
+	u16 center_width;
 };
 
 /******For HW resource area********/
@@ -1006,6 +1030,7 @@ struct touch_scene_info {
 	uint16_t  sensitive_level;
 	uint16_t  set_package_type;
 	uint16_t  pen_sensitive_level;
+	uint16_t  touch_leave_jitter;
 };
 
 struct aging_test_proc_operations;
@@ -1028,7 +1053,8 @@ struct touchpanel_data {
 	bool game_enable_in_tddi_support;                   /*send game cmd to tddi support feature*/
 	bool face_detect_support;                           /*touch porximity function*/
 	bool fingerprint_underscreen_support;               /*fingerprint underscreen support*/
-	bool fingerprint_not_report_in_suspend;
+	bool fingerprint_not_report_in_suspend;             /*fingerprint not report in suspending*/
+	bool fingerprint_error_report_support;              /*fingerprint error report support*/
 	bool sec_long_low_trigger;                          /*samsung s6d7ate ic int feature*/
 	bool suspend_gesture_cfg;
 	bool auto_test_force_pass_support;                  /*auto test force pass in early project*/
@@ -1071,6 +1097,7 @@ struct touchpanel_data {
 	bool input_timestamp_in_top_irq_support;                  /* set input time when top half of interrupt*/
 	bool screenshot_not_reset_support;               /*screenshot disable tp reset*/
 	bool fp_grip_support;                               /* edge grip for fingerprint */
+	bool long_strip_abnormal_detect_support;
 	bool fp_grip_hold;
 	int  fp_grip_enable;
 	u8 aiunit_game_get_num;
@@ -1228,6 +1255,7 @@ struct touchpanel_data {
 	int noise_level;                                    /*for game mode control*/
 	int high_frame_value;
 	int limit_enable;                                   /*control state of limit enable */
+	int edge_limit_switch_write_value;                  /*control limit_switch enable */
 	int tp_ic_touch_num;                                 /*tp ic get touch num */
 	int last_tp_ic_touch_num;                            /*last tp ic get touch num */
 	int pen_mode_tp_state;
@@ -1267,6 +1295,7 @@ struct touchpanel_data {
 	struct hrtimer		temp_timer;
 	struct work_struct get_temperature_work;
 	struct touch_scene_info scene_info;
+	struct long_strip_abnormal_detect_info long_strip_abnormal_detect;
 
 	/******For fb notify area********/
 	struct work_struct     speed_up_work;               /*using for speedup resume*/
@@ -1457,6 +1486,8 @@ struct oplus_touchpanel_operations {
 
 	void (*freq_hop_trigger)(void *chip_data); /*trigger frequency-hopping*/
 	void (*force_water_mode)(void *chip_data, bool enable); /*force enter water mode*/
+	void (*set_fp_error_report)(void *chip_data, bool enable); /*set fp error report*/
+	void (*inject_wdt_reset)(void *chip_data, int value); /*inject watchdog reset*/
 	void (*get_water_mode)(void *chip_data); /*force enter water mode*/
 	void (*get_glove_mode)(void *chip_data, int *enable, int *count); /*force enter glove mode*/
 	void (*set_noise_modetest)(void *chip_data, bool enable);
@@ -1468,9 +1499,11 @@ struct oplus_touchpanel_operations {
 				   struct kernel_grip_info *grip_info);          /*enable kernel grip in fw*/
 	bool (*tp_irq_throw_away)(void *chip_data);
 	void (*rate_white_list_ctrl)(void *chip_data, int value);
+	void (*edge_limit_switch_write)(void *chip_data, int value);
 	int (*smooth_lv_set)(void *chip_data, int level);
 	int (*sensitive_lv_set)(void *chip_data, int level);
 	int (*pen_sensitive_lv_set)(void *chip_data, int level);
+	int (*touch_leave_jitter_set)(void *chip_data, int level);
 	int (*set_package_type)(void *chip_data, int level);
 	int (*diaphragm_touch_lv_set)(void *chip_data, int level);
 	int (*send_temperature)       (void *chip_data, int value, bool status);

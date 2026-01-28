@@ -1862,7 +1862,7 @@ static int32_t nvt_nf_detect_chip(struct chip_data_nt36523 *chip_info)
 }
 
 
-/********* Start of implementation of oppo_touchpanel_operations callbacks********************/
+/********* Start of implementation of oplus_touchpanel_operations callbacks********************/
 /*extern int tp_util_get_vendor(struct hw_resource *hw_res, struct panel_info *panel_data);*/
 
 static int nvt_ftm_process(void *chip_data)
@@ -3328,6 +3328,19 @@ static int nvt_set_pen_jitter_para(void *chip_data, int level)
 
 	return ret;
 }
+
+static int nvt_set_leave_jitter(void *chip_data, int level)
+{
+	int8_t ret = -1;
+	struct chip_data_nt36523 *chip_info = (struct chip_data_nt36523 *)chip_data;
+	TPD_DEBUG("%s:level = %d, chip_info->is_sleep_writed = %d\n", __func__,
+			level, chip_info->is_sleep_writed);
+
+	ret = nvt_extend_cmd2_store(chip_info, EVENTBUFFER_EXT_CMD, EVENTBUFFER_EXT_TOUCH_LEAVE_JITTER, level);
+
+	return ret;
+}
+
 static int8_t nvt_extend_cmd_store_direct(struct chip_data_nt36523 *chip_info,
 				   uint8_t u8Cmd, uint8_t u8SubCmd)
 {
@@ -5785,6 +5798,7 @@ static struct oplus_touchpanel_operations nvt_ops = {
 	.pen_sensitive_lv_set     = nvt_set_pen_jitter_para,
 	.ftm_process_extra		  = NULL,
 	.aiunit_game_info         = nvt_aiunit_game_info,
+	.touch_leave_jitter_set   = nvt_set_leave_jitter,
 };
 
 static void nvt_data_read(struct seq_file *s,

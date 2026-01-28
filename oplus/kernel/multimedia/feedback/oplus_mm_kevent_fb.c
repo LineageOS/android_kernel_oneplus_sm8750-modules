@@ -52,7 +52,7 @@ struct mm_kevent {
 	ktime_t last_upload;
 	struct delayed_work dwork;
 	char *payload;
-	char name[0];
+	char name[];
 };
 
 #define RELATION_EVENT_LIMIT_NUM    7

@@ -67,8 +67,6 @@
 
 #define CONFIG_BOARD_V4_SUPPORT
 
-#define CONFIG_KB_DEBUG_FS     // enable keyboard debugging file nodes.
-
 #ifdef CONFIG_KEYBOARD_DEBUG
 extern int kb_debug_level;
 #define kb_debug(fmt, args...)  do {\
@@ -200,8 +198,6 @@ enum {
 
     KEYBOARD_POWER_ON_EVENT,  // turn on vcc for keyboard
     KEYBOARD_POWER_OFF_EVENT, // turn off vcc for keyboard
-    KEYBOARD_HOST_CHECK_EVENT,
-    KEYBOARD_TEST_EVENT,
     KEYBOARD_REPORT_SN_EVENT,
     KEYBOARD_REPORT_TOUCH_STATUS_EVENT,
     KEYBOARD_REPORT_KBVER_EVENT,
@@ -210,6 +206,7 @@ enum {
     KEYBOARD_REPORT_UART_OPEN_EVENT,
     KEYBOARD_REPORT_UART_CLOSE_EVENT,
     KEYBOARD_REPORT_TP_DIST_EVENT,
+    KEYBOARD_REPORT_TP_DEBUG_EVENT,
     POGO_KEYBOARD_EVENT_MAX, //add new event befor it
 };
 

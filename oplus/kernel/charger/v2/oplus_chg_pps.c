@@ -3357,7 +3357,8 @@ static int oplus_pps_set_fcl_curr(struct oplus_pps *chip)
 
 		fcl_limit = ROUND_DOWN(fcl_limit, 50);
 		if (fcl_limit)
-			vote(chip->pps_curr_votable, LIMIT_FCL_VOTER, true, fcl_limit, false);
+			vote(chip->pps_curr_votable, LIMIT_FCL_VOTER, true,
+				max(fcl_limit, oplus_pps_get_start_curr_min(chip)), false);
 		else
 			vote(chip->pps_curr_votable, LIMIT_FCL_VOTER, false, 0, false);
 	}
@@ -4497,10 +4498,8 @@ static void oplus_pps_subscribe_gauge_topic(struct oplus_mms *topic,
 		chip->batt_auth = !!data.intval;
 	}
 
-	if (!chip->batt_hmac || !chip->batt_auth) {
-		vote(chip->pps_disable_votable, NON_STANDARD_VOTER, true, 1,
-		     false);
-	}
+	chg_info("hmac=%d, authenticate=%d\n", chip->batt_hmac, chip->batt_auth);
+	vote(chip->pps_disable_votable, NON_STANDARD_VOTER, !chip->batt_hmac || !chip->batt_auth, 0, false);
 
 	oplus_gauge_get_fcl_support(chip->gauge_topic, &chip->fcl_support);
 

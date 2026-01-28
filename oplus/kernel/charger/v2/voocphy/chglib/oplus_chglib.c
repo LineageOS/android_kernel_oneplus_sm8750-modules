@@ -747,6 +747,9 @@ static void oplus_chglib_subscribe_wired_topic(struct oplus_mms *topic, void *pr
 		chg_err("subscribe gauge topic error, rc=%ld\n",
 			PTR_ERR(chip->wired_subs));
 
+	oplus_mms_get_item_data(chip->wired_topic, WIRED_ITEM_PRESENT, &data, true);
+	chip->is_wired_present = !!data.intval;
+
 	oplus_mms_get_item_data(chip->wired_topic,
 				WIRED_TIME_ABNORMAL_ADAPTER, &data, true);
 	chip->is_pd_svooc_adapter = !!data.intval;
@@ -1304,6 +1307,20 @@ static int vphy_get_frame_head(struct oplus_chg_ic_dev *ic_dev, int *head)
 	return rc;
 }
 
+static int vphy_get_fastchg_commu_ing(struct oplus_chg_ic_dev *ic_dev, bool *fastchg_commu_ing)
+{
+	struct vphy_chip *chip;
+
+	if (!ic_dev->online)
+		return 0;
+	chip = oplus_chglib_get_vphy_chip(ic_dev->dev);
+
+	if (chip && chip->vinf && chip->vinf->vphy_get_fastchg_commu_ing && fastchg_commu_ing)
+		*fastchg_commu_ing = chip->vinf->vphy_get_fastchg_commu_ing(chip->dev);
+
+	return 0;
+}
+
 static void *vphy_get_func(struct oplus_chg_ic_dev *ic_dev,
 			    enum oplus_chg_ic_func func_id)
 {
@@ -1397,6 +1414,10 @@ static void *vphy_get_func(struct oplus_chg_ic_dev *ic_dev,
 	case OPLUS_IC_FUNC_VOOCPHY_GET_FRAME_HEAD:
 		func = OPLUS_CHG_IC_FUNC_CHECK(OPLUS_IC_FUNC_VOOCPHY_GET_FRAME_HEAD,
 					       vphy_get_frame_head);
+		break;
+	case OPLUS_IC_FUNC_VOOCPHY_GET_FASTCHG_COMMU_ING:
+		func = OPLUS_CHG_IC_FUNC_CHECK(OPLUS_IC_FUNC_VOOCPHY_GET_FASTCHG_COMMU_ING,
+					       vphy_get_fastchg_commu_ing);
 		break;
 	default:
 		chg_err("this func(=%d) is not supported\n", func_id);

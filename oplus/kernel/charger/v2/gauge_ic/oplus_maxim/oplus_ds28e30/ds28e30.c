@@ -294,6 +294,8 @@ bool ds28e30_cmd_read_memory(int pg, u8 *data)
 	int write_len;
 	u8 read_buf[255];
 	int read_len;
+	unsigned char i, j, temp_read_data[64];
+	bool flag = false;
 
 	/*
 		Reset
@@ -322,22 +324,34 @@ bool ds28e30_cmd_read_memory(int pg, u8 *data)
 	/* preload read_len with expected length */
 	read_len = 33;
 
-	/* default failure mode */
-	last_result_byte = RESULT_FAIL_COMMUNICATION;
-
-	if (standard_cmd_flow(write_buf, write_len, DELAY_DS28E30_EE_READ_TRM, read_len, read_buf, &read_len)) {
-		/* get result byte */
-		last_result_byte = read_buf[0];
-		/* check result */
-		if (read_len == 33) {
-			if (read_buf[0] == RESULT_SUCCESS) {
-				memcpy(data, &read_buf[1], 32);
-				return true;
+	memset(temp_read_data, 0xFF, (read_len + 2));
+	for (i = 0; i < 5; i++) {
+		read_buf[0] = RESULT_FAIL_COMMUNICATION;
+		flag = standard_cmd_flow(write_buf, write_len, DELAY_DS28E30_EE_READ_TRM, read_len, read_buf, &read_len);
+		if (read_buf[0] == RESULT_FAIL_COMMUNICATION) continue;
+		if (flag == false) {
+			for (j = 0; j < (read_len + 2); j++)
+				temp_read_data[j] &= read_buf[j];	/* correct read data */
+			crc16 = 0; /* check crc16 */
+			docrc16(read_len);
+			for (j = 0; j < (read_len + 2); j++) {
+				docrc16(temp_read_data[j]);
 			}
+			if (crc16 != 0xB001) continue;
+			memcpy(read_buf, temp_read_data, read_len + 2 );
+			chg_info("crc16=b001, readMemory page[%d] data is corrected by the host successfully\n", write_buf[1]);
+			memcpy(data, &read_buf[1], 32);
+			flag = true;
+		}
+		break;
+	}
+	if (flag == true) {
+		last_result_byte = read_buf[0]; /* get result byte */
+		if (read_len == 33 && read_buf[0] == RESULT_SUCCESS ) {  /*check result */
+			memcpy(data, &read_buf[1], 32);
+			return true;
 		}
 	}
-
-	/* no payload in read buffer or failed command */
 	return false;
 }
 
@@ -1429,6 +1443,30 @@ void check_womid_bit(long w_diff_ns)
 	}
 }
 
+static void correct_first_received_crc16(unsigned char *pkt, unsigned char pkt_len)
+{
+    unsigned char expected_crc16[2];
+	int i;
+	unsigned char temp = 0x01;
+	if (pkt[pkt_len-2] == 0xFF  && pkt[pkt_len-1] == 0xFF)
+		return;
+	/* if received crc16=0xFFFF, then no operation calculate the expected crc16 for the sending data packet */
+	crc16 = 0;
+	for (i = 0; i < pkt_len-2; i++) {
+		docrc16(pkt[i]);
+	}
+	crc16 = crc16 ^ 0xFFFF;  /* inverted crc16 code */
+	expected_crc16[0] = crc16 & 0xFF;
+	expected_crc16[1] = (crc16 >> 8) & 0xFF;
+	if (expected_crc16[0] == pkt[pkt_len-2] && expected_crc16[1] == pkt[pkt_len-1]) return;
+	for (i = 0; i < 8; i++) {
+		if ((expected_crc16[0] & temp) != 0 && (pkt[pkt_len-2] & temp) ==0) return;
+		if ((expected_crc16[1] & temp) != 0 && (pkt[pkt_len-1] & temp) ==0) return;
+		temp = temp << 1;
+	}
+	pkt[pkt_len-2] &= expected_crc16[0];
+	pkt[pkt_len-1] &= expected_crc16[1];
+}
 /*  @internal
  Sent/receive standard flow command
  @param[in] write_buf
@@ -1496,6 +1534,7 @@ int standard_cmd_flow(u8 *write_buf, int write_len, int delayms, int expect_read
 	/* read two CRC bytes */
 	pkt[pkt_len++] = read_byte();
 	pkt[pkt_len++] = read_byte();
+	correct_first_received_crc16(pkt, pkt_len);
 	i = write_data_correction(pkt, pkt_len, write_buf, write_len);  /* try to correct 1-wire write data if wdcrc16 is error */
 	if (i >= 2)
 	  chg_info("%s: correct %d-bit error at write data packet!", __func__, i-1);
@@ -1528,10 +1567,22 @@ int standard_cmd_flow(u8 *write_buf, int write_len, int delayms, int expect_read
 	pkt[0] = read_byte();
 	pkt[1] = read_byte();
 	if (get_maxim_romid_crc_support()) {
-		if (write_buf[0] == CMD_COMP_READ_AUTH)
+		if(write_buf[0] == CMD_COMP_READ_AUTH)
 			pkt[1] = EXPECTED_READ_LENGTH_65;
-		if (write_buf[0] == CMD_READ_MEM)
+		if(write_buf[0] == CMD_READ_MEM)
 			pkt[1] = EXPECTED_READ_LENGTH_33;
+		if(write_buf[0] == CMD_READ_STATUS ) {
+			if( ( 0x80 & write_buf[1] ) == 0x00 )
+				pkt[1] = EXPECTED_READ_LENGTH_2;
+			else
+				pkt[1] = EXPECTED_READ_LENGTH_5;
+		}
+		if(write_buf[0] == CMD_WRITE_MEM)
+			pkt[1] = EXPECTED_READ_LENGTH_1;
+		if(write_buf[0] == CMD_SET_PAGE_PROT)
+			pkt[1] = EXPECTED_READ_LENGTH_1;
+		if(write_buf[0] == CMD_DECREMENT_CNT)
+			pkt[1] = EXPECTED_READ_LENGTH_1;
 	}
 	*read_len = pkt[1];
 
@@ -1544,6 +1595,11 @@ int standard_cmd_flow(u8 *write_buf, int write_len, int delayms, int expect_read
 		/* read packet */
 		for (i = 0; i <  *read_len+2; i++)
 			read_buf[i] = read_byte();
+		if (write_buf[0] == CMD_READ_MEM && write_buf[1] == 106) {
+			//corrrect bit errors in reading decrement counter
+			read_buf[3] = read_buf[3] & 0x01;
+			memset(&read_buf[4], 0x00, 32-3);
+		}
 		if (get_maxim_romid_crc_support()) {
 			i = read_data_correction(read_buf, *read_len, write_buf, write_len);  /* try to correct 1-wire read data if crc16 is error */
 			if (i >= 2)

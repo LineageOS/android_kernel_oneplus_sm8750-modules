@@ -1,5 +1,5 @@
 load("//build/kernel/kleaf:kernel.bzl", "ddk_headers")
-load("//build/kernel/oplus:oplus_modules_define.bzl", "define_oplus_ddk_module", "oplus_ddk_get_kernel_version", "bazel_support_platform")
+load("//build/kernel/oplus:oplus_modules_define.bzl", "define_oplus_ddk_module", "oplus_ddk_get_kernel_version", "oplus_ddk_get_target", "oplus_ddk_get_variant", "bazel_support_platform")
 load("//build/kernel/oplus:oplus_modules_dist.bzl", "ddk_copy_to_dist_dir")
 
 def version_compare(v1, v2):
@@ -9,6 +9,9 @@ def version_compare(v1, v2):
 
 def define_oplus_local_modules():
     kernel_version = oplus_ddk_get_kernel_version()
+    target = oplus_ddk_get_target()
+    variant  = oplus_ddk_get_variant()
+    kernel_build_variant = "{}_{}".format(target, variant)
 
     if bazel_support_platform == "mtk" :
         if version_compare(kernel_version, "6.12") :
@@ -25,7 +28,10 @@ def define_oplus_local_modules():
             oplus_fp_copts =[]
     else :
         oplus_fp_ko_deps =select({
-                "//build/kernel/kleaf:socrepo_true": ["//vendor/oplus/kernel/touchpanel/touchpanel_notify/bazel:oplus_bsp_tp_notify"],
+                "//build/kernel/kleaf:socrepo_true": [
+                    "//vendor/oplus/kernel/touchpanel/touchpanel_notify/bazel:oplus_bsp_tp_notify",
+                    "//soc-repo:{}/drivers/soc/qcom/panel_event_notifier".format(kernel_build_variant),
+                ],
                 "//build/kernel/kleaf:socrepo_false": [],
             })
         oplus_fp_copts =[]

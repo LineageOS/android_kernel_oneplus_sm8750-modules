@@ -26,7 +26,7 @@ extern int jd_diag_mutual_cnt;
 extern uint8_t hid_touch_data[JD_TOUCH_DATA_SIZE];
 #endif
 
-#if defined(JD_OPPO_FUNC)
+#if defined(JD_OPLUS_FUNC)
 #define JADARD_PROC_TOUCHPANLE_FOLDER      "touchpanel"
 #define JADARD_PROC_BASELINE_TEST_FILE     "baseline_test"
 #define JADARD_PROC_BLACK_SCREEN_TEST_FILE "black_screen_test"
@@ -2134,7 +2134,7 @@ static struct proc_ops jadard_proc_sorting_test_ops = {
     .proc_read = jadard_sorting_test_read,
 };
 
-#if defined(JD_OPPO_FUNC)
+#if defined(JD_OPLUS_FUNC)
 static struct proc_ops jadard_proc_baseline_test_ops = {
     .proc_read = jadard_sorting_test_read,
 };
@@ -2150,7 +2150,7 @@ static struct file_operations jadard_proc_sorting_test_ops = {
     .read = jadard_sorting_test_read,
 };
 
-#if defined(JD_OPPO_FUNC)
+#if defined(JD_OPLUS_FUNC)
 static struct file_operations jadard_proc_baseline_test_ops = {
     .owner = THIS_MODULE,
     .read = jadard_sorting_test_read,
@@ -2556,7 +2556,7 @@ int jadard_common_proc_init(void)
         goto fail;
     }
 
-#if defined(JD_OPPO_FUNC)
+#if defined(JD_OPLUS_FUNC)
     pjadard_touchpanel_proc_dir = proc_mkdir(JADARD_PROC_TOUCHPANLE_FOLDER, NULL);
     if (pjadard_touchpanel_proc_dir == NULL) {
         JD_E(" %s: pjadard_touchpanel_proc_dir file create failed!\n", __func__);
@@ -2573,7 +2573,7 @@ int jadard_common_proc_init(void)
         JD_E(" %s: proc self_test file create failed!\n", __func__);
         goto fail;
     }
-#if defined(JD_OPPO_FUNC)
+#if defined(JD_OPLUS_FUNC)
     pjadard_baseline_test_file = proc_create(JADARD_PROC_BASELINE_TEST_FILE, (S_IRUGO),
                                         pjadard_touchpanel_proc_dir, &jadard_proc_baseline_test_ops);
     if (pjadard_baseline_test_file == NULL) {
@@ -2694,7 +2694,7 @@ void jadard_common_proc_deinit(void)
 #endif
 
 #ifdef CONFIG_TOUCHSCREEN_JADARD_SORTING
-#if defined(JD_OPPO_FUNC)
+#if defined(JD_OPLUS_FUNC)
     if (pjadard_blackscreen_baseline_file) {
         remove_proc_entry(JADARD_PROC_BLACK_SCREEN_TEST_FILE, pjadard_touchpanel_proc_dir);
         pjadard_blackscreen_baseline_file = NULL;

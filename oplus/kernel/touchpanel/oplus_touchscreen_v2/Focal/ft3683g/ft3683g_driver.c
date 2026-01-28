@@ -106,6 +106,7 @@ struct chip_data_ft3683g *g_fts_data = NULL;
 } while (0)
 
 enum GESTURE_ID {
+	GESTURE_FINGER_PRINT_ERROR = 0x16,
 	GESTURE_RIGHT2LEFT_SWIP = 0x20,
 	GESTURE_LEFT2RIGHT_SWIP = 0x21,
 	GESTURE_DOWN2UP_SWIP = 0x22,
@@ -1034,6 +1035,40 @@ static int fts_rstgpio_set(struct hw_resource *hw_res, bool on)
 	return 0;
 }
 
+static void fts_set_fp_error_report(void *chip_data, bool enable)
+{
+	int retval = 0;
+	u8 regval = 0;
+
+	TPD_INFO("%s: %s set fp error report.\n", __func__, enable ? "Enter" : "Exit");
+
+	retval = fts_read_reg(FTS_REG_SET_FP_ERROR_REPORT, &regval);
+	if(retval < 0) {
+		TPD_INFO("Failed to get water mode config\n");
+		return;
+	}
+
+	if(enable) {
+		regval = regval | 0x80;
+	} else {
+		regval = regval & 0x7f;
+	}
+
+	retval = fts_write_reg(FTS_REG_SET_FP_ERROR_REPORT, regval);
+	if(retval < 0) {
+		TPD_INFO("Failed to set fp error report\n");
+		return;
+	}
+
+	retval = fts_read_reg(FTS_REG_SET_FP_ERROR_REPORT, &regval);
+	if(retval < 0) {
+		TPD_INFO("Failed to get fp error report\n");
+		return;
+	}
+	TPD_INFO("%s: now reg_val=0x%x", __func__, regval);
+}
+
+
 /*
  * return success: 0; fail : negative
  */
@@ -1051,6 +1086,9 @@ static int fts_hw_reset(struct chip_data_ft3683g *ts_data, u32 delayms)
 		msleep(delayms);
 	}
 	ts_data->is_ic_sleep = false;
+	if (ts_data->fingerprint_error_report_support && tp_debug > LEVEL_BASIC) {
+		fts_set_fp_error_report(ts_data, true);
+	}
 	return 0;
 }
 static int fts_power_control(void *chip_data, bool enable)
@@ -2470,6 +2508,11 @@ static int fts_enable_game_mode(struct chip_data_ft3683g *ts_data, bool enable)
 				report_rate = FTS_120HZ_REPORT_RATE;
 				break;
 
+			case FTS_GET_RATE_180:
+				game_mode = FTS_240HZ_GAME_MODE;
+				report_rate = FTS_180HZ_REPORT_RATE;
+				break;
+
 			case FTS_GET_RATE_240:
 				game_mode = FTS_240HZ_GAME_MODE;
 				report_rate = FTS_240HZ_REPORT_RATE;
@@ -2857,6 +2900,60 @@ static void fts_read_fod_info(struct chip_data_ft3683g *ts_data)
 	ts_data->fod_info.fp_area_rate = val[2];
 	ts_data->fod_info.fp_x = (val[4] << 8) + val[5];
 	ts_data->fod_info.fp_y = (val[6] << 8) + val[7];
+}
+
+static void fts_read_fod_error_info(struct chip_data_ft3683g *ts_data)
+{
+	int ret = 0;
+	u8 cmd = FTS_REG_FOD_ERROR_INFO;
+	u8 val[FTS_REG_FOD_ERROR_INFO_LEN] = { 0 };
+
+	ret = fts_read(&cmd, 1, val, FTS_REG_FOD_ERROR_INFO_LEN);
+	if (ret < 0) {
+		TPD_INFO("%s:read FOD error info fail", __func__);
+		return;
+	}
+	TPD_INFO("TP_FP_ERROR_REPORT:fingerprint error type:[%*ph]\n", FTS_REG_FOD_ERROR_INFO_LEN, val);
+	switch (val[FTS_REG_FOD_ERROR_INFO_LEN - 1]) {
+	case FTS_FINGERPRINT_AREA_NOT_MATCH:
+		if (ts_data->monitor_data && ts_data->monitor_data->health_monitor_support) {
+			tp_healthinfo_report(ts_data->monitor_data, HEALTH_REPORT, "fingerprint_area_not_match_count");
+		}
+		TPD_INFO("TP_FP_ERROR_REPORT:area size: 0x%x\n", val[12]);
+		TPD_INFO("TP_FP_ERROR_REPORT:FINGERPRINT_AREA_NOT_MATCH\n");
+		break;
+	case FTS_ANOTHER_FINGER_ON_NON_FP_ZONE:
+		if (ts_data->monitor_data && ts_data->monitor_data->health_monitor_support) {
+			tp_healthinfo_report(ts_data->monitor_data, HEALTH_REPORT, "another_finger_on_non-fingerprint_zone_count");
+		}
+		TPD_INFO("TP_FP_ERROR_REPORT:x:0x%x,y:0x%x\n", (val[4] << 8) + val[5], (val[6] << 8) + val[7]);
+		TPD_INFO("TP_FP_ERROR_REPORT:ANOTHER_FINGER_ON_NON_FP_ZONE\n");
+		break;
+	case FTS_FINGERPRINT_DOWN_BEFORE_FP_ENABLE:
+		if (ts_data->monitor_data && ts_data->monitor_data->health_monitor_support) {
+			tp_healthinfo_report(ts_data->monitor_data, HEALTH_REPORT, "fingerprint_down_before_fp_enable_count");
+		}
+		TPD_INFO("TP_FP_ERROR_REPORT:down time: %*ph\n", 4, val);
+		TPD_INFO("TP_FP_ERROR_REPORT:FINGERPRINT_DOWN_BEFORE_FP_ENABLE\n");
+		break;
+	case FTS_FINGERPRINT_X_Y_NOT_MATCH:
+		if (ts_data->monitor_data && ts_data->monitor_data->health_monitor_support) {
+			tp_healthinfo_report(ts_data->monitor_data, HEALTH_REPORT, "fingerprint_x_y_not_match_count");
+		}
+		TPD_INFO("TP_FP_ERROR_REPORT:FINGERPRINT_X_Y_NOT_MATCH\n");
+		break;
+	case FTS_FINGERPRINT_OUT_MOVE_IN:
+		if (ts_data->monitor_data && ts_data->monitor_data->health_monitor_support) {
+			tp_healthinfo_report(ts_data->monitor_data, HEALTH_REPORT, "fingerprint_out_move_in_count");
+		}
+		TPD_INFO("TP_FP_ERROR_REPORT:FINGERPRINT_OUT_MOVE_IN\n");
+		break;
+	default:
+		TPD_INFO("TP_FP_ERROR_REPORT:unknown fingerprint error type: 0x%x\n", val[FTS_REG_FOD_ERROR_INFO_LEN - 1]);
+		break;
+	}
+
+	return;
 }
 
 static void fts_read_aod_info(struct chip_data_ft3683g *ts_data)
@@ -3636,7 +3733,10 @@ static int fts_get_gesture_info(void *chip_data, struct gesture_info *gesture)
 		}
 
 		break;
-
+	case GESTURE_FINGER_PRINT_ERROR:
+		fts_read_fod_error_info(ts_data);
+		gesture->gesture_type = UNKOWN_GESTURE;
+		break;
 	case GESTURE_SINGLE_TAP:
 		gesture->gesture_type = SINGLE_TAP;
 		break;
@@ -4289,6 +4389,33 @@ static void fts_get_glove_mode(void *chip_data, int *enable, int *count)
 	*enable = regval;
 }
 
+static void fts_edge_limit_switch_write(void *chip_data, int value)
+{
+	struct chip_data_ft3683g *ts_data = (struct chip_data_ft3683g *)chip_data;
+	int ret = 0;
+	int regvalue = 0;
+
+	TPD_INFO("fts_edge_limit_switch_write to  value: %d", value);
+	if (ts_data == NULL) {
+		return;
+	}
+
+	if (ts_data->ts->is_suspended) {
+		return;
+	}
+
+	if((value < 0) || value > 1) {
+		TPD_INFO("%s: fts_edge_limit_switch_write value error\n", __func__);
+		return;
+	}
+	regvalue = value;
+	ret = fts_write_reg(FTS_REG_EDGE_LIMIT_SWITCH, regvalue);
+	if (ret < 0) {
+		TPD_INFO("write FTS_REG_REPORT_RATE fail");
+		return;
+	}
+}
+
 static struct oplus_touchpanel_operations fts_ops = {
 	.power_control              = fts_power_control,
 	.get_vendor                 = fts_get_vendor,
@@ -4317,8 +4444,10 @@ static struct oplus_touchpanel_operations fts_ops = {
 	.send_temperature           = fts_send_temperature,
 	.freq_hop_trigger           = fts_freq_hop_trigger,
 	.force_water_mode           = fts_force_water_mode,
+	.set_fp_error_report        = fts_set_fp_error_report,
 	.set_high_frame_rate        = fts_set_high_frame_rate,
 	.rate_white_list_ctrl       = fts_rate_white_list_ctrl,
+	.edge_limit_switch_write    = fts_edge_limit_switch_write,
 	.diaphragm_touch_lv_set         = fts_diaphragm_touch_lv_set,
 	.get_water_mode            = fts_get_water_mode,
 	.get_glove_mode            = fts_get_glove_mode,
@@ -4475,6 +4604,7 @@ static int fts_tp_probe(struct spi_device *spi)
 	focal_create_sysfs_spi(spi);
 
 	ts_data->black_gesture_indep = ts->black_gesture_indep_support;
+	ts_data->fingerprint_error_report_support = ts->fingerprint_error_report_support;
 		if (ts->health_monitor_support) {
 		tp_healthinfo_report(&ts->monitor_data, HEALTH_PROBE, &time_counter);
 	}

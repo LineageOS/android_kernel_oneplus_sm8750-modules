@@ -974,7 +974,7 @@ static int __init ssc_interactive_init(void)
 		ssc_cxt->notify_work_regiseted = false;
 		g_ssc_cxt->notify_work_regiseted_second = false;
 		INIT_DELAYED_WORK(&ssc_cxt->regiseter_lcd_notify_work, ssc_regiseter_lcd_notify_work);
-		schedule_delayed_work(&ssc_cxt->regiseter_lcd_notify_work, msecs_to_jiffies(5000));
+		schedule_delayed_work(&ssc_cxt->regiseter_lcd_notify_work, msecs_to_jiffies(4000));
 #else
 		ssc_cxt->nb.notifier_call = lcdinfo_callback;
 		register_lcdinfo_notifier(&ssc_cxt->nb);

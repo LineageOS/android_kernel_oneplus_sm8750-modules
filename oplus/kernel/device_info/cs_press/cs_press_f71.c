@@ -1034,7 +1034,19 @@ void report_camera_key(void)
         }
         if (g_cs_press.is_physical_tap_down && (((action == ACTION_UP) && (level & BIT_LEVEL_TOUCH))
                     /*|| (!(rbuf[1] & BIT_ACTION_LIFT_PHYSICAL_DOWN) && !(rbuf[0] & BIT_ACTION_PHYSICAL_TOUCHING))*/)) {
-            LOG_INFO("[REPORT_KEY]KEY_PHYSICAL_TAP up\n");
+            if(g_cs_press.is_heavy_tap_down) {
+                LOG_INFO("[REPORT_KEY]KEY_HEAVY_TAP up\n");
+                input_report_key(cs_input_dev, KEY_HEAVY_TAP, 0);
+                input_sync(cs_input_dev);
+                g_cs_press.is_heavy_tap_down = false;
+            }
+            if(g_cs_press.is_light_tap_down) {
+                LOG_INFO("[REPORT_KEY]KEY_LIGHT_TAP up\n");
+                input_report_key(cs_input_dev, KEY_LIGHT_TAP, 0);
+                input_sync(cs_input_dev);
+                g_cs_press.is_light_tap_down = false;
+            }
+	    LOG_INFO("[REPORT_KEY]KEY_PHYSICAL_TAP up\n");
             input_report_key(cs_input_dev, KEY_PHYSICAL_TAP, 0);
             input_sync(cs_input_dev);
             g_cs_press.is_physical_tap_down = false;
@@ -2101,6 +2113,7 @@ int fml_firmware_send_data(unsigned char *data, int len)
     }
 exit_fw_buf:
     msleep(100);
+/*
     cs_press_get_noise_var(g_cs_press.dac_noise_var_boot);
     cs_press_get_offset(g_cs_press.dac_offset_boot, NULL);
 #if defined(CONFIG_OPLUS_FEATURE_FEEDBACK) || defined(CONFIG_OPLUS_FEATURE_FEEDBACK_MODULE)
@@ -2117,6 +2130,7 @@ exit_fw_buf:
     LOG_INFO("%s\n", payload);
     oplus_kevent_fb(PSW_BSP_KEYPAD, CS_PRESS_FB_NOISE_VAR_TYPE, payload);
 #endif
+*/
     LOG_INFO("end\n");
     return ret;
 }
@@ -5693,10 +5707,10 @@ static int cs_proc_health_monitor_show(struct seq_file *m, void *v)
         seq_printf(m, "ch1_noise_var:read error\n");
         seq_printf(m, "ch2_noise_var:read error\n");
     }
-    seq_printf(m, "ch1_offset_boot:%d\n", g_cs_press.dac_offset_boot[0]);
+    /*seq_printf(m, "ch1_offset_boot:%d\n", g_cs_press.dac_offset_boot[0]);
     seq_printf(m, "ch2_offset_boot:%d\n", g_cs_press.dac_offset_boot[1]);
     seq_printf(m, "ch1_noise_var_boot:%d\n", g_cs_press.dac_noise_var_boot[0]);
-    seq_printf(m, "ch2_noise_var_boot:%d\n", g_cs_press.dac_noise_var_boot[1]);
+    seq_printf(m, "ch2_noise_var_boot:%d\n", g_cs_press.dac_noise_var_boot[1]);*/
     seq_printf(m, "tap_force_min:%d\n", g_cs_press.tap_force_min);
     seq_printf(m, "tap_force_max:%d\n", g_cs_press.tap_force_max);
     seq_printf(m, "swipe_force_min:%d\n", g_cs_press.swipe_force_min);

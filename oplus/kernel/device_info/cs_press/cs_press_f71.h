@@ -261,9 +261,10 @@
 
 #define  NAME_MAX_LENS                  256
 
-#ifndef MIN
-#define MIN(A, B) ((A) < (B) ? (A) : (B))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+#undef MIN
 #endif
+#define MIN(A, B) ((A) < (B) ? (A) : (B))
 
 #define DEFAULT_RUN_DELAY_TIME          50
 /*99-1 = 98*/
@@ -384,8 +385,8 @@ struct cs_press_t {
     int wdt_reset_cnt;
     int bus_error_cnt;
     char bus_error_msg[BUS_ERROR_MSG_CNT][BUS_ERROR_MSG_SIZE];
-    int32_t dac_offset_boot[CH_COUNT];
-    int32_t dac_noise_var_boot[CH_COUNT];
+    //int32_t dac_offset_boot[CH_COUNT];
+    //int32_t dac_noise_var_boot[CH_COUNT];
     char fw_update_error;
 
     /* framebuffer callbacks notifier */

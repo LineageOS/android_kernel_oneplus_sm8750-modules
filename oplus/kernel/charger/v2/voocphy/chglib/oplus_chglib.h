@@ -64,6 +64,7 @@ struct hw_vphy_info {
 	void (*vphy_set_bal_curr_limit)(struct device *dev, int curr);
 	int (*vphy_get_frame_head)(struct device *dev, int *head);
 	void (*vphy_set_wired_online)(struct device *dev, int online);
+	bool (*vphy_get_fastchg_commu_ing)(struct device *dev);
 };
 
 struct vphy_chip {
