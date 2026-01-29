@@ -1336,6 +1336,9 @@ static int syna_spi_probe(struct spi_device *spi)
 	struct syna_hw_attn_data *attn = &syna_spi_hw_if.bdata_attn;
 	struct syna_hw_bus_data *bus = &syna_spi_hw_if.bdata_io;
 	struct syna_hw_rst_data *rst = &syna_spi_hw_if.bdata_rst;
+	struct device_node *np = spi->dev.of_node;
+	int cs_setup[2] = {0, 0};
+	int ret = 0;
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	if (spi->master->flags & SPI_MASTER_HALF_DUPLEX) {
@@ -1353,6 +1356,27 @@ static int syna_spi_probe(struct spi_device *spi)
 
 #ifdef CONFIG_OF
 	syna_spi_parse_dt(&syna_spi_hw_if, &spi->dev);
+#endif
+
+	ret = of_property_read_u32_array(np, "spi-cs-setup", cs_setup, 2);
+	if (ret) {
+		LOGE("spi-cs-setup is null\n");
+	} else {
+		spi->cs_setup.value = cs_setup[0];
+		spi->cs_setup.unit = cs_setup[1];
+		LOGI("cs_setup %d %d\n", cs_setup[0], cs_setup[1]);
+	}
+
+#ifdef CONFIG_TOUCHPANEL_MTK_PLATFORM
+#else
+	if (cs_setup[0] == 0) {
+		bus->delay_params.spi_cs_clk_delay = 50;
+	} else {
+		bus->delay_params.spi_cs_clk_delay = cs_setup[0];
+	}
+	bus->delay_params.spi_inter_words_delay = cs_setup[1];
+	spi->controller_data = (void *)&bus->delay_params;
+	LOGI("qcom cs_setup %d %d\n", cs_setup[0], cs_setup[1]);
 #endif
 
 	syna_pal_mutex_alloc(&attn->irq_en_mutex);

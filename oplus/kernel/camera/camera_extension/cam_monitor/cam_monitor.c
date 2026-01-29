@@ -551,14 +551,19 @@ ssize_t extension_dump_item(
 	int32_t len = 0, i = 0;
 	struct tm ts;
 	struct timespec64 timespec;
-	struct debug_state     *dstate;
-	struct debug_clock     *dclk;
-	struct debug_regulator *dreg;
+	struct debug_state     *dstate,*dstate_tem;
+	struct debug_clock     *dclk,*dclk_tem;
+	struct debug_regulator *dreg,*dreg_tem;
 	int64_t state_head     = 0;
 	int32_t num_entries    = 0;
 	int32_t oldest_entry   = 0;
 	struct cam_state_queue_info *state_queue_info = NULL;
 	struct monitor_check	check_result;
+
+	if(g_cam_monitor == NULL)
+	{
+		return 0;
+	}
 
 	switch (item) {
 	case CAM_OPERATION_TYPE_SUMMARY:
@@ -584,7 +589,7 @@ ssize_t extension_dump_item(
 	case CAM_OPERATION_TYPE_STATE:
 		len += scnprintf(buf + len, bufsize - len, "Dump State\n");
 		mutex_lock(&g_cam_monitor->state_list_lock);
-		list_for_each_entry(dstate, &g_cam_monitor->debug_state_list, list) {
+		list_for_each_entry_safe(dstate,dstate_tem, &g_cam_monitor->debug_state_list, list) {
 			len += scnprintf(buf + len, bufsize - len,
 				"  dev_uid:%s, type:%s, use_count:%d\n",
 				dstate->dev_uid,
@@ -597,7 +602,7 @@ ssize_t extension_dump_item(
 	case CAM_OPERATION_TYPE_CLOCK:
 		len += scnprintf(buf + len, bufsize - len, "Dump Clock\n");
 		mutex_lock(&g_cam_monitor->clk_list_lock);
-		list_for_each_entry(dclk, &g_cam_monitor->debug_clk_list, list) {
+		list_for_each_entry_safe(dclk,dclk_tem, &g_cam_monitor->debug_clk_list, list) {
 			len += scnprintf(buf + len, bufsize - len,
 				"  clk:%s use_count:%d\n",
 				dclk->name, dclk->use_count);
@@ -607,7 +612,7 @@ ssize_t extension_dump_item(
 	case CAM_OPERATION_TYPE_REGULATOR:
 		len += scnprintf(buf + len, bufsize - len, "Dump Regulator\n");
 		mutex_lock(&g_cam_monitor->reg_list_lock);
-		list_for_each_entry(dreg, &g_cam_monitor->debug_reg_list, list) {
+		list_for_each_entry_safe(dreg,dreg_tem, &g_cam_monitor->debug_reg_list, list) {
 			len += scnprintf(buf + len, bufsize - len,
 				"  regulator:%s use_count:%d\n",
 				dreg->name, dreg->use_count);
@@ -677,6 +682,11 @@ void update_state_monitor_array(
 	int iterator;
 	struct cam_state_queue_info *state_queue_info = NULL;
 
+	if(g_cam_monitor == NULL)
+	{
+		return;
+	}
+
 	state_queue_info = &g_cam_monitor->state_queue;
 
 	if (!state_queue_info->state_monitor) {
@@ -707,6 +717,10 @@ void update_regulator_monitor_array(
 	int iterator;
 	struct cam_state_queue_info *state_queue_info = NULL;
 
+	if(g_cam_monitor == NULL)
+	{
+		return;
+	}
 
 	state_queue_info = &g_cam_monitor->state_queue;
 
@@ -731,6 +745,10 @@ void update_clock_monitor_array(
 	int iterator;
 	struct cam_state_queue_info *state_queue_info = NULL;
 
+	if(g_cam_monitor == NULL)
+	{
+		return;
+	}
 
 	state_queue_info = &g_cam_monitor->state_queue;
 
@@ -759,6 +777,10 @@ void extension_dump_monitor_print(void)
 	struct timespec64 timespec;
 	struct cam_state_queue_info *state_queue_info = NULL;
 
+	if(g_cam_monitor == NULL)
+	{
+		return;
+	}
 
 	state_queue_info = &g_cam_monitor->state_queue;
 
@@ -804,10 +826,10 @@ void extension_dump_monitor_print(void)
 
 void check_power_exception(struct monitor_check *r)
 {
-	struct debug_state *dstate;
-	struct debug_clock *dclk;
-	struct debug_regulator *dreg;
-	struct cam_subdev  *csd;
+	struct debug_state *dstate,*dstate_tem;
+	struct debug_clock *dclk,*dclk_tem;
+	struct debug_regulator *dreg,*dreg_tem;
+	struct cam_subdev  *csd,*csd_tem;
 	struct cam_sensor_ctrl_t *s_ctrl;
 	int i = 0;
 
@@ -820,8 +842,13 @@ void check_power_exception(struct monitor_check *r)
 	r->count_enabled_regulator	= 0;
 	r->check_pass 			= true;
 
+	if(g_cam_monitor == NULL)
+	{
+		return;
+	}
+
 	mutex_lock(&g_cam_monitor->state_list_lock);
-	list_for_each_entry(dstate, &g_cam_monitor->debug_state_list, list) {
+	list_for_each_entry_safe(dstate,dstate_tem, &g_cam_monitor->debug_state_list, list) {
 		if (dstate->use_count) {
 			r->camera_feature_inuse_mask |= (1 << dstate->type);
 			CAM_EXT_INFO(CAM_EXT_UTIL, "Inuse mask:0x%x dev_uid:%s, type:%d, use_count:%d",
@@ -834,7 +861,7 @@ void check_power_exception(struct monitor_check *r)
 	mutex_unlock(&g_cam_monitor->state_list_lock);
 
 	mutex_lock(&g_cam_monitor->clk_list_lock);
-	list_for_each_entry(dclk, &g_cam_monitor->debug_clk_list, list) {
+	list_for_each_entry_safe(dclk,dclk_tem, &g_cam_monitor->debug_clk_list, list) {
 		if(dclk->use_count) {
 			r->count_inuse_clock ++;
 			CAM_EXT_INFO(CAM_EXT_UTIL, "Exception clk:%s use_count:%d",
@@ -844,7 +871,7 @@ void check_power_exception(struct monitor_check *r)
 	mutex_unlock(&g_cam_monitor->clk_list_lock);
 
 	mutex_lock(&g_cam_monitor->reg_list_lock);
-	list_for_each_entry(dreg, &g_cam_monitor->debug_reg_list, list) {
+	list_for_each_entry_safe(dreg,dreg_tem, &g_cam_monitor->debug_reg_list, list) {
 		if(dreg->use_count) {
 			r->count_inuse_regulator ++;
 			CAM_EXT_INFO(CAM_EXT_UTIL, "Exception regulator:%s use_count:%d",
@@ -853,7 +880,7 @@ void check_power_exception(struct monitor_check *r)
 	}
 	mutex_unlock(&g_cam_monitor->reg_list_lock);
 
-	list_for_each_entry(csd, &cam_req_mgr_ordered_sd_list, list) {
+	list_for_each_entry_safe(csd,csd_tem, &cam_req_mgr_ordered_sd_list, list) {
 		if (csd->ent_function == CAM_SENSOR_DEVICE_TYPE) {
 			s_ctrl = v4l2_get_subdevdata(&csd->sd);
 
@@ -888,11 +915,16 @@ void check_power_exception(struct monitor_check *r)
 
 int set_camera_state(struct debug_state state, bool enable)
 {
-	struct debug_state *dstate;
+	struct debug_state *dstate,*dstate_tem;
+
+	if(g_cam_monitor == NULL)
+	{
+		return 0;
+	}
 
 	if(enable) {
 		mutex_lock(&g_cam_monitor->state_list_lock);
-		list_for_each_entry(dstate, &g_cam_monitor->debug_state_list, list) {
+		list_for_each_entry_safe(dstate,dstate_tem, &g_cam_monitor->debug_state_list, list) {
 			if (!strcmp(dstate->dev_uid, state.dev_uid)) {
 				dstate->use_count++;
 				dstate->type    = state.type;
@@ -936,7 +968,7 @@ int set_camera_state(struct debug_state state, bool enable)
 
 	} else {
 		mutex_lock(&g_cam_monitor->state_list_lock);
-		list_for_each_entry(dstate, &g_cam_monitor->debug_state_list, list) {
+		list_for_each_entry_safe(dstate,dstate_tem, &g_cam_monitor->debug_state_list, list) {
 			if (!strcmp(dstate->dev_uid, state.dev_uid)) {
 				dstate->use_count--;
 				dstate->type    = state.type;
@@ -969,12 +1001,12 @@ update_state_monitor:
 
 int set_camera_clk(struct clk *clk,bool enable)
 {
-	struct debug_clock *dclk;
+	struct debug_clock *dclk,*dclk_tem;
 
 	if(enable)
 	{
 		mutex_lock(&g_cam_monitor->clk_list_lock);
-		list_for_each_entry(dclk, &g_cam_monitor->debug_clk_list, list)
+		list_for_each_entry_safe(dclk,dclk_tem, &g_cam_monitor->debug_clk_list, list)
 		{
 			if(!strcmp(__clk_get_name(clk),dclk->name)){
 				dclk->use_count++;
@@ -1000,7 +1032,7 @@ int set_camera_clk(struct clk *clk,bool enable)
 	else
 	{
 		mutex_lock(&g_cam_monitor->clk_list_lock);
-		list_for_each_entry(dclk, &g_cam_monitor->debug_clk_list, list)
+		list_for_each_entry_safe(dclk,dclk_tem, &g_cam_monitor->debug_clk_list, list)
 		{
 			if(!strcmp(__clk_get_name(clk),dclk->name))
 			{
@@ -1031,12 +1063,17 @@ static const char *rdev_name(struct regulator_dev *rdev)
 
 int set_camera_regulator(struct regulator *rgltr, bool enable)
 {
-	struct debug_regulator *dreg;
+	struct debug_regulator *dreg,*dreg_tem;
+
+	if(g_cam_monitor == NULL)
+	{
+		return 0;
+	}
 
 	if(enable)
 	{
 		mutex_lock(&g_cam_monitor->reg_list_lock);
-		list_for_each_entry(dreg, &g_cam_monitor->debug_reg_list, list)
+		list_for_each_entry_safe(dreg,dreg_tem, &g_cam_monitor->debug_reg_list, list)
 		{
 			if(!strcmp(rdev_name(rgltr->rdev),dreg->name)){
 				dreg->use_count++;
@@ -1063,7 +1100,7 @@ int set_camera_regulator(struct regulator *rgltr, bool enable)
 	else
 	{
 		mutex_lock(&g_cam_monitor->reg_list_lock);
-		list_for_each_entry(dreg, &g_cam_monitor->debug_reg_list, list)
+		list_for_each_entry_safe(dreg,dreg_tem, &g_cam_monitor->debug_reg_list, list)
 		{
 			if(!strcmp(rdev_name(rgltr->rdev),dreg->name))
 			{

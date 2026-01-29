@@ -2561,6 +2561,37 @@ static int fts_enable_game_mode(struct chip_data_ft3683g *ts_data, bool enable)
 	return ret;
 }
 
+static int fts_set_idle_freq_mode(bool enable)
+{
+	int ret = 0;
+	u8 regvalue = 0;
+
+	TPD_INFO("%s: %s IDLE_GAME_GAME.\n", __func__, enable ? "Enter" : "Exit");
+
+	if (enable) {
+		ret = fts_write_reg(FTS_IDLE_FREQ_240, 0x03);
+		if(ret < 0) {
+			TPD_INFO("Failed to set idle 240 game mode config\n");
+			return ret;
+		}
+	} else {
+		ret = fts_write_reg(FTS_IDLE_FREQ_240, 0x06);
+		if(ret < 0) {
+			TPD_INFO("Failed to set idle 120 game mode config\n");
+			return ret;
+		}
+	}
+	ret = fts_read_reg(FTS_IDLE_FREQ_240, &regvalue);
+
+	if(ret < 0) {
+		TPD_INFO("Failed to get idle game mode config\n");
+		return ret;
+	}
+
+	TPD_INFO("IDLE_GAME_GAME, write 0x89 is %d", regvalue);
+	return ret;
+}
+
 static int fts_enable_headset_mode(struct chip_data_ft3683g *ts_data,
                                    bool enable)
 {
@@ -2612,6 +2643,12 @@ static int fts_mode_switch(void *chip_data, work_mode mode, int flag)
 
 	case MODE_SLEEP:
 		TPD_INFO("MODE_SLEEP, write 0xA5=3");
+		if (ts_data->fod_info.fp_down) {
+			TPD_INFO("fingerprint auto up");
+			ts_data->ts->view_area_touched = 0;
+			ts_data->fod_info.event_type = 0;
+			ts_data->fod_info.fp_down = 0;
+		}
 		ret = fts_write_reg(FTS_REG_POWER_MODE, 0x03);
 
 		if (ret < 0) {
@@ -3035,6 +3072,7 @@ static u32 fts_u32_trigger_reason(void *chip_data, int gesture_enable,
 		TPD_INFO("read touch buffer fail");
 		return IRQ_IGNORE;
 	}
+	ts_data->gesture_flag = 0;
 	if (ts_data->ts->palm_to_sleep_enable && !ts_data->ts->is_suspended) {
 		ret = fts_read_reg(FTS_REG_PALM_TO_SLEEP_STATUS, &val);
 		if (ret < 0) {
@@ -3738,11 +3776,21 @@ static int fts_get_gesture_info(void *chip_data, struct gesture_info *gesture)
 		gesture->gesture_type = UNKOWN_GESTURE;
 		break;
 	case GESTURE_SINGLE_TAP:
-		gesture->gesture_type = SINGLE_TAP;
+		if ((!ts_data->differ_read_every_frame) || ts_data->gesture_flag == 0) {
+			ts_data->gesture_flag = 1;
+			gesture->gesture_type = SINGLE_TAP;
+		} else {
+			TPD_INFO("gesture_flag = 1, gesture irq ignore.\n");
+			gesture->gesture_type = UNKOWN_GESTURE;
+		}
 		break;
 
 	default:
 		gesture->gesture_type = UNKOWN_GESTURE;
+	}
+
+	if (gesture_id != GESTURE_SINGLE_TAP) {
+		ts_data->gesture_flag = 0;
 	}
 
 	if (gesture->gesture_type == SINGLE_TAP || gesture->gesture_type == DOU_TAP) {
@@ -3991,6 +4039,29 @@ static int fts_sensitive_lv_set(void *chip_data, int level)
 	}
 
 	return 0;
+}
+
+static int fts_click_sensitive_lv_set(void *chip_data, int level)
+{
+	int ret = 0;
+	u8 regval = 0;
+
+	TPD_INFO("%s:click_sensitive_lv_set to %d", __func__, level);
+
+	ret = fts_write_reg(FTS_REG_CLICK_SENSITIVE, level);
+	if (ret < 0) {
+		TPD_INFO("write FTS_REG_CLICK_SENSITIVE fail");
+		return ret;
+	}
+
+	ret = fts_read_reg(FTS_REG_CLICK_SENSITIVE, &regval);
+	if(ret < 0) {
+		TPD_INFO("Failed to get click_sensitive_lv config\n");
+		return ret;
+	}
+	TPD_INFO("%s: now click_sensitive_lv_set =0x%x", __func__, regval);
+
+	return ret;
 }
 
 static int fts_set_high_frame_rate(void *chip_data, int level, int time)
@@ -4439,6 +4510,7 @@ static struct oplus_touchpanel_operations fts_ops = {
 	.tp_refresh_switch          = fts_refresh_switch,
 	.smooth_lv_set              = fts_smooth_lv_set,
 	.sensitive_lv_set           = fts_sensitive_lv_set,
+	.click_sensitive_lv_set     = fts_click_sensitive_lv_set,
 	.enable_gesture_mask        = fts_enable_gesture_mask,
 	.set_gesture_state          = fts_set_gesture_state,
 	.send_temperature           = fts_send_temperature,
@@ -4452,6 +4524,7 @@ static struct oplus_touchpanel_operations fts_ops = {
 	.get_water_mode            = fts_get_water_mode,
 	.get_glove_mode            = fts_get_glove_mode,
 	.aiunit_game_info          = fts_aiunit_game_info,
+	.set_idle_freq_mode        = fts_set_idle_freq_mode,
 };
 
 static struct focal_auto_test_operations ft3683g_test_ops = {

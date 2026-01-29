@@ -658,7 +658,11 @@ static void aw8693xs_play_mode(struct aw_haptic *aw_haptic, uint8_t play_mode)
 		i2c_w_bits(aw_haptic, AW8693XS_REG_PLAYCFG3,
 					 AW8693XS_BIT_PLAYCFG3_PLAY_MODE_MASK,
 					 AW8693XS_BIT_PLAYCFG3_PLAY_MODE_RAM);
+#ifndef OPLUS_FEATURE_CHG_BASIC
 		aw8693xs_auto_brake_mode(aw_haptic, false);
+#else
+		aw8693xs_auto_brake_mode(aw_haptic, true);
+#endif
 		aw8693xs_bst_mode_config(aw_haptic, AW_BST_BOOST_MODE);
 		aw8693xs_vbat_mode_config(aw_haptic, AW_CONT_VBAT_SW_COMP_MODE);
 		break;
@@ -922,6 +926,33 @@ static void aw8693xs_trig1_param_config(struct aw_haptic *aw_haptic)
 
 	i2c_w_bytes(aw_haptic, AW8693XS_REG_TRGCFG4, &trig_config, AW_I2C_BYTE_ONE);
 }
+
+#ifdef OPLUS_FEATURE_CHG_BASIC
+static void aw8693xs_set_trig_brake(struct aw_haptic *aw_haptic, bool enable)
+{
+	uint8_t trig_config;
+
+	if (!aw_haptic)
+		return;
+
+	/* don't enable trig brake if it is disabled in devicetree */
+	if (aw_haptic->info.trig_cfg[6] == 0)
+		return;
+
+	if (aw_haptic->trig[0].trig_brk == enable)
+		return;
+
+	aw_dev_info("%s: trig1 auto brake: %d\n", __func__, enable);
+	aw_haptic->trig[0].trig_brk = enable ? 1 : 0;
+
+	if (aw_haptic->trig[0].trig_brk)
+		trig_config = AW8693XS_BIT_TRGCFG7_TRG1_AUTO_BRK_ENABLE;
+	else
+		trig_config = AW8693XS_BIT_TRGCFG7_TRG1_AUTO_BRK_DISABLE;
+	i2c_w_bits(aw_haptic, AW8693XS_REG_TRGCFG7,
+				AW8693XS_BIT_TRGCFG7_TRG1_AUTO_BRK_MASK, trig_config);
+}
+#endif
 
 static void aw8693xs_trig2_param_config(struct aw_haptic *aw_haptic)
 {
@@ -2101,6 +2132,9 @@ static void aw8693xs_parse_dt(struct device *dev, struct aw_haptic *aw_haptic,
 			aw_dev_info("aw8693xs vmax_map gain: 0x%x gain: 0x%x", vmax_map[i].gain, gain[i]);
 		}
 	}
+	aw_haptic->disable_trig_brake_by_wireless = of_property_read_bool(np,
+					 "disable_trig_brake_by_wireless");
+	aw_dev_info("disable_trig_brake_by_wireless = %d", aw_haptic->disable_trig_brake_by_wireless);
 #endif
 }
 
@@ -2854,5 +2888,6 @@ struct aw_haptic_func aw8693xs_func_list = {
 	.get_chip_state = aw8693xs_get_chip_state,
 	.convert_level_to_vmax = aw8693xs_convert_level_to_vmax,
 	.dump_rtp_regs = aw8693xs_dump_rtp_regs,
+	.set_trig_brake = aw8693xs_set_trig_brake,
 #endif
 };

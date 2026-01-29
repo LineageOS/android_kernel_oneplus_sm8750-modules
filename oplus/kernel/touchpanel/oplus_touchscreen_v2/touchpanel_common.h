@@ -139,6 +139,7 @@
 
 #define SMOOTH_LEVEL_NUM            6
 #define SENSITIVE_LEVEL_NUM         6
+#define CLICK_SENSITIVE_LEVEL_NUM   6
 
 #define PINCTRL_STATE_SPI_ACTIVE    "oplus_spi_active"
 #define PINCTRL_STATE_INT_ACTIVE    "oplus_int_active"
@@ -891,6 +892,7 @@ struct monitor_data {
 
 	u32 smooth_level_chosen;
 	u32 sensitive_level_chosen;
+	u32 click_sensitive_level_chosen;
 	int RATE_MIN;
 	int below_rate_counts;
 	tp_rate tp_rate_type;
@@ -1361,14 +1363,18 @@ struct touchpanel_data {
 	/******For smooth sensitive area********/
 	bool smooth_level_array_support;
 	bool sensitive_level_array_support;
+	bool click_sensitive_level_array_support;
 	u32 smooth_level_array[SMOOTH_LEVEL_NUM];
 	u32 smooth_level_charging_array[SMOOTH_LEVEL_NUM];
 	u32 sensitive_level_array[SENSITIVE_LEVEL_NUM];
 	u32 sensitive_level_charging_array[SENSITIVE_LEVEL_NUM];
+	u32 click_sensitive_level_array[CLICK_SENSITIVE_LEVEL_NUM];
 	u32 *smooth_level_used_array;
 	u32 *sensitive_level_used_array;
+	u32 *click_sensitive_level_used_array;
 	u32 smooth_level_chosen;
 	u32 sensitive_level_chosen;
+	u32 click_sensitive_level_chosen;
 	u32 smooth_level_default;
 	u32 sensitive_level_default;
 
@@ -1503,6 +1509,7 @@ struct oplus_touchpanel_operations {
 	int (*smooth_lv_set)(void *chip_data, int level);
 	int (*sensitive_lv_set)(void *chip_data, int level);
 	int (*pen_sensitive_lv_set)(void *chip_data, int level);
+	int (*click_sensitive_lv_set)(void *chip_data, int level);
 	int (*touch_leave_jitter_set)(void *chip_data, int level);
 	int (*set_package_type)(void *chip_data, int level);
 	int (*diaphragm_touch_lv_set)(void *chip_data, int level);
@@ -1536,6 +1543,7 @@ struct oplus_touchpanel_operations {
 	int (*pen_downlink_msg)(void *chip_data, u32 cmd, u32 buf_len, u8 *buf);
 	int (*communicate_test)(void *chip_data);
 	void (*aiunit_game_info)(void *chip_data);
+	int (*set_idle_freq_mode)(bool enable);
 };
 
 struct aging_test_proc_operations {

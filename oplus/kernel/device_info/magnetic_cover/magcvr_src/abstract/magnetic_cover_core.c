@@ -58,6 +58,20 @@ int fault_injection_handle(struct magnetic_cover_info *magcvr_info, int opt)
 EXPORT_SYMBOL(fault_injection_handle);
 // fault injection end
 
+static enum hrtimer_restart magcvr_check_hrtimer(struct hrtimer *timer)
+{
+	struct magnetic_cover_info *magcvr_info = container_of(timer, struct magnetic_cover_info, check_hrtimer);
+	if (magcvr_info == NULL) {
+		MAG_CVR_ERR("g_magcvr_info NULL \n");
+		return HRTIMER_NORESTART;
+	}
+
+	MAG_CVR_LOG("timer is detect!!! and enable irq\n");
+	enable_irq(magcvr_info->irq);
+
+	return HRTIMER_NORESTART;
+}
+
 static int magnetic_cover_get_data(struct magnetic_cover_info *magcvr_info)
 {
 	int ret = 0;
@@ -97,6 +111,38 @@ static int magnetic_cover_get_data(struct magnetic_cover_info *magcvr_info)
 	return magcvr_info->m_value;
 }
 
+static int magnetic_cover_get_data_debounce(struct magnetic_cover_info *magcvr_info)
+{
+	int ret = -1;
+
+	if (magcvr_info == NULL) {
+		MAG_CVR_ERR("g_magcvr_info NULL \n");
+		return -EINVAL;
+	}
+	magcvr_info->timer_check = 0;
+	magcvr_info->cur_timer = ktime_to_ms(ktime_get());
+
+	magcvr_info->timer_check = magcvr_info->cur_timer - magcvr_info->last_timer;
+
+	if (magcvr_info->timer_check < magcvr_info->debounce_time) {
+		MAG_CVR_LOG("timer_check:%llu < debounce_time:%llu, not to report (last_timer:%llu cur_timer:%llu)\n",
+			magcvr_info->timer_check, magcvr_info->debounce_time, magcvr_info->last_timer, magcvr_info->cur_timer);
+		magcvr_info->debounce_cnt++;
+	} else {
+		magcvr_info->debounce_cnt = 0;
+		ret = magnetic_cover_get_data(magcvr_info);
+	}
+
+	magcvr_info->last_timer = magcvr_info->cur_timer;
+
+	if (magcvr_info->debounce_cnt >= magcvr_info->max_debounce_cnt) {
+		MAG_CVR_LOG("too many cnt++!!! (%llu) disable irq and start timer\n", magcvr_info->debounce_cnt);
+		disable_irq(magcvr_info->irq);
+		hrtimer_start(&magcvr_info->check_hrtimer, magcvr_info->check_time, HRTIMER_MODE_REL);
+	}
+
+	return ret;
+}
 // proc control for :: proc_magcvr_offset_read
 static int proc_magcvr_farmax_th_read(struct seq_file *s, void *v)
 {
@@ -201,13 +247,18 @@ static ssize_t proc_distance_calib_write(struct file *file, const char __user *b
 	struct magnetic_cover_info *magcvr_info = PDE_DATA(file_inode(file));
 
 	int data = 0;
-	char temp[128] = {0};
+	char temp[INPUT_BUF_SIZE] = {0};
 	int ret = -1;
 	int i = 0;
 
 	MAG_CVR_LOG("call.\n");
 	if (!magcvr_info) {
 		MAG_CVR_ERR("g_magcvr_info null\n");
+		return count;
+	}
+
+	if (count > INPUT_BUF_SIZE) {
+		MAG_CVR_ERR("input too long(max %d bytes),count=%zu\n", INPUT_BUF_SIZE, count);
 		return count;
 	}
 
@@ -257,6 +308,7 @@ static ssize_t proc_cur_state_read(struct file *file, char __user *user_buf,
 		snprintf(page, 6, "%d\n", -1);
 		return ret;
 	} else {
+		magcvr_index = magcvr_info->magcvr_index;
 		MAG_CVR_DEBUG("call");
 		value = magnetic_cover_get_data(magcvr_info);
 		snprintf(page, 6, "%d\n", value);
@@ -334,7 +386,7 @@ static ssize_t proc_magcvr_healthinfo_write(struct file *file, const char __user
 	struct magnetic_cover_info *magcvr_info = PDE_DATA(file_inode(file));
 
 	int data = 0;
-	char temp[128] = {0};
+	char temp[INPUT_BUF_SIZE] = {0};
 	char *token = NULL;
 	char *running = NULL;
 	int ret = 0;
@@ -342,6 +394,11 @@ static ssize_t proc_magcvr_healthinfo_write(struct file *file, const char __user
 	MAG_CVR_LOG("call.\n");
 	if (!magcvr_info) {
 		MAG_CVR_ERR("g_magcvr_info null\n");
+		return count;
+	}
+
+	if (count > INPUT_BUF_SIZE) {
+		MAG_CVR_ERR("input too long(max %d bytes),count=%zu\n", INPUT_BUF_SIZE, count);
 		return count;
 	}
 
@@ -370,12 +427,97 @@ static ssize_t proc_magcvr_healthinfo_write(struct file *file, const char __user
 
 	return count;
 }
+
+static int proc_magcvr_hrtimer_read(struct seq_file *s, void *v)
+{
+	struct magnetic_cover_info *magcvr_info = s->private;
+	int ret = 0;
+	MAG_CVR_LOG("call");
+
+	if (!magcvr_info) {
+		MAG_CVR_ERR("magcvr_info null\n");
+		seq_printf(s, "-1\n");
+		return ret;
+	}
+	seq_printf(s, "%s:%lld\n", DEBOUNCE_TIME_NAME, magcvr_info->debounce_time);
+	seq_printf(s, "%s:%lld\n", MAX_DEBOUNCE_CNT_NAME, magcvr_info->max_debounce_cnt);
+	seq_printf(s, "%s:%lld\n", DEBOUNCE_TIME_S_NAME, magcvr_info->check_hrtimer_s);
+	seq_printf(s, "%s:%lld\n", DEBOUNCE_TIME_MS_NAME, magcvr_info->check_hrtimer_ms);
+
+	return ret;
+}
+
+static ssize_t proc_magcvr_hrtimer_write(struct file *file, const char __user *buffer,
+			size_t count, loff_t *ppos)
+{
+	struct magnetic_cover_info *magcvr_info = PDE_DATA(file_inode(file));
+	char temp[INPUT_BUF_SIZE] = {0};
+	int ret;
+	char *key = NULL;
+	char *value_str = NULL;
+	char *running = NULL;
+	uint32_t value = 0;
+
+	MAG_CVR_LOG("call.\n");
+	if (!magcvr_info) {
+		MAG_CVR_ERR("g_magcvr_info null\n");
+		return count;
+	}
+
+	if (count > INPUT_BUF_SIZE) {
+		MAG_CVR_ERR("input too long(max %d bytes),count=%zu\n", INPUT_BUF_SIZE, count);
+		return count;
+	}
+
+	ret = copy_from_user(temp, buffer, count);
+	if (ret) {
+		MAG_CVR_ERR("read proc input error.\n");
+		return count;
+	}
+	temp[count-1] = '\0';
+	running = temp;
+	key = strsep(&running, CHECK_SEPARATOR);
+	if (!key) {
+		MAG_CVR_ERR("Invalid format (need key:value)\n");
+		return count;
+	}
+	value_str = strsep(&running, CHECK_SEPARATOR);
+	if (!value_str) {
+		MAG_CVR_ERR("Missing value (format: key:value)\n");
+		return count;
+	}
+	ret = kstrtou32(value_str, 10, &value);
+	if (ret) {
+		MAG_CVR_ERR("Invalid value '%s' (must be number)\n", value_str);
+		return count;
+	}
+
+	if (strcmp(key, DEBOUNCE_TIME_NAME) == 0) {
+		magcvr_info->debounce_time = value;
+		MAG_CVR_LOG("Updated %s to %u\n", DEBOUNCE_TIME_NAME, value);
+	} else if (strcmp(key, MAX_DEBOUNCE_CNT_NAME) == 0) {
+		magcvr_info->max_debounce_cnt = value;
+		MAG_CVR_LOG("Updated %s to %u\n", MAX_DEBOUNCE_CNT_NAME, value);
+	} else if (strcmp(key, DEBOUNCE_TIME_S_NAME) == 0) {
+		magcvr_info->check_hrtimer_s = value;
+		MAG_CVR_LOG("Updated %s to %u\n", DEBOUNCE_TIME_S_NAME, value);
+	} else if (strcmp(key, DEBOUNCE_TIME_MS_NAME) == 0) {
+		magcvr_info->check_hrtimer_ms = value;
+		MAG_CVR_LOG("Updated %s to %u\n", DEBOUNCE_TIME_MS_NAME, value);
+	} else {
+		MAG_CVR_ERR("Unknown key '%s' (support: debounce_irq/debounce_cnt/debounce_timer_s/debounce_timer_ms)\n", key);
+		return count;
+	}
+	return count;
+}
 // proc end
 
 static int magcvr_parse_dts(struct device *dev,
                             struct magnetic_cover_info *magcvr_info)
 {
 	int val = 0;
+	const char *name = NULL;
+	u32 check_hrtimer_parse[CHECK_HRTIMER_PARAMS];
 	int rc = 0;
 	struct device_node *m_node = NULL;
 
@@ -388,6 +530,68 @@ static int magcvr_parse_dts(struct device *dev,
 
 	m_node = dev->of_node;
 	// get hardware init parameter
+
+	rc = of_property_read_u32_array(m_node,
+					"check_hrtimer_params",
+					check_hrtimer_parse,
+					CHECK_HRTIMER_PARAMS);
+	if (rc) {
+		MAG_CVR_ERR("use check_hrtimer_params default.\n");
+		magcvr_info->debounce_time = DEBOUNCE_TIME;
+		magcvr_info->max_debounce_cnt = MAX_DEBOUNCE_CNT;
+		magcvr_info->check_hrtimer_ms = MAGCVR_CHECK_HRTIMER_MS;
+		magcvr_info->check_hrtimer_s = MAGCVR_CHECK_HRTIMER_S;
+		magcvr_info->magcvr_debounce_irq_support = false;
+	} else {
+		magcvr_info->debounce_time = check_hrtimer_parse[0];
+		magcvr_info->max_debounce_cnt = check_hrtimer_parse[1];
+		magcvr_info->check_hrtimer_ms = check_hrtimer_parse[2];
+		magcvr_info->check_hrtimer_s = check_hrtimer_parse[3];
+		magcvr_info->magcvr_debounce_irq_support = true;
+	}
+
+	rc = of_property_read_u32(m_node, "is_gpio_mode", &val);
+	if (rc) {
+		MAG_CVR_ERR("use is_gpio_mode default.\n");
+		magcvr_info->is_gpio_mode = false;
+	} else {
+		magcvr_info->is_gpio_mode = (val != 0);
+	}
+
+	rc = of_property_read_u32(m_node, "magcvr_index", &val);
+	if (rc) {
+		MAG_CVR_ERR("use distance_calib default.\n");
+		magcvr_info->magcvr_index = M_INDEX;
+	} else {
+		magcvr_info->magcvr_index = val;
+		magcvr_index = magcvr_info->magcvr_index;
+	}
+
+	rc = of_property_read_string(m_node, "pen_name", &name);
+	if (rc) {
+		MAG_CVR_ERR("use pen_name default.\n");
+		magcvr_info->pen_name = NULL;
+	} else {
+		magcvr_info->pen_name = name;
+	}
+	rc = of_property_read_u32(m_node, "linux,near-code", &val);
+	if (rc) {
+		MAG_CVR_ERR("use near key code default. \n");
+		magcvr_info->near_key_code = 0;
+	} else {
+		magcvr_info->near_key_code = val;
+	}
+
+	rc = of_property_read_u32(m_node, "linux,far-code", &val);
+	if (rc) {
+		MAG_CVR_ERR("use far key code default. \n");
+		magcvr_info->far_key_code = 0;
+	} else {
+		magcvr_info->far_key_code = val;
+	}
+
+	MAG_CVR_LOG("magcvr_index is %d\n", magcvr_info->magcvr_index);
+
 	rc = of_property_read_u32(m_node, "magcvr_detect_step", &val);
 	if (rc) {
 		MAG_CVR_ERR("use distance_calib default.\n");
@@ -519,6 +723,34 @@ static int magcvr_parse_dts(struct device *dev,
 	return 0;
 }
 
+static void report_key_value(struct magnetic_cover_info *magcvr_info, int key)
+{
+	if (magcvr_info == NULL) {
+		MAG_CVR_ERR("g_magcvr_info NULL \n");
+		return;
+	}
+
+	if (magcvr_info->input_dev == NULL) {
+		MAG_CVR_ERR("input dev NULL\n");
+		return;
+	}
+
+	MAG_CVR_LOG("call. key[%d]\n", key);
+	if (key == MAGNETIC_COVER_INPUT_NEAR) {
+		input_report_key(magcvr_info->input_dev, magcvr_info->near_key_code, 1);
+		input_sync(magcvr_info->input_dev);
+		input_report_key(magcvr_info->input_dev, magcvr_info->near_key_code, 0);
+		input_sync(magcvr_info->input_dev);
+	}
+
+	if (key == MAGNETIC_COVER_INPUT_FAR) {
+		input_report_key(magcvr_info->input_dev, magcvr_info->far_key_code, 1);
+		input_sync(magcvr_info->input_dev);
+		input_report_key(magcvr_info->input_dev, magcvr_info->far_key_code, 0);
+		input_sync(magcvr_info->input_dev);
+	}
+}
+
 static void magcvr_handle_work(struct work_struct *work)
 {
 	struct magnetic_cover_info *magcvr_info = container_of(work,
@@ -534,11 +766,21 @@ static void magcvr_handle_work(struct work_struct *work)
 	}
 
 	mutex_lock(&magcvr_info->mutex);
-	ret = magnetic_cover_get_data(magcvr_info);
+	if (magcvr_info->magcvr_debounce_irq_support) {
+		ret = magnetic_cover_get_data_debounce(magcvr_info);
+	} else {
+		ret = magnetic_cover_get_data(magcvr_info);
+	}
+
+	if (ret < 0 && magcvr_info->magcvr_debounce_irq_support) {
+		MAG_CVR_ERR("data err or data invaild!!\n");
+		goto OUT;
+	}
+
 	ret = magcvr_set_position(magcvr_info);
 	ret = magcvr_set_threshold(magcvr_info);
+OUT:
 	mutex_unlock(&magcvr_info->mutex);
-
 	MAG_CVR_LOG("work end\n");
 	return;
 }
@@ -556,6 +798,11 @@ static int proc_magcvr_farmax_th_open(struct inode *inode, struct file *file)
 static int proc_magcvr_healthinfo_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, proc_magcvr_healthinfo_read, PDE_DATA(inode));
+}
+
+static int proc_magcvr_hrtimer_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, proc_magcvr_hrtimer_read, PDE_DATA(inode));
 }
 
 DECLARE_PROC_OPS(proc_magcvr_config_ops,
@@ -587,12 +834,19 @@ DECLARE_PROC_OPS(proc_magcvr_cali_ops,
     proc_magcvr_cali_read,
     NULL,
     NULL);
-
+DECLARE_PROC_OPS(proc_magcvr_hrtimer_ops,
+	proc_magcvr_hrtimer_open,
+	seq_read,
+	proc_magcvr_hrtimer_write,
+	NULL);
 int interface_for_proc_init(struct magnetic_cover_info *magcvr_info)
 {
 	struct proc_dir_entry *prEntry_magcvr     = NULL;
 	char magcvr_name[MAGCVR_NAME_SIZE_MAX];
 	int i = 0;
+	size_t current_len = 0;
+	size_t remaining = 0;
+	bool is_i2c_chip = false;
 
 	magcvr_proc_node magcvr_proc_node[] = {
         {
@@ -638,10 +892,33 @@ int interface_for_proc_init(struct magnetic_cover_info *magcvr_info)
             false,
             true
         },
+		{
+			"magcvr_hrtimer_params",
+			CHMOD,
+			NULL,
+			&proc_magcvr_hrtimer_ops,
+			magcvr_info,
+			false,
+			true,
+		},
 	};
+
+	if (magcvr_info->iic_client && magcvr_info->mc_ops->chip_init) {
+		is_i2c_chip = true;
+	}
 
 	// proc/magnetic_cover start
 	snprintf(magcvr_name, MAGCVR_NAME_SIZE_MAX, "%s", PROC_MAGCVR);
+	if (magcvr_info->magcvr_index) {
+		if (magcvr_info->pen_name == NULL) {
+			MAG_CVR_LOG("pen_name==NULL,do not start proc\n");
+			return 0;
+		}
+		current_len = strlen(magcvr_name);
+		remaining = MAGCVR_NAME_SIZE_MAX - current_len;
+		snprintf(magcvr_name + current_len, remaining, "_%s", magcvr_info->pen_name);
+	}
+
 	MAG_CVR_DEBUG("create [/proc/%s] start\n", magcvr_name);
 	prEntry_magcvr = proc_mkdir(magcvr_name, NULL);
 	if (prEntry_magcvr == NULL) {
@@ -678,15 +955,14 @@ int interface_for_proc_init(struct magnetic_cover_info *magcvr_info)
 static irqreturn_t magnetic_cover_irq_handler(int irq, void *dev_id)
 {
 	struct magnetic_cover_info *magcvr_info = (struct magnetic_cover_info *)dev_id;
-
 	if (magcvr_info == NULL) {
 		MAG_CVR_ERR(" magcvr_info==NULL,do not start work\n");
 		return IRQ_NONE;
 	}
 
+	magcvr_index = magcvr_info->magcvr_index;
 	schedule_work(&magcvr_info->magcvr_handle_wq);
 	MAG_CVR_LOG("call [irq:%d]value:%d\n", irq, magcvr_info->m_value);
-
 	return IRQ_HANDLED;
 }
 
@@ -704,8 +980,8 @@ static int interface_for_input_init(struct magnetic_cover_info *magcvr_info)
 
 	set_bit(EV_SYN, magcvr_info->input_dev->evbit);
 	set_bit(EV_KEY, magcvr_info->input_dev->evbit);
-	set_bit(KEY_F6, magcvr_info->input_dev->keybit);
-	set_bit(KEY_F7, magcvr_info->input_dev->keybit);
+	set_bit(magcvr_info->far_key_code, magcvr_info->input_dev->keybit);
+	set_bit(magcvr_info->near_key_code, magcvr_info->input_dev->keybit);
 	ret = input_register_device(magcvr_info->input_dev);
 	if (ret) {
 		MAG_CVR_ERR("Failed to register input device\n");
@@ -782,6 +1058,19 @@ int magcvr_set_threshold(struct magnetic_cover_info *magcvr_info)
 	return ret;
 }
 
+static int magcvr_init_timer(struct magnetic_cover_info *magcvr_info)
+{
+	if (magcvr_info->magcvr_debounce_irq_support == false) {
+		MAG_CVR_LOG("not support timer\n");
+		return 0;
+	}
+	hrtimer_init(&magcvr_info->check_hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	magcvr_info->check_time = ktime_set(magcvr_info->check_hrtimer_s, magcvr_info->check_hrtimer_ms * MS_TO_NS);
+	magcvr_info->check_hrtimer.function = magcvr_check_hrtimer;
+	MAG_CVR_LOG("%s:check_hrtimer_s:%llu check_hrtimer_ms:%llu\n", __func__, magcvr_info->check_hrtimer_s, magcvr_info->check_hrtimer_ms);
+	return 0;
+}
+
 static int magcvr_update_first_position(struct magnetic_cover_info *magcvr_info)
 {
 	int ret = 0;
@@ -848,7 +1137,7 @@ int magcvr_set_position(struct magnetic_cover_info *magcvr_info)
 	}
 
 	if (magcvr_info->m_value >=0 &&
-        (magcvr_info->magcvr_pos_or_neg == M_POSITIVE | magcvr_info->magcvr_pos_or_neg == M_BILATERAL)) {
+		(magcvr_info->magcvr_pos_or_neg == M_POSITIVE | magcvr_info->magcvr_pos_or_neg == M_BILATERAL)) {
 		if (magcvr_info->m_value > magcvr_info->far_threshold) {
 			magcvr_info->position = MAGNETIC_COVER_INPUT_NEAR;
 			MAG_CVR_LOG("[POS]-->NEAR\n");
@@ -862,7 +1151,7 @@ int magcvr_set_position(struct magnetic_cover_info *magcvr_info)
 			MAG_CVR_LOG("[POS]-->FAR\n");
 		}
 	} else if (magcvr_info->m_value < 0 &&
-        (magcvr_info->magcvr_pos_or_neg == M_NEGATIVE | magcvr_info->magcvr_pos_or_neg == M_BILATERAL)) {
+		(magcvr_info->magcvr_pos_or_neg == M_NEGATIVE | magcvr_info->magcvr_pos_or_neg == M_BILATERAL)) {
 		if (magcvr_info->m_value < magcvr_info->negative_far_threshold) {
 			magcvr_info->position = MAGNETIC_COVER_INPUT_NEAR;
 			MAG_CVR_LOG("[NEG]-->NEAR\n");
@@ -886,11 +1175,18 @@ int magcvr_set_position(struct magnetic_cover_info *magcvr_info)
 		return ret;
 	}
 
+	if((!!magcvr_info->near_key_code) && (!!magcvr_info->far_key_code)) {
+		report_key_value(magcvr_info, magcvr_info->position);
+		goto OUT;
+	}
+
 	if (!magcvr_info->magcvr_notify_support) {
 #if IS_ENABLED(CONFIG_OPLUS_MAGCVR_NOTIFY)
 		mag_call_notifier(magcvr_info->position);
 #endif
 	}
+
+OUT:
 	return ret;
 }
 
@@ -919,6 +1215,11 @@ static int magcvr_init_something(struct magnetic_cover_info *magcvr_info)
 	magcvr_info->iic_read_fail = 0;
 	magcvr_info->iic_write_fail = 0;
 	magcvr_info->detect_offset = 0;
+
+	// debounce init
+	magcvr_info->cur_timer = 0;
+	magcvr_info->last_timer = 0;
+	magcvr_info->timer_check = 0;
 
 	for (i = 0; i < ERR_MAG_REG_MAX_CNT; i++)
 		magcvr_info->reg_err[i] = 0;
@@ -1167,7 +1468,6 @@ int magcvr_core_init(struct magnetic_cover_info *magcvr_data)
 		MAG_CVR_DEBUG("magcvr_init_other success\n");
 	}
 
-
 	ret = magcvr_parse_dts(magcvr_info->magcvr_dev, magcvr_info);
 	if (ret < 0) {
 		MAG_CVR_ERR("magcvr_parse_dts err!!\n");
@@ -1227,6 +1527,14 @@ int magcvr_core_init(struct magnetic_cover_info *magcvr_data)
 		goto FAIL;
 	} else {
 		MAG_CVR_DEBUG("magcvr_init_threshold success\n");
+	}
+
+	ret = magcvr_init_timer(magcvr_info);
+	if (ret < 0) {
+		MAG_CVR_ERR("magcvr_init_timer err!!\n");
+		goto FAIL;
+	} else {
+		MAG_CVR_DEBUG("magcvr_init_timer success\n");
 	}
 
 	magcvr_info->driver_start = false;

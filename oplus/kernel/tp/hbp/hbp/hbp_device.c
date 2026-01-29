@@ -42,6 +42,8 @@
 #define HBP_IOCTRL_SPI_GET_PARA            _IO(HBP_IOCTRL_GROUP, 0x17)
 #define HBP_IOCTRL_SYNC_INPUT_TIME         _IO(HBP_IOCTRL_GROUP, 0x18)
 #define HBP_IOCTRL_UPDATE_FILM_INFO        _IO(HBP_IOCTRL_GROUP, 0x19)
+#define HBP_IOCTRL_GET_HEALTH_INFO         _IO(HBP_IOCTRL_GROUP, 0x1A)
+#define HBP_IOCTRL_SET_HEALTH_INFO         _IO(HBP_IOCTRL_GROUP, 0x1B)
 
 #define HBP_IOCTRL_PEN_STATUS              _IO(HBP_IOCTRL_GROUP, 0x21)
 /*fpGripStatus*/
@@ -360,6 +362,8 @@ struct hbp_device *hbp_device_create(void *priv,
 	init_waitqueue_head(&hbp_dev->drv_event);
 
 	hbp_queue_init(&hbp_dev->frame_queue);
+
+	hbp_healthinfo_init(&hbp_dev->monitor_data);
 
 	ret = hbp_device_dt_parse(hbp, hbp_dev);
 	if (ret < 0) {
@@ -1135,6 +1139,22 @@ static long hbp_ctrl_unlocked_ioctl(struct file *filp, unsigned int cmd, unsigne
 		if (ret < 0) {
 			hbp_err("failed to write");
 			return ret;
+		}
+		break;
+	case HBP_IOCTRL_GET_HEALTH_INFO:
+		ret = hbp_healthinfo_read(usr.health_info.info, usr.health_info.info_size, &hbp_dev->monitor_data);
+		if (ret < 0) {
+			hbp_err("failed to get health info");
+			return -EFAULT;
+		}
+		break;
+	case HBP_IOCTRL_SET_HEALTH_INFO:
+		if (!usr.val) {
+			ret = hbp_healthinfo_clear(&hbp_dev->monitor_data);
+			if (ret < 0) {
+				hbp_err("failed to clear health info");
+				return -EFAULT;
+			}
 		}
 		break;
 	case HBP_IOCTRL_PEN_STATUS:

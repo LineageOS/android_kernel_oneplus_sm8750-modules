@@ -22,6 +22,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/init.h>
 #include <linux/hrtimer.h>
+#include <linux/timer.h>
 #include <linux/version.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -30,6 +31,7 @@
 #include <linux/input/mt.h>
 #include <linux/string.h>
 #include <linux/platform_device.h>
+#include <linux/ktime.h>
 
 #if IS_ENABLED(CONFIG_OPLUS_MAGCVR_NOTIFY)
 #include "magtransfer/magcvr_notify.h"
@@ -67,23 +69,26 @@ module_param(v_adjust, int, 0644);
 #define VIO_MAX_UV     (3600000)
 #define VIO_DEFAULT_UV (1800000)
 
-#define MAG_CVR_TAG         "[magnetic_cover]"
-#define MAG_CVR_DEBUG_TAG   "[magnetic_cover debug]"
+#define MAG_CVR_TAG         "magnetic_cover"
+#define MAG_CVR_DEBUG_TAG   "magnetic_cover debug"
+
+#define INPUT_BUF_SIZE       32
 
 // #define MAGCVR_LOG_DEBUG_ON 1
 bool debug_enable = 0;
+int  magcvr_index = 0;
 
 #define MAG_CVR_DEBUG(fmt, args...)\
 	do{\
 		if (debug_enable) \
-		pr_err(MAG_CVR_DEBUG_TAG"[%s]DEBUG->"fmt, __func__, ##args);\
+		pr_err("[%s_%d][%s]DEBUG->"fmt, MAG_CVR_DEBUG_TAG, magcvr_index, __func__, ##args); \
 	}while(0)
 
 #define MAG_CVR_ERR(fmt, args...)\
-	pr_err(MAG_CVR_DEBUG_TAG"[%s]ERR!!->"fmt, __func__, ##args)
+	pr_err("[%s_%d][%s]ERR!!->"fmt, MAG_CVR_DEBUG_TAG, magcvr_index, __func__, ##args)
 
 #define MAG_CVR_LOG(fmt, args...)\
-	pr_err(MAG_CVR_TAG"[%s]->"fmt, __func__, ##args)
+	pr_err("[%s_%d][%s]->"fmt, MAG_CVR_TAG, magcvr_index, __func__, ##args)
 
 // define name
 #define M_3P0_VOLT    "vdd_3v0_volt"
@@ -114,6 +119,21 @@ bool debug_enable = 0;
 #define GET_DATA_RETRY  5
 #define GET_DATA_TIMN   50
 #define NOISE_STEP      100
+#define M_INDEX         0
+#define MAG_CVR_SAMPLE_COUNT 10
+#define DELAY_TIME      100
+
+#define MAGCVR_CHECK_HRTIMER_MS        300000
+#define MAGCVR_CHECK_HRTIMER_S         5
+#define MS_TO_NS                       1000000
+#define DEBOUNCE_TIME                  300
+#define MAX_DEBOUNCE_CNT               6
+#define CHECK_HRTIMER_PARAMS           4
+
+#define DEBOUNCE_TIME_NAME       "debounce_time"
+#define MAX_DEBOUNCE_CNT_NAME    "max_debounce_cnt"
+#define DEBOUNCE_TIME_S_NAME     "debounce_time_s"
+#define DEBOUNCE_TIME_MS_NAME    "debounce_timer_ms"
 
 enum M_IRQ_TYPE {
 	EDGE_DOWN = 2,
@@ -279,6 +299,7 @@ struct magnetic_cover_info {
 	int high_thd;
 	int low_thd;
 	bool magcvr_notify_support;
+	bool magcvr_debounce_irq_support;
 	void *chip_info;                                /*Chip Related data*/
 	/* power */
 	int irq_gpio;                                   /*irq GPIO num*/
@@ -319,6 +340,21 @@ struct magnetic_cover_info {
 	// fault injection opt
 	unsigned short fault_injection_opt;
 	int fault_injection_state;
+	int magcvr_index;
+	int near_key_code;
+	int far_key_code;
+	const char *pen_name;
+	bool is_gpio_mode;
+	u64 cur_timer;
+	u64 last_timer;
+	u64 debounce_time;
+	u64 debounce_cnt;
+	u64 max_debounce_cnt;
+	u64 check_hrtimer_ms;
+	u64 check_hrtimer_s;
+	u64 timer_check;
+	struct hrtimer check_hrtimer;
+	ktime_t check_time;
 };
 
 struct magnetic_cover_info *alloc_for_magcvr(void);

@@ -2508,6 +2508,7 @@ bool get_ringtone_support(uint32_t val)
 		|| (val >=  OS14_NEW_RING_START && val <= OS14_NEW_RING_END)
 		|| (val >=  OS15_ALARM_RING_START && val <= OS15_ALARM_RING_END)
 		|| (val >=  OS15_OPERATOR_RING_START && val <= OS15_OPERATOR_RING_END)
+		|| (val >=  OS16_YUANGSHEN_START && val <= OS16_YUANGSHEN_END)
 		|| (val >=  ALCLOUDSCAPE_START && val <= ALCLOUDSCAPE_END)
 		|| (val >=  RINGTONE_NOTIF_ALARM_START && val <= RINGTONE_NOTIF_ALARM_END)
 		|| val == RINGTONES_SIMPLE_INDEX

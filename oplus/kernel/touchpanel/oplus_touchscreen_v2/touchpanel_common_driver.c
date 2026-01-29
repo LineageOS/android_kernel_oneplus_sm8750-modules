@@ -358,6 +358,9 @@ void operate_mode_switch(struct touchpanel_data *ts)
 		if (ts->sensitive_level_array_support && ts->ts_ops->sensitive_lv_set) {
 			ts->ts_ops->sensitive_lv_set(ts->chip_data, ts->sensitive_level_used_array[ts->sensitive_level_chosen]);
 		}
+		if (ts->click_sensitive_level_array_support &&  ts->ts_ops->click_sensitive_lv_set) {
+			ts->ts_ops->click_sensitive_lv_set(ts->chip_data, ts->click_sensitive_level_used_array[ts->click_sensitive_level_chosen]);
+		}
 		if (ts->diaphragm_touch_support && ts->ts_ops->diaphragm_touch_lv_set) {
 			ts->ts_ops->diaphragm_touch_lv_set(ts->chip_data, ts->diaphragm_touch_level_chosen);
 		}
@@ -3051,6 +3054,17 @@ static int init_parse_dts(struct device *dev, struct touchpanel_data *ts)
 		ts->sensitive_level_used_array = (u32 *)&(ts->sensitive_level_array);
 	}
 
+	rc = of_property_read_u32_array(np, "touchpanel,click-sensitive-level", temp_array, CLICK_SENSITIVE_LEVEL_NUM);
+	if (rc) {
+		TP_BOOT_INFO(ts->tp_index, "click_sensitive_level_array not specified %d\n", rc);
+	} else {
+		ts->click_sensitive_level_array_support = true;
+		for (i=0; i < SENSITIVE_LEVEL_NUM; i++) {
+			ts->click_sensitive_level_array[i] = temp_array[i];
+		}
+		ts->click_sensitive_level_used_array = (u32 *)&(ts->click_sensitive_level_array);
+	}
+
 	rc = of_property_read_u32_array(np, "touchpanel,long_strip_abnormal_detect_thd", temp_array, 4);
 	if (rc) {
 		ts->long_strip_abnormal_detect.channels_max_thd = 1;
@@ -4818,8 +4832,6 @@ static void tp_suspend_direct(struct touchpanel_data *ts)
 	if (ts->esd_handle_support) {
 		esd_handle_switch(&ts->esd_info, false);
 	}
-
-	ts->rate_ctrl_level = 0;
 
 	if (!ts->is_incell_panel || (ts->black_gesture_support
 				     && ts->gesture_enable > 0)) {

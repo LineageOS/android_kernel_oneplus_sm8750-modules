@@ -619,8 +619,7 @@ static void mp_print_csv_header(char *csv, int *csv_len, int *csv_line,
 			    "==============================================================================\n");
 	tmp_line++;
 	tmp_len += snprintf(csv + tmp_len, (file_size - tmp_len),
-			    "ILITek C-TP Utility V%s	%x : Driver Sensor Test\n", DRIVER_VERSION,
-			    core_mp->chip_pid);
+			    "ILITek C-TP Utility V%s	%s%02X%02X : Driver Sensor Test\n", DRIVER_VERSION, core_mp->product_id, core_mp->chip_type, core_mp->chip_ver);
 	tmp_line++;
 	tmp_len += snprintf(csv + tmp_len, (file_size - tmp_len),
 			    "Confidentiality Notice:\n");
@@ -866,12 +865,12 @@ static s32 open_c_formula(int inCap1DAC, int inCap1Raw, int accuracy)
 {
 	s32 inCap1Value = 0;
 	struct core_mp_test_data *core_mp = &ilits->core_mp;
-	u16 id = core_mp->chip_id;
+	u32 id = core_mp->chip_id;
 	u8 type = core_mp->chip_type;
 	int in_fout_range = 16384;
 	int in_fout_range_half = 8192;
-	int in_vadc_range = 36;
-	int in_vbk = 39;
+	int in_vadc_range = core_mp->open_para.vadc_range;
+	int in_vbk = core_mp->open_para.invbk; /* from mp.ini */
 	int in_cbk_step = core_mp->open_para.cbk_step;/* from mp.ini */
 	int in_cint = core_mp->open_para.cint;/* from mp.ini */
 	int in_vdrv = core_mp->open_para.tvch - core_mp->open_para.tvcl;/* from mp.ini */
@@ -879,6 +878,18 @@ static s32 open_c_formula(int inCap1DAC, int inCap1Raw, int accuracy)
 	int in_magnification = 10;
 	int in_part_dac = 0;
 	int in_part_raw = 0;
+
+	if (in_vbk == 0) {
+		if ((id == ILI7807_CHIP && ((type == ILI_S) || (type == ILI_V)))
+				|| (id == ILI9882_CHIP && type == ILI_T)
+				|| (id == ILI77600_CHIP && type == ILI_A))
+			in_vbk = LIT_ILI7807_VBK;
+		else
+			in_vbk = LIT_OTHER_IC_VBK;
+	}
+
+	if (in_vadc_range == 0)
+		in_vadc_range = ILI_VADC_RANGE;
 
 	if ((in_cbk_step == 0) || (in_cint == 0)) {
 		if (id == ILI9881_CHIP) {
@@ -905,7 +916,6 @@ static s32 open_c_formula(int inCap1DAC, int inCap1Raw, int accuracy)
 			} else if (type == ILI_S) {
 				in_cbk_step = 38;
 				in_cint = 66;
-				in_vbk = 42;
 				in_vdrv = in_vdrv / 10;
 				in_gain = in_gain / 10;
 
@@ -950,7 +960,7 @@ static void allnode_open_cdc_result(int index, int *buf, int *dac, int *raw)
 static int codeToOhm(s32 *ohm, s32 *Code, u16 *v_tdf, u16 *h_tdf)
 {
 	struct core_mp_test_data *core_mp = &ilits->core_mp;
-	u16 id = core_mp->chip_id;
+	u32 id = core_mp->chip_id;
 	u8 type = core_mp->chip_type;
 	int in_tvch = core_mp->short_para.tvch;
 	int in_tvcl = core_mp->short_para.tvcl;
@@ -1009,7 +1019,6 @@ static int codeToOhm(s32 *ohm, s32 *Code, u16 *v_tdf, u16 *h_tdf)
 			}
 		}
 	}
-
 	for (j = 0; j < core_mp->frame_len; j++) {
 		if (Code[j] == 0) {
 			ILI_ERR("code is invalid\n");
@@ -2603,6 +2612,7 @@ static void ilitek_tddi_mp_init_item(void)
 	memset(core_mp, 0, sizeof(struct core_mp_test_data));
 	memset(&core_mp->open_para, 0, sizeof(core_mp->open_para));
 	memset(&core_mp->short_para, 0, sizeof(core_mp->short_para));
+	core_mp->product_id = ilits->chip->product_id;
 	core_mp->chip_pid = ilits->chip->pid;
 	core_mp->chip_id = ilits->chip->id;
 	core_mp->chip_type = ilits->chip->type;
@@ -2630,7 +2640,7 @@ static void ilitek_tddi_mp_init_item(void)
 	ILI_INFO("============== TP & Panel info ================\n");
 	ILI_INFO("Driver version = %s\n", DRIVER_VERSION);
 	/*ILI_INFO("TP Module = %s\n", ilits->md_name);*/
-	ILI_INFO("CHIP = 0x%x\n", core_mp->chip_pid);
+	ILI_INFO("CHIP = 0x%s%02X%02X\n", core_mp->product_id, core_mp->chip_type, core_mp->chip_ver);
 	ILI_INFO("Firmware version = %x\n", core_mp->fw_ver);
 	ILI_INFO("Protocol version = %x\n", core_mp->protocol_ver);
 	ILI_INFO("Core version = %x\n", core_mp->core_ver);

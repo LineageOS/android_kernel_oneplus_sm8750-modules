@@ -163,6 +163,7 @@ static const struct dev_pm_ops magcvr_mkh100a_pm_ops = {
 
 static const struct of_device_id magcvr_mkh100a_match[] = {
 	{ .compatible = "oplus,magcvr_mkh100a"},
+	{ .compatible = "oplus,magcvr_mkh100a_phone_case"},
 	{},
 };
 
