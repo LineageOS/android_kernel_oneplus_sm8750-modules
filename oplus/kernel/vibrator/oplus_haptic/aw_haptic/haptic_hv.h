@@ -1005,6 +1005,9 @@ typedef struct aw_haptic {
 	bool auto_break_mode_support;
 	unsigned int vbat_low_vmax_level;
 	int trig_gain;
+	struct work_struct trig_brake_work;
+	bool wireless_online;
+	bool disable_trig_brake_by_wireless;
 #endif
 }aw_haptic_t;
 
@@ -1078,6 +1081,7 @@ struct aw_haptic_func {
 #endif
 #ifdef OPLUS_FEATURE_CHG_BASIC
 	void (*set_trig_gain)(struct aw_haptic *, uint8_t);
+	void (*set_trig_brake)(struct aw_haptic *aw_haptic, bool enable);
 #endif
 };
 

@@ -129,6 +129,8 @@ extern int kb_debug_level;
 //  CRC init value
 #define  CRC_CCITT_INIT_VAL   0x1D0F
 #define  CRC_IBM_INIT_VAL     0xC596
+#define  CRC_IBM_DUNHUANG   0xA5C9
+#define CRC_ERROR_VALUE            0xFFFF
 
 // Timer expiry time, unit-ms
 #define POWEROFF_TIMER_EXPIRY       50
@@ -157,6 +159,7 @@ extern int kb_debug_level;
 #define PROC_PAGE_LEN		50
 #define MAX_FW_NAME_LENGTH	60
 #define ONE_WRITY_LEN_MAX    52 // 128
+#define FW_PROGERSS_0		0
 #define FW_PROGERSS_1		1
 #define FW_PROGRESS_2		2
 #define FW_PROGRESS_3		3
@@ -179,6 +182,35 @@ extern int kb_debug_level;
 #define KBVER_LEN_MAX      30//20
 #define TPVER_LEN       7
 #define KBLOG_LEN_MAX      106
+
+#define UART_PACKET_MIN_HEADER_SIZE      2       // main_cmd + len
+#define UART_PACKET_SYNC_HEAD_SIZE       8       // sync start
+#define UART_PACKET_SYNC_TAIL_SIZE       4       // sync end
+#define UART_PACKET_HEADER_SIZE          16      // 8sync+1start+3adds+2cmd+1len+1
+#define UART_PACKET_TAIL_SIZE            4       // (2CRC+1end+4sync)
+#define UART_PACKET_CRC_HEADER_SIZE      5
+
+#define UART_PACKET_START_OFFSET         8
+#define UART_PACKET_SRC_ADDR_OFFSET      9
+#define UART_PACKET_DST_ADDR_OFFSET      10
+#define UART_PACKET_MAIN_CMD_OFFSET      11
+#define UART_PACKET_LENGTH_OFFSET        12
+#define UART_PACKET_DATA_OFFSET          13
+//MCU VERSION
+#define KBMCU_VESION_1_0_7   0x0107
+//disconect count
+#define DEFAULT_PLUGIN_DISCONNECT_COUNT     40 // 2s
+#define DFU_PLUGIN_DISCONNECT_COUNT     160 //8s
+#define DEFAULT_DISCONNECT_COUNT         10      // 0.5s
+#define DFU_DISCONNECT_COUNT            40      // 2s
+#define DFU_RESET_DISCONNECT_COUNT      400     // 20s
+#define TP_OTA_START_DISCONNECT_COUNT   300     // 15s
+#define KB_OTA_PROGRESS_INCREMENT   1      // add 1 one time
+#define OTA_SLEEP_INTERVAL        50      // 50ms
+#define TP_OTA_PROGRESS_INCREMENT   10      // add 10 one time
+#define OTA_STATUS_INACTIVE             0
+#define OTA_STATUS_ACTIVE               1
+
 
 enum {
     KEYBOARD_PLUG_IN_EVENT = 0x01,
@@ -356,6 +388,8 @@ struct pogo_keyboard_data {
     int poweroff_timer_check_count;
     int check_connect_count;
     int check_disconnect_count;
+    int max_disconnect_count;
+    int max_plug_in_disconnect_count;
 
     struct drm_panel *active_panel;
     void *notifier_cookie;
@@ -409,6 +443,8 @@ struct pogo_keyboard_data {
     bool kpdmcu_fw_update_force;
     bool is_kpdmcu_need_fw_update;
     bool pogopin_ota_dfu;
+    int dfu_boot;
+    int tp_ota_status;
     u32 dfu_fwinfo_start_addr;
     unsigned char report_tpver[TPVER_LEN];
 
@@ -453,5 +489,5 @@ extern ssize_t pogo_tty_write(struct file *file, const char __user *buf, size_t 
 //for ota
 extern void kpdmcu_fw_data_version_thread(struct work_struct *work);
 extern void kpdmcu_fw_update_thread(struct work_struct *work);
-
+extern int pogo_keyboard_set_lcd_state(bool state);
 #endif

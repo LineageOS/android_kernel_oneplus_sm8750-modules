@@ -29,7 +29,9 @@
 #define FTS_180HZ_REPORT_RATE                   0x12
 #define FTS_REG_SMOOTH_LEVEL                    0x85
 #define FTS_REG_GAME_MODE_EN                    0xC3
+#define FTS_REG_CLICK_SENSITIVE                 0x80
 #define FTS_REG_REPORT_RATE                     0x88/*0x12:180hz, 0x0C:120hz*/
+#define FTS_IDLE_FREQ_240                       0x89
 #define FTS_REG_HIGH_FRAME_TIME                 0x8A
 #define FTS_REG_CHARGER_MODE_EN                 0x8B
 #define FTS_REG_EDGE_LIMIT                      0x8C
@@ -388,6 +390,8 @@ struct chip_data_ft3683g {
 	u8 snr_count;
 	u8 differ_mode;
 	u8 tp_differ_version;
+
+	u8 gesture_flag;
 
 	char *test_limit_name;
 	char *fw_name;

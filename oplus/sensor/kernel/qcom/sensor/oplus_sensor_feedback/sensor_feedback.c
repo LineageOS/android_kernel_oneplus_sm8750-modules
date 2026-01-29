@@ -207,10 +207,17 @@ struct sensor_fb_conf g_fb_conf[] = {
 	{BAROMETER_I2C_ERR_ID, "device_barometer_i2c_err", SENSOR_DEVICE_TYPE},
 
 	{HALL_I2C_ERR_ID, "device_hall_i2c_err", SENSOR_DEVICE_TYPE},
+	{HALL_STYLUS_DETECT_INIT_FAIL_ID, "stylus_detect_init_fail", SENSOR_DEVICE_TYPE},
+	{HALL_STYLUS_DETECT_I2C_ERR_ID, "stylus_detect_i2c_err", SENSOR_DEVICE_TYPE},
+	{HALL_STYLUS_DETECT_NO_DATA_ID, "stylus_detect_no_data_err", SENSOR_DEVICE_TYPE},
 
 	{FOLD_DEVICE_FOLDE_COUNT_ID, "device_fold_count", SENSOR_DEVICE_TYPE},
 	{FOLD_DEVICE_USE_HALL_ANGLE_COUNT_ID, "device_use_hall_angle_count", SENSOR_DEVICE_TYPE},
 	{HINGE_DETECT_INTERVAL_TIME_ID, "device_hinge_detect_interval_time_id", SENSOR_DEVICE_TYPE},
+	{HINGE_DETECT_SUB_ACCEL_INIT_FAIL_ID, "device_hinge_detect_sub_accel_init_fail_id", SENSOR_DEVICE_TYPE},
+	{HINGE_DETECT_SUB_ACCEL_DATA_LOST_ID, "device_hinge_detect_sub_accel_data_lost_id", SENSOR_DEVICE_TYPE},
+	{HINGE_DETECT_FOLD_HALL_INIT_FAIL_ID, "device_hinge_detect_fold_hall_init_fail_id", SENSOR_DEVICE_TYPE},
+	{HINGE_DETECT_FOLD_HALL_DATA_LOST_ID, "device_hinge_detect_fold_hall_data_lost_id", SENSOR_DEVICE_TYPE},
 
 	{FREE_FALL_TRIGGER_ID, "device_free_fall", SENSOR_DEVICE_TYPE},
 

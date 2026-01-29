@@ -919,11 +919,18 @@ static void parse_expand_gpio_sensor_dts(struct sensor_algorithm *algo, struct d
 		algo->parameter[9] = value;
 	}
 
+	rc = of_property_read_u32(ch_node, "is_externel_power_on", &value);
+	if (!rc) {
+		algo->parameter[10] = value;
+	}
+
 	pr_err("aon_rst_input_gpio:%d, aon_dvdd_input_gpio:%d, aon_avdd_input_gpio:%d, bsd_sw_input_gpio:%d, gnss_en_input_gpio:%d\n",
 		algo->parameter[0], algo->parameter[1], algo->parameter[2], algo->parameter[3], algo->parameter[4]);
 
 	pr_err("aon_rst_aw_output:%d, aon_dvdd_aw_output:%d, aon_avdd_aw_output:%d, bsd_sw_aw_output:%d, gnss_en_aw_output:%d\n",
 		algo->parameter[5], algo->parameter[6], algo->parameter[7], algo->parameter[8], algo->parameter[9]);
+
+	pr_err("is_externel_power_on:%d", algo->parameter[10]);
 }
 
 static void parse_each_virtual_sensor_dts(struct sensor_algorithm *algo, struct device_node * ch_node)

@@ -82,6 +82,14 @@ enum power_supply {
  *         hardware operations
  */
 
+#ifdef CONFIG_TOUCHPANEL_MTK_PLATFORM
+#else
+struct spi_geni_qcom_ctrl_data {
+	u32 spi_cs_clk_delay;
+	u32 spi_inter_words_delay;
+};
+#endif
+
 /* The hardware data especially for bus transferred */
 struct syna_hw_bus_data {
 	unsigned char type;
@@ -108,6 +116,13 @@ struct syna_hw_bus_data {
 	struct pinctrl_state    *pin_spi_mode_suspend;
 	struct pinctrl_state    *pin_cs_high;
 	struct pinctrl_state    *pin_cs_low;
+
+	/*cs setup support define*/
+	bool cs_setup_support;
+#ifdef CONFIG_TOUCHPANEL_MTK_PLATFORM
+#else
+	struct spi_geni_qcom_ctrl_data delay_params;
+#endif
 };
 
 /* The hardware data especially for ATTN signal */

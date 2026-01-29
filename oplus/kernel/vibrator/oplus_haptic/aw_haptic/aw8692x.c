@@ -660,6 +660,31 @@ static void aw8692x_trig1_param_config(struct aw_haptic *aw_haptic)
 		    AW_I2C_BYTE_ONE);
 }
 
+#ifdef OPLUS_FEATURE_CHG_BASIC
+static void aw8692x_set_trig_brake(struct aw_haptic *aw_haptic, bool enable)
+{
+	uint8_t trig_config = 0;
+
+	if (!aw_haptic)
+		return;
+
+	if (aw_haptic->trig[0].trig_brk == enable)
+		return;
+
+	aw_dev_info("%s: trig1 auto brake: %d\n", __func__, enable);
+	aw_haptic->trig[0].trig_brk = enable ? 1 : 0;
+
+
+	if (aw_haptic->trig[0].trig_brk)
+		trig_config = AW8692X_BIT_TRGCFG7_TRG1_AUTO_BRK_ENABLE;
+	else
+		trig_config = AW8692X_BIT_TRGCFG7_TRG1_AUTO_BRK_DISABLE;
+
+	i2c_w_bits(aw_haptic, AW8692X_REG_TRGCFG7,
+		    AW8692X_BIT_TRGCFG7_TRG1_AUTO_BRK_MASK , trig_config);
+}
+#endif
+
 static void aw8692x_trig2_param_config(struct aw_haptic *aw_haptic)
 {
 	uint8_t trig_config = 0;
@@ -2215,5 +2240,6 @@ struct aw_haptic_func aw8692x_func_list = {
 #ifdef OPLUS_FEATURE_CHG_BASIC
 	.parse_dt = aw8692x_parse_dt,
 	.convert_level_to_vmax = aw8692x_convert_level_to_vmax,
+	.set_trig_brake = aw8692x_set_trig_brake,
 #endif
 };

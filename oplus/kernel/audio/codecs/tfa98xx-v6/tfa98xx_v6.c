@@ -3385,6 +3385,11 @@ static int tfa9865_check_status_reg(void)
 				pr_info("%s: vbatlow_cnt=%u", __func__, g_vbatlow_cnt);
 			}
 			flag = 0;
+			/* Check register 0x10 and clear bit1~bit4 */
+			if (((TFA9865_STATUS_NORMAL_VALUE & 0xFFFF) & TFA9865_STATUS_CHECK_MASK) != ((reg_val & 0xFFFF) & TFA9865_STATUS_CHECK_MASK)) {
+				tfa98xx_write_register16_v6(tfa98xx->tfa, REG_STATUS_FLAG0, 0x1E);
+				pr_info("%s: SPK(0x%x) clear register 0x%x", __func__, tfa98xx->i2c->addr, REG_STATUS_FLAG0);
+			}
 			if ((TFA9865_STATUS_NORMAL_VALUE&TFA9865_STATUS_CHECK_MASK) != (reg_val&TFA9865_STATUS_CHECK_MASK)) {
 				offset = strlen(info);
 				scnprintf(info + offset, sizeof(info) - offset - 1,

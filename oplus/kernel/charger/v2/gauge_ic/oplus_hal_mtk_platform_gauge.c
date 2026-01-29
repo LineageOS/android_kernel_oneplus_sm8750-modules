@@ -1086,6 +1086,64 @@ static int oplus_mtk_sync_plugin_state(struct oplus_chg_ic_dev *ic_dev)
 	return 0;
 }
 
+static int oplus_mtk_set_sili_ic_alg_term_volt(struct oplus_chg_ic_dev *ic_dev, int volt)
+{
+	if (g_gauge_chip == NULL || g_gauge_chip->gauge_ops == NULL) {
+		chg_err("g_gauge_chip is null.\n");
+		return -EINVAL;
+	}
+
+	if (g_gauge_chip->gauge_ops->set_sili_ic_alg_term_volt == NULL)
+		return -EINVAL;
+
+	g_gauge_chip->gauge_ops->set_sili_ic_alg_term_volt(volt);
+	return 0;
+}
+
+static int oplus_mtk_get_sili_ic_alg_term_volt(struct oplus_chg_ic_dev *ic_dev, int *volt)
+{
+	if (g_gauge_chip == NULL || g_gauge_chip->gauge_ops == NULL) {
+		chg_err("g_gauge_chip is null.\n");
+		return -EINVAL;
+	}
+
+	if (g_gauge_chip->gauge_ops->get_sili_ic_alg_term_volt == NULL)
+		return -EINVAL;
+
+	*volt = g_gauge_chip->gauge_ops->get_sili_ic_alg_term_volt();
+	return 0;
+}
+
+static int oplus_mtk_set_vct(struct oplus_chg_ic_dev *ic_dev, int value)
+{
+	if (g_gauge_chip == NULL || g_gauge_chip->gauge_ops == NULL) {
+		chg_err("g_gauge_chip is null.\n");
+		return -EINVAL;
+	}
+
+	if (g_gauge_chip->gauge_ops->set_fg_vct == NULL)
+		return -EINVAL;
+
+	g_gauge_chip->gauge_ops->set_fg_vct(value);
+
+	return 0;
+}
+
+static int oplus_mtk_get_vct(struct oplus_chg_ic_dev *ic_dev, int *value)
+{
+	if (g_gauge_chip == NULL || g_gauge_chip->gauge_ops == NULL) {
+		chg_err("g_gauge_chip is null.\n");
+		return -EINVAL;
+	}
+
+	if (g_gauge_chip->gauge_ops->get_fg_vct == NULL)
+		return -EINVAL;
+
+	*value = g_gauge_chip->gauge_ops->get_fg_vct();
+
+	return 0;
+}
+
 static void *oplus_chg_get_func(struct oplus_chg_ic_dev *ic_dev,
 				enum oplus_chg_ic_func func_id)
 {
@@ -1220,6 +1278,20 @@ static void *oplus_chg_get_func(struct oplus_chg_ic_dev *ic_dev,
 	case OPLUS_IC_FUNC_GAUGE_SYNC_PLUGIN:
 		func = OPLUS_CHG_IC_FUNC_CHECK(OPLUS_IC_FUNC_GAUGE_SYNC_PLUGIN,
 							oplus_mtk_sync_plugin_state);
+		break;
+	case OPLUS_IC_FUNC_GAUGE_GET_SILI_IC_ALG_TERM_VOLT:
+		func = OPLUS_CHG_IC_FUNC_CHECK(OPLUS_IC_FUNC_GAUGE_GET_SILI_IC_ALG_TERM_VOLT,
+							oplus_mtk_get_sili_ic_alg_term_volt);
+		break;
+	case OPLUS_IC_FUNC_GAUGE_SET_SILI_IC_ALG_TERM_VOLT:
+		func = OPLUS_CHG_IC_FUNC_CHECK(OPLUS_IC_FUNC_GAUGE_SET_SILI_IC_ALG_TERM_VOLT,
+							oplus_mtk_set_sili_ic_alg_term_volt);
+		break;
+	case OPLUS_IC_FUNC_GAUGE_SET_VCT:
+		func = OPLUS_CHG_IC_FUNC_CHECK(OPLUS_IC_FUNC_GAUGE_SET_VCT, oplus_mtk_set_vct);
+		break;
+	case OPLUS_IC_FUNC_GAUGE_GET_VCT:
+		func = OPLUS_CHG_IC_FUNC_CHECK(OPLUS_IC_FUNC_GAUGE_GET_VCT, oplus_mtk_get_vct);
 		break;
 	default:
 		chg_err("this func(=%d) is not supported\n", func_id);

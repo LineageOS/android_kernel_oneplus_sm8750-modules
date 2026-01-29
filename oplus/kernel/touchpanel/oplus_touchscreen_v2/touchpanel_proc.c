@@ -1374,6 +1374,68 @@ read_exit:
 
 DECLARE_PROC_OPS(proc_aiunit_game_info_ops, simple_open, proc_aiunit_game_info_read, proc_aiunit_game_info_write, NULL);
 
+static ssize_t proc_set_idle_freq_mode_write(struct file *file,
+				      const char __user *buffer, size_t count, loff_t *ppos)
+{
+	int value = 0;
+	char buf[9] = {0};
+	struct touchpanel_data *ts = PDE_DATA(file_inode(file));
+
+	if (count > 8) {
+		return count;
+	}
+
+	if (!ts) {
+		return count;
+	}
+
+	if (ts->ts_ops == NULL) {
+		TS_TP_INFO("%s: ts->ts_ops is NULL.\n", __func__);
+		return count;
+	}
+
+	if (copy_from_user(buf, buffer, count)) {
+		TS_TP_INFO("%s: read proc input error.\n", __func__);
+		return count;
+	}
+	if (sscanf(buf, "%d", &value) != 1) {
+		TS_TP_INFO("%s: sscanf error.\n", __func__);
+		return -EINVAL;
+	}
+
+	/* Validate value is 0 or 1 */
+	if (value != 0 && value != 1) {
+		TS_TP_INFO("%s: invalid value %d, should be 0 or 1\n", __func__, value);
+		return -EINVAL;
+	}
+
+	TS_TP_INFO("%s: value is %x.\n", __func__, value);
+
+	mutex_lock(&ts->mutex);
+	if (ts->game_switch_support) {
+		ts->ts_ops->set_idle_freq_mode(value);
+	}
+	mutex_unlock(&ts->mutex);
+
+	return count;
+}
+
+static ssize_t proc_set_idle_freq_mode_read(struct file *file, char __user *buffer,
+				size_t count, loff_t *ppos)
+{
+	int ret = 0;
+	char page[PAGESIZE] = {0};
+	struct touchpanel_data *ts = PDE_DATA(file_inode(file));
+
+	if (!ts) {
+		return 0;
+	}
+
+	ret = simple_read_from_buffer(buffer, count, ppos, page, strlen(page));
+	return ret;
+}
+DECLARE_PROC_OPS(proc_set_idle_freq_mode_ops, simple_open, proc_set_idle_freq_mode_read, proc_set_idle_freq_mode_write, NULL);
+
 /*irq_depth - For enable or disable irq
  * Output:
  * irq depth;
@@ -2835,6 +2897,81 @@ static ssize_t proc_sensitive_level_read(struct file *file, char __user *user_bu
 }
 
 DECLARE_PROC_OPS(proc_sensitive_level_fops, simple_open, proc_sensitive_level_read, proc_sensitive_level_write, NULL);
+
+static ssize_t proc_click_sensitive_level_write(struct file *file, const char __user *buffer, size_t count, loff_t *ppos)
+{
+	int value = 0, raw_level = 0;
+	char buf[6] = {0};
+	struct touchpanel_data *ts = PDE_DATA(file_inode(file));
+
+	if (count > 5) {
+		TPD_INFO("%s:count > 5\n", __func__);
+		return count;
+	}
+
+	if (!ts) {
+		TPD_INFO("%s: ts is NULL\n", __func__);
+		return count;
+	}
+
+	if (!ts->ts_ops->click_sensitive_lv_set) {
+		TS_TP_INFO("%s:not support ts_ops->click_sensitive_lv_set callback\n", __func__);
+		return count;
+	}
+
+	tp_copy_from_user(buf, sizeof(buf), buffer, count, 5);
+
+	if (kstrtoint(buf, 10, &value)) {
+		TP_INFO(ts->tp_index, "%s: kstrtoint error\n", __func__);
+		return count;
+	}
+
+	mutex_lock(&ts->mutex);
+	if (value < 0) {
+		raw_level = -value;
+	} else {
+		if (value < CLICK_SENSITIVE_LEVEL_NUM) {
+			ts->click_sensitive_level_chosen = value;
+		} else {
+			ts->click_sensitive_level_chosen = CLICK_SENSITIVE_LEVEL_NUM - 1;
+		}
+
+		if (ts->health_monitor_support && ts->click_sensitive_level_chosen) {
+			ts->monitor_data.click_sensitive_level_chosen = ts->click_sensitive_level_chosen;
+		}
+
+		raw_level = ts->click_sensitive_level_array[ts->click_sensitive_level_chosen];
+	}
+
+	TS_TP_INFO("%s: level = %d, value = %d.\n", __func__, ts->click_sensitive_level_chosen, raw_level);
+
+	if (!ts->is_suspended) {
+		ts->ts_ops->click_sensitive_lv_set(ts->chip_data, raw_level);
+	} else {
+		TS_TP_INFO("%s: TP is_suspended.\n", __func__);
+	}
+	mutex_unlock(&ts->mutex);
+
+	return count;
+}
+
+static ssize_t proc_click_sensitive_level_read(struct file *file, char __user *user_buf, size_t count, loff_t *ppos)
+{
+	int ret = 0;
+	char page[PAGESIZE] = {0};
+	struct touchpanel_data *ts = PDE_DATA(file_inode(file));
+
+	if (!ts) {
+		snprintf(page, PAGESIZE - 1, "%d\n", -1); /* no support */
+
+	} else {
+		snprintf(page, PAGESIZE - 1, "click_sensitive_level : %d\n", ts->click_sensitive_level_chosen); /* support */
+	}
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, page, strlen(page));
+	return ret;
+}
+DECLARE_PROC_OPS(proc_click_sensitive_level_fops, simple_open, proc_click_sensitive_level_read, proc_click_sensitive_level_write, NULL);
 
 /*/proc/touchpanel/touch_scene_default_para*/
 static int touch_scene_default_para_read(struct seq_file *s, void *v)
@@ -5602,6 +5739,7 @@ int init_touchpanel_proc_part3(struct touchpanel_data *ts, struct proc_dir_entry
 			"glove_mode_enable", 0666, NULL, &proc_glove_mode, ts, false,
 			ts->glove_mode_v2_support
 		},
+		{"set_idle_freq_mode", 0666, NULL, &proc_set_idle_freq_mode_ops, ts, false, true},
 		{
 			"pocket_prevent_mode", 0666, NULL, &proc_pocket_prevent_mode, ts, false, ts->glove_mode_v2_support
 		},
@@ -5616,6 +5754,10 @@ int init_touchpanel_proc_part3(struct touchpanel_data *ts, struct proc_dir_entry
 		{
 			"fw_edge_limit_switch", 0666, NULL, &touch_edge_limit_switch_fops, ts, false,
 			ts->fw_edge_limit_support
+		},
+		{
+			"click_sensitive_level", 0666, NULL, &proc_click_sensitive_level_fops, ts, false,
+			ts->click_sensitive_level_array_support
 		},
 		{"fp_grip_enable", 0666, NULL, &fp_grip_support_ops, ts, false, ts->fp_grip_support},
 		{"fp_unlock_status", 0666, NULL, &fp_unlock_status_ops, ts, false, ts->fp_unlock_status_support},

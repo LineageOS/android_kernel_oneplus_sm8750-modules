@@ -114,6 +114,74 @@ static int container_init(int size)
 	return 0;
 }
 
+/* Wireless power_supply notifier to toggle trig1 brake on AW8692X/AW8693XS */
+#ifdef OPLUS_FEATURE_CHG_BASIC
+static struct notifier_block aw_wireless_nb;
+
+static void aw_wireless_psy_update_brake_state(struct aw_haptic *aw_haptic)
+{
+	struct power_supply *psy;
+	union power_supply_propval val;
+	bool online;
+
+	if (!aw_haptic)
+		return;
+
+	if (!aw_haptic->disable_trig_brake_by_wireless)
+		return;
+
+	psy = power_supply_get_by_name("wireless");
+	if (psy) {
+		if (!power_supply_get_property(psy, POWER_SUPPLY_PROP_ONLINE, &val)) {
+			online = !!val.intval;
+			if (aw_haptic->wireless_online != online) {
+				aw_haptic->wireless_online = online;
+				aw_dev_info("%s: update wireless online: %d\n", __func__, online);
+				schedule_work(&aw_haptic->trig_brake_work);
+			}
+		}
+		power_supply_put(psy);
+	}
+}
+
+static int aw_wireless_psy_event(struct notifier_block *nb,
+                  unsigned long event, void *data)
+{
+	struct power_supply *psy = data;
+	struct aw_haptic *aw_haptic = g_aw_haptic;
+
+	if (!psy || !psy->desc)
+		return NOTIFY_DONE;
+
+	if (event != PSY_EVENT_PROP_CHANGED)
+		return NOTIFY_DONE;
+
+	if (psy->desc->type != POWER_SUPPLY_TYPE_BATTERY)
+		return NOTIFY_DONE;
+
+	aw_wireless_psy_update_brake_state(aw_haptic);
+	return NOTIFY_OK;
+}
+
+static void aw_set_trig_brake(struct aw_haptic *aw_haptic, bool enable)
+{
+	if (!aw_haptic || !aw_haptic->func || !aw_haptic->func->set_trig_brake)
+		return;
+
+	aw_haptic->func->set_trig_brake(aw_haptic, enable);
+}
+
+static void aw_trig_brake_work_func(struct work_struct *work)
+{
+	struct aw_haptic *aw_haptic = container_of(work, struct aw_haptic, trig_brake_work);
+
+	mutex_lock(&aw_haptic->lock);
+	/* Requirement: online -> turn OFF brake; offline -> turn ON brake */
+	aw_set_trig_brake(aw_haptic, !(aw_haptic->wireless_online));
+	mutex_unlock(&aw_haptic->lock);
+}
+#endif
+
 /*********************************************************
  *
  * I2C Read/Write
@@ -548,6 +616,12 @@ static void ram_load(const struct firmware *cont, void *context)
 		aw_haptic->ram_init = true;
 		aw_haptic->ram.len = awinic_fw->len - aw_haptic->ram.ram_shift;
 		aw_dev_info("%s: ram firmware update complete!\n", __func__);
+		/* trig init must be after ram init */
+		mutex_lock(&aw_haptic->lock);
+		aw_haptic->func->trig_init(aw_haptic);
+		mutex_unlock(&aw_haptic->lock);
+		/* set trig1 auto brake according to current wireless online */
+		aw_wireless_psy_update_brake_state(aw_haptic);
 		get_ram_num(aw_haptic);
 	}
 	kfree(awinic_fw);
@@ -2386,6 +2460,13 @@ static int vibrator_init(struct aw_haptic *aw_haptic)
 	mutex_init(&aw_haptic->lock);
 	mutex_init(&aw_haptic->rtp_lock);
 
+#ifdef OPLUS_FEATURE_CHG_BASIC
+	INIT_WORK(&aw_haptic->trig_brake_work, aw_trig_brake_work_func);
+	/* Register wireless power_supply notifier */
+	aw_wireless_nb.notifier_call = aw_wireless_psy_event;
+	power_supply_reg_notifier(&aw_wireless_nb);
+#endif
+
 	return 0;
 }
 
@@ -2541,7 +2622,6 @@ static void haptic_init(struct aw_haptic *aw_haptic)
 	aw_haptic->func->set_bst_vol(aw_haptic, aw_haptic->max_boost_vol);
 #endif
 
-	aw_haptic->func->trig_init(aw_haptic);
 	mutex_unlock(&aw_haptic->lock);
 
 	/* f0 calibration */
@@ -2996,6 +3076,11 @@ static void awinic_i2c_remove(struct i2c_client *i2c)
 
 	aw_dev_info("%s: enter.\n", __func__);
 
+#ifdef OPLUS_FEATURE_CHG_BASIC
+	power_supply_unreg_notifier(&aw_wireless_nb);
+	cancel_work_sync(&aw_haptic->trig_brake_work);
+#endif
+
 	cancel_delayed_work_sync(&aw_haptic->ram_work);
 	cancel_work_sync(&aw_haptic->rtp_work);
 	cancel_work_sync(&aw_haptic->vibrator_work);
@@ -3026,6 +3111,12 @@ static int awinic_i2c_remove(struct i2c_client *i2c)
 	struct aw_haptic *aw_haptic = i2c_get_clientdata(i2c);
 
 	aw_dev_info("%s: enter.\n", __func__);
+
+    /* Unregister wireless power_supply notifier */
+#ifdef OPLUS_FEATURE_CHG_BASIC
+	power_supply_unreg_notifier(&aw_wireless_nb);
+	cancel_work_sync(&aw_haptic->trig_brake_work);
+#endif
 
 	cancel_delayed_work_sync(&aw_haptic->ram_work);
 	cancel_work_sync(&aw_haptic->rtp_work);

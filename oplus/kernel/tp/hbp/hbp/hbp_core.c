@@ -250,6 +250,18 @@ void hbp_dev_ctrl_hw_reset(void)
 }
 EXPORT_SYMBOL(hbp_dev_ctrl_hw_reset);
 
+void hbp_dev_healthinfo_report(void *priv, char *report)
+{
+	struct hbp_device *hbp_dev = __hbp_find_device(priv);
+
+	if (hbp_dev) {
+		hbp_healthinfo_report(&hbp_dev->monitor_data, report);
+	} else {
+		hbp_err("%s: hbp_dev is null.\n", __func__);
+	}
+}
+EXPORT_SYMBOL(hbp_dev_healthinfo_report);
+
 static int hbp_sync_with_daemon(struct hbp_core *hbp, int id, hbp_panel_event event)
 {
 	int ret = 0;

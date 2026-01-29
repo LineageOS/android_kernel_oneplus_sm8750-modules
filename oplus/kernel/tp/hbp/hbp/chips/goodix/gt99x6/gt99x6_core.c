@@ -289,14 +289,17 @@ static int gt_chip_get_gesture(void *priv, struct gesture_info *gesture)
 		break;
 	case GOODIX_COMPLEX_SMALL_AREA:
 		hbp_info("get gesture event: fp_grip_small_area_cnt\n");
+		hbp_dev_healthinfo_report(gt, "fp_grip_small_area_cnt");
 		gesture->type = FP_GESTURE_HOLD;
 		break;
 	case GOODIX_SIMPLE_AREA:
 		hbp_info("get gesture event: fp_grip_big_area_cnt\n");
+		hbp_dev_healthinfo_report(gt, "fp_grip_big_area_cnt");
 		gesture->type = FP_GESTURE_HOLD;
 		break;
 	case GOODIX_RELEASE_HOLD:
 		hbp_info("get gesture event: fp_grip_release_cnt\n");
+		hbp_dev_healthinfo_report(gt, "fp_grip_release_cnt");
 		gesture->type = FP_GESTURE_RELEASE;
 		break;
 	default:

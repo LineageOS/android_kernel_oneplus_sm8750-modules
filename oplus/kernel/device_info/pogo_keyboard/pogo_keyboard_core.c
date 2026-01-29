@@ -56,16 +56,6 @@ int kb_debug_level = 0;
 atomic_t  kb_suspend_failed_count = ATOMIC_INIT(0);
 atomic_t  kb_heart_in_suspend = ATOMIC_INIT(0);
 
-//max numbers of interval for plug-out detection.
-//heartbeat interval from keyboard is 100ms.
-//keyboard initialization takes about 400ms and after that first heartbeat packet is reported.
-//that's to say during keyboard plug-in stage host will treat keyboard plug-out if host cannot receive heartbeat packet within 400ms.
-//but host only wait 200ms after keyboard attechment is finished.
-//note the host timer is 50ms.
-int dfu_boot = 0;
-int tp_ota_status = 0;
-int max_disconnect_count = 10;
-static int max_plug_in_disconnect_count = 40;
 static int sn_report_count = 0;
 //for TP DIST 15x25
 static short tp_data_dist[ROWS][COLS] = {0};
@@ -208,11 +198,15 @@ static unsigned short app_compute_crc16(unsigned short crc, unsigned char data, 
 //获取crc16
 unsigned short app_crc16_get(unsigned char *buf, unsigned short len, unsigned char crc_type)
 {
-    unsigned char i = 0;
+    unsigned short i = 0;
     unsigned short crc = 0;
     unsigned short polynomial = 0;
     unsigned short crc_ibm_init_val = 0;
 
+    if (!buf || len == 0 || len > UART_BUFFER_SIZE) {
+        kb_err("Invalid input:buf=%p, len=%u\n", buf, len);
+        return CRC_ERROR_VALUE;
+    }
     if (pogo_keyboard_client && pogo_keyboard_client->crc_ibm_init_val) {
         crc_ibm_init_val = pogo_keyboard_client->crc_ibm_init_val;
     } else {
@@ -232,42 +226,63 @@ unsigned short app_crc16_get(unsigned char *buf, unsigned short len, unsigned ch
 }
 
 // put payloads into one wire bus protocol packet.
-int uart_package_data(char *buf, int len, unsigned char *p_out, int *p_len)
+int uart_package_data(char *buf, int input_len, unsigned char *p_out, int *p_len)
 {
     unsigned short i = 0;
     unsigned short need_len = 0;
     unsigned short crc16 = 0;
+    unsigned char data_len = 0;
 
-    //头同步码8Byte 0x55
-    for (i = 0; i < 8; i++) {
+    if (!buf || !p_out || !p_len || input_len <= UART_PACKET_MIN_HEADER_SIZE) {
+        kb_err("Invalid input parameters\n");
+        return -EINVAL;
+    }
+
+    data_len = (unsigned char)buf[1];
+
+    if (data_len > input_len - UART_PACKET_MIN_HEADER_SIZE) {
+        kb_err("Data length %u exceeds input buffer size %d\n",
+               data_len, input_len - UART_PACKET_MIN_HEADER_SIZE);
+        return -EINVAL;
+    }
+
+    need_len = UART_PACKET_HEADER_SIZE + data_len + UART_PACKET_TAIL_SIZE;
+    if (need_len > UART_BUFFER_SIZE) {
+        kb_err("Packet too large: %u bytes, max allowed: %d\n",
+               need_len, UART_BUFFER_SIZE);
+        return -EINVAL;
+    }
+
+    // 头同步码
+    for (i = 0; i < UART_PACKET_SYNC_HEAD_SIZE; i++) {
         p_out[i] = ONE_WIRE_BUS_PACKET_HEAD_SYNC_CODE;
     }
-    //起始码
-    p_out[8] = ONE_WIRE_BUS_PACKET_XXX_START_CODE;
-    //源地址
-    p_out[9] = ONE_WIRE_BUS_PACKET_PAD_ADDR;
-    //目标地址
-    p_out[10] = ONE_WIRE_BUS_PACKET_KEYBOARD_ADDR;
-    //主命令
-    p_out[11] = buf[0];
-    len = buf[1];
-    //总长度
-    p_out[12] = len;
-    //子命令数据
-    for (i = 0; i < len; i++) {
-        p_out[13 + i] = buf[i + 2];
+    // 起始码
+    p_out[UART_PACKET_START_OFFSET] = ONE_WIRE_BUS_PACKET_XXX_START_CODE;
+    // 源地址
+    p_out[UART_PACKET_SRC_ADDR_OFFSET] = ONE_WIRE_BUS_PACKET_PAD_ADDR;
+    // 目标地址
+    p_out[UART_PACKET_DST_ADDR_OFFSET] = ONE_WIRE_BUS_PACKET_KEYBOARD_ADDR;
+    // 主命令
+    p_out[UART_PACKET_MAIN_CMD_OFFSET] = buf[0];
+    // 总长度
+    p_out[UART_PACKET_LENGTH_OFFSET] = data_len;
+    // 子命令数据
+    for (i = 0; i < data_len; i++) {
+        p_out[UART_PACKET_DATA_OFFSET + i] = buf[i + UART_PACKET_MIN_HEADER_SIZE];
     }
-    crc16 = app_crc16_get(&p_out[8], len + 5, CRC_TYPE_IBM);
-    //CRC16
-    p_out[13 + len] = (unsigned char)(crc16 >> 8);
-    p_out[14 + len] = (unsigned char)(crc16 & 0x00ff);
-    //结束码
-    p_out[15 + len] = ONE_WIRE_BUS_PACKET_XXX_END_CODE;
-    //尾同步码4byte 0xAA
-    for (i = 0; i < 4; i++) {
-        p_out[16 + len + i] = ONE_WIRE_BUS_PACKET_TAIL_SYNC_CODE;
+    // 计算CRC16（从起始码到数据结束）
+    crc16 = app_crc16_get(&p_out[UART_PACKET_START_OFFSET],
+                         data_len + UART_PACKET_CRC_HEADER_SIZE, CRC_TYPE_IBM);
+    // CRC16
+    p_out[UART_PACKET_DATA_OFFSET + data_len] = (unsigned char)(crc16 >> 8);
+    p_out[UART_PACKET_DATA_OFFSET + data_len + 1] = (unsigned char)(crc16 & 0x00ff);
+    // 结束码
+    p_out[UART_PACKET_DATA_OFFSET + data_len + 2] = ONE_WIRE_BUS_PACKET_XXX_END_CODE;
+    // 尾同步码
+    for (i = 0; i < UART_PACKET_SYNC_TAIL_SIZE; i++) {
+        p_out[UART_PACKET_DATA_OFFSET + data_len + 3 + i] = ONE_WIRE_BUS_PACKET_TAIL_SYNC_CODE;
     }
-    need_len = 16 + len + 4;
     *p_len = need_len;
     snprintf(TAG, sizeof(TAG), "ciphertext");
     pogo_keyboard_show_buf(p_out, *p_len);
@@ -350,13 +365,13 @@ static void handle_serial_number(char *buf, struct pogo_keyboard_data *client)
 
 static void handle_kblog(char *buf, struct pogo_keyboard_data *client)
 {
-    if (pogo_keyboard_client->crc_ibm_init_val == 0xA5C9) {//only dunhuang use
+    if (client->crc_ibm_init_val == CRC_IBM_DUNHUANG) {//only dunhuang use
         if (buf[3] > KBLOG_LEN_MAX) {
             kb_err("log len too long!!!\n");
         } else {
-            pogo_keyboard_client->kblog_len = buf[3];
-            memset(pogo_keyboard_client->report_kblog, 0, sizeof(pogo_keyboard_client->report_kblog));
-            memcpy(pogo_keyboard_client->report_kblog, &buf[4], pogo_keyboard_client->kblog_len);
+            client->kblog_len = buf[3];
+            memset(client->report_kblog, 0, sizeof(client->report_kblog));
+            memcpy(client->report_kblog, &buf[4], client->kblog_len);
             pogo_keyboard_event_send(KEYBOARD_REPORT_KBLOG_EVENT);
         }
     }
@@ -373,44 +388,44 @@ static void handle_report_kbver(char *buf, struct pogo_keyboard_data *client)
     if (buf[3] < DEFAULT_KBVER_LEN || buf[3] > KBVER_LEN_MAX) {
         kb_err("get keyboard version is not right format!!!\n");
     } else {
-        pogo_keyboard_client->kbver_len = buf[3] - 1;
-        memset(pogo_keyboard_client->report_kbver, 0, sizeof(pogo_keyboard_client->report_kbver));
-        memcpy(pogo_keyboard_client->report_kbver, &buf[4], pogo_keyboard_client->kbver_len);
+        client->kbver_len = buf[3] - 1;
+        memset(client->report_kbver, 0, sizeof(client->report_kbver));
+        memcpy(client->report_kbver, &buf[4], client->kbver_len);
         pogo_keyboard_event_send(KEYBOARD_REPORT_KBVER_EVENT);
     }
 }
 
 static void handle_dfu_ota_start(char *buf, struct pogo_keyboard_data *client)
 {
-    if (pogo_keyboard_client->pogopin_ota_dfu) {
+    if (client->pogopin_ota_dfu) {
         kb_info("dfu ota start...\n");
-        max_disconnect_count = 40; //2s
+        client->max_disconnect_count = DFU_DISCONNECT_COUNT; //2s
     }
 }
 
 static void handle_dfu_ota_reset(char *buf, struct pogo_keyboard_data *client)
 {
-    if (pogo_keyboard_client->pogopin_ota_dfu) {
+    if (client->pogopin_ota_dfu) {
         kb_info("dfu ota reset...\n");
-        max_disconnect_count = 400;//20s
+        client->max_disconnect_count = DFU_RESET_DISCONNECT_COUNT;//20s
     }
 }
 
 static void handle_tp_ota_start(char *buf, struct pogo_keyboard_data *client)
 {
-    if (pogo_keyboard_client->pogopin_ota_dfu) {
+    if (client->pogopin_ota_dfu) {
         kb_info("tp ota start...\n");
-        tp_ota_status = 1;
-        max_disconnect_count = 300;
+        client->tp_ota_status = OTA_STATUS_ACTIVE;
+        client->max_disconnect_count = TP_OTA_START_DISCONNECT_COUNT;
     }
 }
 
 static void handle_tp_ota_end(char *buf, struct pogo_keyboard_data *client)
 {
-    if (pogo_keyboard_client->pogopin_ota_dfu) {
+    if (client->pogopin_ota_dfu) {
         kb_info("tp ota end...\n");
-        tp_ota_status = 0;
-        max_disconnect_count = 10;
+        client->tp_ota_status = OTA_STATUS_INACTIVE;
+        client->max_disconnect_count = DEFAULT_DISCONNECT_COUNT;
     }
 }
 
@@ -562,9 +577,9 @@ static int pogo_keyboard_mod_data_process(char *buf, int len)
 
                 kb_info("plug in\n");
                 pogo_keyboard_client->plug_in_count = 0; // reset heartbeat counter.
-                if (pogo_keyboard_client->pogopin_ota_dfu && tp_ota_status == 0) {
-                    max_disconnect_count = 10;
-                    max_plug_in_disconnect_count = 40;// reset heartbeat_hrtimer to 2s
+                if (pogo_keyboard_client->pogopin_ota_dfu && pogo_keyboard_client->tp_ota_status == OTA_STATUS_INACTIVE) {
+                    pogo_keyboard_client->max_disconnect_count = DEFAULT_DISCONNECT_COUNT;
+                    pogo_keyboard_client->max_plug_in_disconnect_count = DEFAULT_PLUGIN_DISCONNECT_COUNT;// reset heartbeat_hrtimer to 2s
                 }
                 pogo_keyboard_event_send(KEYBOARD_PLUG_IN_EVENT);
 
@@ -582,9 +597,9 @@ static int pogo_keyboard_mod_data_process(char *buf, int len)
                     }
                     pogo_keyboard_client->pogo_keyboard_status &= ~KEYBOARD_CONNECT_STATUS;
                     pogo_keyboard_client->plug_in_count = 0;
-                    if (pogo_keyboard_client->pogopin_ota_dfu && tp_ota_status == 0) {
-                        max_disconnect_count = 10;
-                        max_plug_in_disconnect_count = 40;// reset heartbeat_hrtimer to 2s
+                    if (pogo_keyboard_client->pogopin_ota_dfu && pogo_keyboard_client->tp_ota_status == OTA_STATUS_INACTIVE) {
+                        pogo_keyboard_client->max_disconnect_count = DEFAULT_DISCONNECT_COUNT;
+                        pogo_keyboard_client->max_plug_in_disconnect_count = DEFAULT_PLUGIN_DISCONNECT_COUNT;// reset heartbeat_hrtimer to 2s
                     }
                     kb_info("quick plug out and quick plug in\n");
                     pogo_keyboard_event_send(KEYBOARD_PLUG_IN_EVENT);
@@ -1237,7 +1252,7 @@ static int pogo_keyboard_set_led(char event)
 }
 
 // sync host lcd/screen on/off(sleep/wakeup state) state to keyboard. state=1 means wakeup while 0 means going to sleep.
-static int pogo_keyboard_set_lcd_state(bool state)
+int pogo_keyboard_set_lcd_state(bool state)
 {
     int ret = 0;
     char write_buf[] = { ONE_WIRE_BUS_PACKET_USER_GENERAL_CMD, 0x03, 0x02, 0x01, 0x01 };
@@ -1881,12 +1896,12 @@ static ssize_t test_mode_store(struct device *dev, struct device_attribute *attr
             pogo_keyboard_power_enable(power_en);
             break;
         case 5:
-            max_disconnect_count = value[1];
-            kb_info("max_disconnect_count:%d\n", max_disconnect_count);
+            pogo_keyboard_client->max_disconnect_count = value[1];
+            kb_info("max_disconnect_count:%d\n", pogo_keyboard_client->max_disconnect_count);
             break;
         case 6:
-            max_plug_in_disconnect_count = value[1];
-            kb_info("max_plug_in_disconnect_count:%d\n", max_plug_in_disconnect_count);
+            pogo_keyboard_client->max_plug_in_disconnect_count = value[1];
+            kb_info("max_plug_in_disconnect_count:%d\n", pogo_keyboard_client->max_plug_in_disconnect_count);
             break;
         default:
             break;
@@ -2295,9 +2310,9 @@ static void handle_power_off(unsigned char pogo_keyboard_event)
         }
     }
     if (pogo_keyboard_client->pogopin_ota_dfu) {
-        tp_ota_status = 0;
-        max_disconnect_count = 10;
-        max_plug_in_disconnect_count = 40;
+        pogo_keyboard_client->tp_ota_status = OTA_STATUS_INACTIVE;
+        pogo_keyboard_client->max_disconnect_count = DEFAULT_DISCONNECT_COUNT;
+        pogo_keyboard_client->max_plug_in_disconnect_count = DEFAULT_PLUGIN_DISCONNECT_COUNT;
     }
     kb_debug("KEYBOARD_POWER_OFF_EVENT %d\n", pogo_keyboard_client->poweroff_timer_check_count);
     if (pogo_keyboard_client->poweroff_timer_check_count < POWEROFF_TIMER_CHECK_MAX) {
@@ -2748,7 +2763,7 @@ static enum hrtimer_restart keyboard_core_plug_hrtimer(struct hrtimer *timer)
 {
     int value = 0;
 
-    if (pogo_keyboard_client->file_client == NULL) {
+    if (!pogo_keyboard_client || pogo_keyboard_client->file_client == NULL) {
         return HRTIMER_NORESTART;
     }
     // will get 0 if keyboard is attached(trx pin low).
@@ -2762,7 +2777,7 @@ static enum hrtimer_restart keyboard_core_plug_hrtimer(struct hrtimer *timer)
             pogo_keyboard_event_send(KEYBOARD_POWER_ON_EVENT);
             disable_irq_nosync(pogo_keyboard_client->uart_wake_gpio_irq);
             if (pogo_keyboard_client->pogopin_ota_dfu) {
-                max_disconnect_count = 400;//20s
+                pogo_keyboard_client->max_disconnect_count = DFU_RESET_DISCONNECT_COUNT;//20s
             }
         }
 
@@ -2777,8 +2792,12 @@ static enum hrtimer_restart keyboard_core_plug_hrtimer(struct hrtimer *timer)
 // timer for monitoring keyboard heartbeat report periodically.
 static enum hrtimer_restart keyboard_core_heartbeat_hrtimer(struct hrtimer *timer)
 {
-    if (pogo_keyboard_client->disconnect_count >= max_disconnect_count &&
-        pogo_keyboard_client->plug_in_count >= max_plug_in_disconnect_count) {
+    if (!pogo_keyboard_client) {
+        kb_err("pogo_keyboard_client is NULL \n");
+        return HRTIMER_NORESTART;
+    }
+    if (pogo_keyboard_client->disconnect_count >= pogo_keyboard_client->max_disconnect_count &&
+        pogo_keyboard_client->plug_in_count >= pogo_keyboard_client->max_plug_in_disconnect_count) {
         if ((pogo_keyboard_client->pogo_keyboard_status & KEYBOARD_CONNECT_STATUS) ||
             atomic_read(&pogo_keyboard_client->vcc_on)) {
             atomic_set(&pogo_keyboard_client->vcc_on, 0);
@@ -2795,7 +2814,7 @@ static enum hrtimer_restart keyboard_core_heartbeat_hrtimer(struct hrtimer *time
         }
     }
 
-    if (pogo_keyboard_client->plug_in_count <= max_plug_in_disconnect_count)
+    if (pogo_keyboard_client->plug_in_count <= pogo_keyboard_client->max_plug_in_disconnect_count)
         pogo_keyboard_client->plug_in_count++;
 
     return HRTIMER_NORESTART;
@@ -2804,6 +2823,11 @@ static enum hrtimer_restart keyboard_core_heartbeat_hrtimer(struct hrtimer *time
 static enum hrtimer_restart keyboard_core_poweroff_hrtimer(struct hrtimer *timer)
 {
     int value = 0;
+
+    if (!pogo_keyboard_client) {
+        kb_err("pogo_keyboard_client is NULL \n");
+        return HRTIMER_NORESTART;
+    }
 
     value = gpio_get_value(pogo_keyboard_client->uart_wake_gpio);
     if (value == 0) {
@@ -2843,6 +2867,11 @@ static enum hrtimer_restart keyboard_core_plugin_check_hrtimer(struct hrtimer *t
 {
     int value = 0;
 
+    if (!pogo_keyboard_client) {
+        kb_err("pogo_keyboard_client is NULL \n");
+        return HRTIMER_NORESTART;
+    }
+
     if(pogo_keyboard_client->pogo_keyboard_status & KEYBOARD_CONNECT_STATUS)
     {
         kb_info("keyboard connected, exit\n");
@@ -2873,9 +2902,9 @@ static enum hrtimer_restart keyboard_core_plugin_check_hrtimer(struct hrtimer *t
                 // signal main event task to do the following attachement procedure.
                 pogo_keyboard_event_send(KEYBOARD_POWER_ON_EVENT);
                 pm_wakeup_event(&pogo_keyboard_client->plat_dev->dev, 500);
-                if (pogo_keyboard_client->pogopin_ota_dfu && dfu_boot == 1) {
-                    max_plug_in_disconnect_count = 160;//8s
-                    dfu_boot = 0;
+                if (pogo_keyboard_client->pogopin_ota_dfu && pogo_keyboard_client->dfu_boot == 1) {
+                    pogo_keyboard_client->max_plug_in_disconnect_count = DFU_PLUGIN_DISCONNECT_COUNT;//8s
+                    pogo_keyboard_client->dfu_boot = 0;
                 }
             }
         }
@@ -2891,6 +2920,16 @@ static int pogo_keyboard_start_up_init(void)
     pogo_keyboard_client->pogo_keyboard_status |= KEYBOARD_LCD_ON_STATUS;
     kb_info("pogo_keyboard_status:0x%02x\n", pogo_keyboard_client->pogo_keyboard_status);
     atomic_set(&pogo_keyboard_client->vcc_on, 0);
+/*
+//max numbers of interval for plug-out detection.
+//heartbeat interval from keyboard is 100ms.
+//keyboard initialization takes about 400ms and after that first heartbeat packet is reported.
+//that's to say during keyboard plug-in stage host will treat keyboard plug-out if host cannot receive heartbeat packet within 400ms.
+//but host only wait 200ms after keyboard attechment is finished.
+//note the host timer is 50ms.
+*/
+    pogo_keyboard_client->max_disconnect_count = DEFAULT_DISCONNECT_COUNT;
+    pogo_keyboard_client->max_plug_in_disconnect_count = DEFAULT_PLUGIN_DISCONNECT_COUNT;
     hrtimer_init(&pogo_keyboard_client->plug_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
     pogo_keyboard_client->plug_timer.function = keyboard_core_plug_hrtimer;
 

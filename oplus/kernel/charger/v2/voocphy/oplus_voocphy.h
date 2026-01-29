@@ -946,6 +946,12 @@ struct oplus_voocphy_manager {
 	bool slave_ic_abnormal;
 	struct delayed_work clear_ic_abnormal_status_work;
 	struct oplus_chg_strategy *svooc_pcc_strategy;
+
+	bool vbus_adjust_new_method;
+	bool vbus_adjust_done;
+	bool in_vbus_adjust_trans;
+	u8 vbus_adjust_hold_cnt;
+	u8 last_vooc_vbus_status;
 };
 
 struct oplus_voocphy_operations {
