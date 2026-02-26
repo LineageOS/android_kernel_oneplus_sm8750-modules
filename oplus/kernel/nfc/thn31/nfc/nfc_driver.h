@@ -72,4 +72,5 @@ void nfc_device_remove(struct i2c_client *client);
 #endif
 int nfc_device_suspend(struct device *device);
 int nfc_device_resume(struct device *device);
+extern int get_nfc_id(void);
 #endif /* _TMS_NFC_THN31_H_ */

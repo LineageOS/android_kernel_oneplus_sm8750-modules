@@ -5,6 +5,8 @@
 ccflags-y += -DTMS_DEBUGER_LOGGER \
              -DTMS_DEBUGER_CHECKER
 
+KBUILD_EXTRA_SYMBOLS := $(M)/../oplus_nfc/Module.symvers
+
 obj-m                    += tms_device_modules.o
 tms_device_modules-objs  := tms_common.o
 
