@@ -39,6 +39,7 @@ struct id_entry {
 
 static char current_chipset[32];
 static bool support_nfc = false;
+static int nfc_id_gpio_value = -1;
 
 bool is_nfc_support(void)
 {
@@ -334,7 +335,7 @@ static int get_gpio_value_three(struct device *dev, int *gpio_value)
 		goto restore_default;
 	}
 
-	pr_info("%s, final gpio_value = %d\n", __func__, *gpio_value);
+	pr_info("%s, oplus_nfc final gpio_value = %d\n", __func__, *gpio_value);
 	ret = 0;
 
 restore_default:
@@ -359,31 +360,37 @@ static int create_chipset_file_and_symlinks(struct id_entry entry)
 {
 	struct proc_dir_entry *p_entry;
 	static struct proc_dir_entry *nfc_info = NULL;
-	if (0 == strcmp("none", entry.chipset)) {
-		pr_err("%s, there is no nfc chip", __func__);
-		return 0;
-	} else {
+
+	pr_info("%s, entry.chipset:%s entry.manifest_path:%s entry.feature_path:%s", __func__,
+		entry.chipset, entry.manifest_path, entry.feature_path);
+
+	nfc_info = proc_mkdir("oplus_nfc", NULL);
+
+	if (!nfc_info) {
+		pr_err("%s, make oplus_nfc dir fail", __func__);
+		remove_proc_entry("oplus_nfc", NULL);
+		return -ENOENT;
+	}
+
+	if (strcmp("none", entry.chipset) != 0) {
 		support_nfc = true;
 		strncpy(current_chipset, entry.chipset, sizeof(current_chipset) - 1);
-
-		nfc_info = proc_mkdir("oplus_nfc", NULL);
-		if (!nfc_info) {
-			pr_err("%s, make oplus_nfc dir fail", __func__);
-			remove_proc_entry("oplus_nfc", NULL);
-			return -ENOENT;
-		}
-
 		p_entry = proc_create_data("chipset", S_IRUGO, nfc_info, &nfc_info_fops, (uint32_t *)(NFC_CHIPSET_VERSION));
+
 		if (!p_entry) {
 			pr_err("%s, make chipset node fail", __func__);
 			remove_proc_entry("oplus_nfc", NULL);
 			return -ENOENT;
 		}
-		proc_symlink("manifest", nfc_info , entry.manifest_path);
-		proc_symlink("feature", nfc_info , entry.feature_path);
-		pr_err("%s, create_chipset_file_and_symlinks success", __func__);
-		return 0;
 	}
+	else {
+		pr_info("%s, there is no nfc chip", __func__);
+	}
+
+	proc_symlink("manifest", nfc_info , entry.manifest_path);
+	proc_symlink("feature", nfc_info , entry.feature_path);
+	pr_info("%s, create_chipset_file_and_symlinks success", __func__);
+	return 0;
 }
 
 
@@ -429,17 +436,28 @@ static int mixed_nfc_probe(struct platform_device *pdev)
 	switch (id_count) {
 	case 2:
 		err = get_gpio_value(np, &gpio_value);
+		if (err) {
+			pr_err("Failed to get GPIO value\n");
+			goto free_id_entries;
+		}
+		nfc_id_gpio_value = gpio_value;
 		break;
 	case 3:
 		err = get_gpio_value_three(&pdev->dev, &gpio_value);
+		if (err) {
+			pr_err("Failed to get GPIO value in three states\n");
+			goto free_id_entries;
+		}
+		nfc_id_gpio_value = gpio_value;
 		break;
 	default:
 		pr_err("Unexpected id_count value: %u\n", id_count);
-		break;
+		err = -EINVAL;
+		goto free_id_entries;
 	}
 
 	for (i = 0; i < id_count; i++) {
-		if (id_entries[i].key == gpio_value) {
+		if (id_entries[i].key == nfc_id_gpio_value) {
 			err = create_chipset_file_and_symlinks(id_entries[i]);
 			if (err) {
 				pr_err("%s error:create_chipset_file_and_symlinks failed", __func__);
@@ -464,6 +482,11 @@ free_id_entries:
 	return err;
 }
 
+int get_nfc_id(void)
+{
+        return nfc_id_gpio_value;
+}
+EXPORT_SYMBOL(get_nfc_id);
 
 static int oplus_nfc_probe(struct platform_device *pdev)
 {
