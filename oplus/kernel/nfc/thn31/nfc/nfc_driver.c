@@ -5,6 +5,7 @@
 
 #include "nfc_driver.h"
 
+#define INVALID_ID    -1
 /*********** PART0: Global Variables Area ***********/
 size_t last_count = 0;
 static ktime_t g_pre_write_time;
@@ -128,6 +129,7 @@ static int nfc_ioctl_set_state(struct nfc_info *nfc, unsigned long arg)
     return ret;
 }
 
+#if 0
 static int set_gpio_state_and_read(struct pinctrl *pinctrl, struct pinctrl_state *state, int gpio_num, int *gpio_value)
 {
     int ret = 0;
@@ -250,7 +252,7 @@ free_gpio:
 
     return ret;
 }
-
+#endif
 
 static int read_id_properties(struct device_node *np, u32 id_count, struct id_entry *id_entries)
 {
@@ -277,6 +279,7 @@ static int read_id_properties(struct device_node *np, u32 id_count, struct id_en
     return 0;
 }
 
+#if 0
 static int get_gpio_value(struct device_node *np, int *gpio_value)
 {
     int gpio_num = of_get_named_gpio(np, "id-gpio", 0);
@@ -290,6 +293,7 @@ static int get_gpio_value(struct device_node *np, int *gpio_value)
     TMS_INFO("%s, id gpio value is %d", __func__, *gpio_value);
     return 0;
 }
+#endif
 
 static int checkNfcChip(struct device *dev)
 {
@@ -358,10 +362,27 @@ static int checkNfcChip(struct device *dev)
 
             switch (id_count) {
             case 2:
-                err = get_gpio_value(np, &gpio_value);
-                break;
+                fallthrough;
             case 3:
-                err = get_gpio_value_three(dev, &gpio_value);
+                gpio_value = get_nfc_id();
+                TMS_ERR("%s, tms_nfc final gpio_value = %d\n", __func__, gpio_value);
+                if (gpio_value == INVALID_ID) {
+                    for (int delay = 0; delay < 6; delay++) {
+                        msleep(500);
+                        gpio_value = get_nfc_id();
+                        if(gpio_value != INVALID_ID) {
+                            pr_info("retry times = %d\n",delay);
+                            break;
+                        }
+                    }
+                    if(gpio_value == INVALID_ID) {
+                        pr_err("%s error: get_gpio_value failed", __func__);
+                        err = -EINVAL;
+                        kfree(id_entries);
+                        return err;
+                    }
+                }
+                //err = get_gpio_value_three(dev, &gpio_value);
                 break;
             default:
                 TMS_ERR("Unexpected id_count value: %u\n", id_count);
