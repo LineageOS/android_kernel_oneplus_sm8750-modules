@@ -3,7 +3,9 @@
 #
 
 ccflags-y += -DTMS_DEBUGER_LOGGER \
-             -DTMS_DEBUGER_CHECKER
+             -DTMS_DEBUGER_CHECKER \
+             -DCONFIG_TMS_NFC_DEVICE \
+             -DCONFIG_TMS_ESE_DEVICE
 
 obj-m                    += tms_device_modules.o
 tms_device_modules-objs  := tms_common.o
