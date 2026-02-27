@@ -403,7 +403,6 @@ struct oplus_pps {
 	bool shell_temp_ready;
 	int adapter_max_curr;
 	int boot_time;
-	int allow_check_soc;
 
 	int pps_fastchg_batt_temp_status;
 	int pps_temp_cur_range;
@@ -1553,12 +1552,10 @@ static bool oplus_pps_charge_allow_check(struct oplus_pps *chip)
 	}
 
 	if (chip->ui_soc < chip->limits.pps_strategy_soc_over_low ||
-	    chip->ui_soc > chip->limits.pps_strategy_soc_high) {
+	    chip->ui_soc > chip->limits.pps_strategy_soc_high)
 		vote(chip->pps_not_allow_votable, BATT_SOC_VOTER, true, 1, false);
-	} else {
+	else
 		vote(chip->pps_not_allow_votable, BATT_SOC_VOTER, false, 0, false);
-		chip->allow_check_soc = chip->ui_soc;
-	}
 
 	oplus_pps_charge_btb_allow_check(chip);
 
@@ -1662,7 +1659,6 @@ static void oplus_pps_variables_init(struct oplus_pps *chip)
 	chip->request_vbus_too_low_flag = false;
 	chip->ss_check = false;
 	chip->fcl_trigger = false;
-	chip->allow_check_soc = chip->ui_soc;
 
 	chip->timer.fastchg_timer = oplus_current_kernel_time();
 	chip->timer.temp_timer = oplus_current_kernel_time();
@@ -1979,7 +1975,6 @@ static int oplus_pps_charge_start(struct oplus_pps *chip)
 	int batt_num;
 	int soc;
 	const char temp_region[] = "temp_region";
-	const char allow_soc[] = "allow_soc";
 
 #define PPS_START_VOL_THR_4_TO_1_600MV	600
 #define PPS_START_VOL_THR_3_TO_1_400MV	400
@@ -2069,7 +2064,6 @@ static int oplus_pps_charge_start(struct oplus_pps *chip)
 					else
 						chip->strategy = chip->third_curve_strategy;
 					oplus_chg_strategy_set_process_data(chip->strategy, temp_region, chip->pps_temp_cur_range);
-					oplus_chg_strategy_set_process_data(chip->strategy, allow_soc, chip->allow_check_soc);
 					rc = oplus_chg_strategy_init(chip->strategy);
 					if (rc < 0) {
 						chg_err("strategy_init error, not support pps fast charge\n");
@@ -3946,8 +3940,8 @@ static void oplus_pps_gauge_update_work(struct work_struct *work)
 	struct oplus_pps *chip =
 		container_of(work, struct oplus_pps, gauge_update_work);
 
-#define PPS_RECOVERY_IBAT_THD (-600)
-#define PPS_RECOVERY_IBAT_TIMES (3)
+#define PPS_RECOVERY_IBAT_THD (-1000)
+#define PPS_RECOVERY_IBAT_TIMES (5)
 
 	if (chip->pps_not_allow)
 		oplus_pps_charge_allow_check(chip);
@@ -3958,17 +3952,15 @@ static void oplus_pps_gauge_update_work(struct work_struct *work)
 	else
 		wired_type = msg_data.intval;
 
+
 	if ((wired_type == OPLUS_CHG_USB_TYPE_PD_PPS) &&
 	    is_client_vote_enabled(chip->pps_disable_votable, PPS_IBAT_ABNOR_VOTER)) {
 		rc = oplus_mms_get_item_data(chip->gauge_topic, GAUGE_ITEM_CURR, &msg_data, true);
 		if (unlikely(rc < 0)) {
 			chg_err("can't get ibat, rc=%d\n", rc);
 		} else {
-			chg_info("current = %d, recovery=%d, pd_pps is disable by the PPS_IBAT_ABNOR_VOTER\n",
-				 msg_data.intval, chip->count.pps_recovery);
 			if (msg_data.intval < PPS_RECOVERY_IBAT_THD) {
-				if (chip->count.pps_recovery >= PPS_RECOVERY_IBAT_TIMES) {
-					chg_info("retry to recovery the pps charging!\n");
+				if (chip->count.pps_recovery > PPS_RECOVERY_IBAT_TIMES) {
 					vote(chip->pps_disable_votable, PPS_IBAT_ABNOR_VOTER, false, 0, false);
 					oplus_cpa_request(chip->cpa_topic, CHG_PROTOCOL_PPS);
 				}

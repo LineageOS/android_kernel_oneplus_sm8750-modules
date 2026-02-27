@@ -85,6 +85,7 @@ struct oplus_configfs_device {
 	struct delayed_work eis_timeout_work;
 	struct delayed_work plc_enable_work;
 	struct delayed_work clean_plc_enable_work;
+	struct delayed_work plc_status_change_work;
 
 	struct votable *wired_icl_votable;
 	struct votable *wired_fcc_votable;
@@ -3298,6 +3299,17 @@ static void oplus_configfs_plc_enable_work(struct work_struct *work)
 		chg_err("plc enable error, rc=%d\n", rc);
 }
 
+static void oplus_configfs_plc_status_change_work(struct work_struct *work)
+{
+	struct power_supply *batt_psy;
+
+	batt_psy = power_supply_get_by_name("battery");
+	if (batt_psy) {
+		oplus_power_supply_changed_gp(batt_psy, 0);
+		power_supply_put(batt_psy);
+	}
+}
+
 #define CLEAN_PLC_ENABLE_DELAY_MS 1600
 static void oplus_configfs_clean_plc_enable_work(struct work_struct *work)
 {
@@ -5419,6 +5431,8 @@ static void oplus_configfs_plc_subs_callback(struct mms_subscribe *subs,
 		switch (id) {
 		case PLC_ITEM_STATUS:
 			oplus_mms_get_item_data(chip->plc_topic, id, &data, false);
+			if (chip->plc_status != data.intval)
+				schedule_delayed_work(&chip->plc_status_change_work, 0);
 			chip->plc_status = data.intval;
 			chg_info(" update plc_status=%d\n", chip->plc_status);
 			break;
@@ -5475,6 +5489,7 @@ static __init int oplus_configfs_init(void)
 	INIT_DELAYED_WORK(&chip->eis_timeout_work, oplus_configfs_eis_timeout_work);
 	INIT_DELAYED_WORK(&chip->plc_enable_work, oplus_configfs_plc_enable_work);
 	INIT_DELAYED_WORK(&chip->clean_plc_enable_work, oplus_configfs_clean_plc_enable_work);
+	INIT_DELAYED_WORK(&chip->plc_status_change_work, oplus_configfs_plc_status_change_work);
 	init_completion(&chip->sec_ic_test_res.ack);
 	mutex_init(&chip->sec_ic_test_res.lock);
 

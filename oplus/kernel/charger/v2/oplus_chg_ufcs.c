@@ -482,7 +482,6 @@ struct oplus_ufcs {
 	bool oplus_cp_ucp_disable;
 	int emark_imax;
 	int power_imax;
-	int allow_check_soc;
 
 	int last_target_curr_ma;
 	int target_curr_ma;
@@ -2047,12 +2046,10 @@ static bool oplus_ufcs_charge_allow_check(struct oplus_ufcs *chip)
 		vote(chip->ufcs_not_allow_votable, BATT_TEMP_VOTER, false, 0, false);
 	}
 
-	if (chip->ui_soc < chip->limits.ufcs_low_soc || chip->ui_soc > chip->high_soc) {
+	if (chip->ui_soc < chip->limits.ufcs_low_soc || chip->ui_soc > chip->high_soc)
 		vote(chip->ufcs_not_allow_votable, BATT_SOC_VOTER, true, 1, false);
-	} else {
+	else
 		vote(chip->ufcs_not_allow_votable, BATT_SOC_VOTER, false, 0, false);
-		chip->allow_check_soc = chip->ui_soc;
-	}
 
 	oplus_ufcs_charge_btb_allow_check(chip);
 
@@ -2182,7 +2179,6 @@ static void oplus_ufcs_variables_init(struct oplus_ufcs *chip)
 	chip->eis_status = EIS_STATUS_DISABLE;
 	chip->batt_alarm = 0;
 	chip->last_target_curr_ma = chip->target_curr_ma;
-	chip->allow_check_soc = chip->ui_soc;
 }
 
 static void oplus_ufcs_force_exit(struct oplus_ufcs *chip)
@@ -2884,7 +2880,6 @@ static int oplus_ufcs_charge_start(struct oplus_ufcs *chip)
 	int target_vbus, update_size, req_vol;
 	int cp_vin, cp_vout;
 	const char temp_region[] = "temp_region";
-	const char allow_soc[] = "allow_soc";
 	int batt_num;
 	int i;
 
@@ -2967,7 +2962,6 @@ static int oplus_ufcs_charge_start(struct oplus_ufcs *chip)
 					else
 						chip->strategy = chip->third_curve_strategy;
 					oplus_chg_strategy_set_process_data(chip->strategy, temp_region, chip->ufcs_temp_cur_range);
-					oplus_chg_strategy_set_process_data(chip->strategy, allow_soc, chip->allow_check_soc);
 					rc = oplus_chg_strategy_init(chip->strategy);
 					if (rc < 0) {
 						chg_err("strategy_init error, not support ufcs fast charge\n");
@@ -5597,13 +5591,8 @@ static void oplus_ufcs_cpa_subs_callback(struct mms_subscribe *subs,
 			oplus_mms_get_item_data(chip->cpa_topic, id, &data,
 						false);
 			chip->cpa_current_type = data.intval;
-			if (chip->cpa_current_type == CHG_PROTOCOL_UFCS) {
-				oplus_mms_get_item_data(chip->wired_topic, WIRED_ITEM_REAL_CHG_TYPE, &data, false);
-				if (data.intval != OPLUS_CHG_USB_TYPE_UNKNOWN)
-					schedule_delayed_work(&chip->switch_check_work, 0);
-				else
-					schedule_delayed_work(&chip->switch_check_work, msecs_to_jiffies(WAIT_BC1P2_GET_TYPE));
-			}
+			if (chip->cpa_current_type == CHG_PROTOCOL_UFCS)
+				schedule_delayed_work(&chip->switch_check_work, 0);
 			break;
 		case CPA_ITEM_TIMEOUT:
 			oplus_mms_get_item_data(chip->cpa_topic, id, &data,

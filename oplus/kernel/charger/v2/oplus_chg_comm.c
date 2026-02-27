@@ -2041,7 +2041,7 @@ static void oplus_chg_track_gauge_r_info_trigger_work(struct work_struct *work)
 }
 
 #define DEC_VOL_UPDATE_MAX 150
-#define DEC_VCT_UPDATE_MAX 180
+#define DEC_VCT_UPDATE_MAX 150
 static void oplus_comm_dec_vct_init(struct oplus_chg_comm *chip)
 {
 	int cnts = 2;
