@@ -2,9 +2,7 @@
 # Makefile for TMS devices
 #
 
-ccflags-y += -DTMS_DEBUGER_LOGGER \
-             -DTMS_DEBUGER_CHECKER \
-             -DCONFIG_TMS_NFC_DEVICE \
+ccflags-y += -DCONFIG_TMS_NFC_DEVICE \
              -DCONFIG_TMS_ESE_DEVICE
 
 obj-m                    += tms_device_modules.o
