@@ -2,9 +2,7 @@
 # Makefile for TMS devices
 #
 
-ccflags-y += -DTMS_DEBUGER_LOGGER=1 \
-             -DTMS_DEBUGER_CHECKER=1 \
-             -DCONFIG_TMS_NFC_DEVICE=1 \
+ccflags-y += -DCONFIG_TMS_NFC_DEVICE=1 \
              -DCONFIG_TMS_ESE_DEVICE=1
 
 KBUILD_EXTRA_SYMBOLS := $(M)/../oplus_nfc/Module.symvers
