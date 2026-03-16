@@ -52,6 +52,23 @@
       "parentUuid": "6637e5b3_2fc12343",
       "revId": "6c17eb1c83d4c97bb3982bb60bab1d7b37d2623e",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "264304e4_122b6125",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 32253
+      },
+      "writtenOn": "2026-03-16T12:15:04Z",
+      "side": 1,
+      "message": "No breakages were observed on dodge, camera works on both piloti and pista",
+      "revId": "6c17eb1c83d4c97bb3982bb60bab1d7b37d2623e",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
