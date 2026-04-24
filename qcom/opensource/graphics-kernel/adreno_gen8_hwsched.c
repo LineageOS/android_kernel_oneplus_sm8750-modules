@@ -1270,7 +1270,7 @@ static int gen8_hwsched_pm_suspend(struct adreno_device *adreno_dev)
 {
 	struct kgsl_device *device = KGSL_DEVICE(adreno_dev);
 	struct gen8_gmu_device *gmu = to_gen8_gmu(adreno_dev);
-	int ret;
+	int ret, active_count;
 
 	if (test_bit(GMU_PRIV_PM_SUSPEND, &gmu->flags))
 		return 0;
@@ -1293,6 +1293,16 @@ static int gen8_hwsched_pm_suspend(struct adreno_device *adreno_dev)
 	ret = adreno_hwsched_idle(adreno_dev);
 	if (ret)
 		goto err;
+
+	active_count = atomic_read(&device->active_cnt);
+
+	if (active_count > 0) {
+		ret = -ETIMEDOUT;
+		dev_err_ratelimited(GMU_PDEV_DEV(device),
+			"Aborting suspend because of active count:%d\n",
+			active_count);
+		goto err;
+	}
 
 	gen8_hwsched_power_off(adreno_dev);
 

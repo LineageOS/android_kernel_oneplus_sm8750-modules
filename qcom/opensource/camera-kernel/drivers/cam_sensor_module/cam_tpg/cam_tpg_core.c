@@ -705,7 +705,6 @@ free_request:
 	}
 	/* free the request and return the failure */
 	tpg_hw_free_request(&tpg_dev->tpg_hw, req);
-	CAM_MEM_FREE(req);
 	return rc;
 }
 

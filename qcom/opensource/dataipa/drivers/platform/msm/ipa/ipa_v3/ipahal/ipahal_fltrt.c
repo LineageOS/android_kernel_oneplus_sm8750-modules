@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include "ipa.h"
@@ -13,6 +13,7 @@
 #include "ipahal_fltrt_i.h"
 #include "ipahal_i.h"
 #include "ipa_common_i.h"
+#include "ipa_i.h"
 
 /* SRAM OFFSET for empty table */
 #define IPA_EMPTY_SRAM_OFFSET (0x1000)
@@ -4896,6 +4897,7 @@ int ipahal_rt_generate_empty_img(u32 tbls_num, u32 hash_hdr_size,
 	u64 addr;
 	struct ipahal_fltrt_obj *obj;
 	int flag;
+	uint8_t retry_count = 0;
 
 	IPAHAL_DBG("Entry\n");
 
@@ -4925,8 +4927,13 @@ int ipahal_rt_generate_empty_img(u32 tbls_num, u32 hash_hdr_size,
 	}
 
 	mem->size = tbls_num * obj->tbl_hdr_width;
-	mem->base = dma_alloc_coherent(ipahal_ctx->ipa_pdev, mem->size,
-		&mem->phys_base, flag);
+
+	for (retry_count = 0; retry_count < MAX_RETRY_ALLOC; retry_count++) {
+		mem->base = dma_alloc_coherent(ipahal_ctx->ipa_pdev, mem->size,
+			&mem->phys_base, flag);
+		if (mem->base)
+			break;
+	}
 	if (!mem->base) {
 		IPAHAL_ERR("fail to alloc DMA buff of size %d\n", mem->size);
 		return -ENOMEM;
@@ -4964,6 +4971,7 @@ int ipahal_flt_generate_empty_img(u32 tbls_num, u32 hash_hdr_size,
 	u64 addr;
 	struct ipahal_fltrt_obj *obj;
 	int flag;
+	uint8_t retry_count = 0;
 
 	IPAHAL_DBG("Entry - ep_bitmap 0x%llx\n", ep_bitmap);
 
@@ -5007,8 +5015,13 @@ int ipahal_flt_generate_empty_img(u32 tbls_num, u32 hash_hdr_size,
 	mem->size = tbls_num * obj->tbl_hdr_width;
 	if (ep_bitmap)
 		mem->size += obj->tbl_hdr_width;
-	mem->base = dma_alloc_coherent(ipahal_ctx->ipa_pdev, mem->size,
-		&mem->phys_base, flag);
+
+	for (retry_count = 0; retry_count < MAX_RETRY_ALLOC; retry_count++) {
+		mem->base = dma_alloc_coherent(ipahal_ctx->ipa_pdev, mem->size,
+			&mem->phys_base, flag);
+		if (mem->base)
+			break;
+	}
 	if (!mem->base) {
 		IPAHAL_ERR("fail to alloc DMA buff of size %d\n", mem->size);
 		return -ENOMEM;

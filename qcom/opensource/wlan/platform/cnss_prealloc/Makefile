@@ -8,4 +8,8 @@ ccflags-y += -I$(WLAN_PLATFORM_ROOT)/inc
 ccflags-y += -I$(WLAN_PLATFORM_ROOT)/cnss_utils
 endif
 
+ifeq ($(CONFIG_CNSS_PREALLOC_DEBUG_LEAK),y)
+ccflags-y += -DCONFIG_CNSS_PREALLOC_DEBUG_LEAK
+endif
+
 obj-$(CONFIG_WCNSS_MEM_PRE_ALLOC) += cnss_prealloc.o

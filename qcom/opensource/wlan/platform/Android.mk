@@ -11,6 +11,11 @@ endif
 
 ifeq ($(ENABLE_WLAN_PLATFORM_DLKM), true)
 
+ENABLE_ICNSS2 := true
+ifeq ($(call is-board-platform-in-list, gen4 gen5), true)
+ENABLE_ICNSS2 := false
+endif
+
 # LOCAL_PATH is a relative path to root build directory.
 LOCAL_PATH := $(call my-dir)
 LOCAL_MODULE_DDK_BUILD := true

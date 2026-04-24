@@ -1,7 +1,7 @@
 /*
  * Goodix Touchscreen Driver
  * Copyright (C) 2020 - 2021 Goodix, Inc.
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
  *
  */
 #include "goodix_ts_core.h"
+#include <linux/version.h>
 
 #define BUS_TYPE_SPI					1
 #define BUS_TYPE_I2C					0
@@ -998,7 +999,7 @@ err_fw_prepare:
  *       '6'[110] update in unblocking mode with fwdata from request
  */
 static ssize_t goodix_sysfs_update_en_store(
-		struct device *dev, struct device_attribute *attr,
+		struct kobject *kobj, struct kobj_attribute *attr,
 		const char *buf, size_t count)
 {
 	int ret = 0;
@@ -1039,9 +1040,15 @@ static ssize_t goodix_sysfs_update_en_store(
 	return -EINVAL;
 }
 
+#if KERNEL_VERSION(6, 16, 0) > LINUX_VERSION_CODE
 static ssize_t goodix_sysfs_fwimage_store(struct file *file,
 		struct kobject *kobj, struct bin_attribute *attr,
 		char *buf, loff_t pos, size_t count)
+#else
+static ssize_t goodix_sysfs_fwimage_store(struct file *file,
+		struct kobject *kobj, const struct bin_attribute *attr,
+		char *buf, loff_t pos, size_t count)
+#endif
 {
 	struct firmware **fw = &goodix_fw_update_ctrl.fw_data.fw_sysfs;
 
@@ -1067,7 +1074,7 @@ static ssize_t goodix_sysfs_fwimage_store(struct file *file,
 
 /* return fw_update result */
 static ssize_t goodix_sysfs_result_show(
-		struct device *dev, struct device_attribute *attr,
+		struct kobject *kobj, struct kobj_attribute *attr,
 		char *buf)
 {
 	struct fw_update_ctrl *fw_ctrl = &goodix_fw_update_ctrl;
@@ -1102,12 +1109,14 @@ static ssize_t goodix_sysfs_result_show(
 	return r;
 }
 
-static DEVICE_ATTR(update_en, 0220, NULL, goodix_sysfs_update_en_store);
-static DEVICE_ATTR(result, 0664, goodix_sysfs_result_show, NULL);
+static struct kobj_attribute goodix_sysfs_update =
+	__ATTR(update_en, 0220, NULL, goodix_sysfs_update_en_store);
+static struct kobj_attribute goodix_sysfs_result =
+	__ATTR(result, 0664, goodix_sysfs_result_show, NULL);
 
 static struct attribute *goodix_fwu_attrs[] = {
-	&dev_attr_update_en.attr,
-	&dev_attr_result.attr
+	&goodix_sysfs_update.attr,
+	&goodix_sysfs_result.attr
 };
 
 static int goodix_fw_sysfs_init(struct goodix_ts_core *core_data,

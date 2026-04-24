@@ -5799,7 +5799,7 @@ static int wcd939x_probe(struct platform_device *pdev)
 		if (ret) {
 			dev_err(dev, "%s: vdd px supply enable failed!\n",
 				__func__);
-			return ret;
+			goto err_static_supplies;
 		}
 	}
 
@@ -5810,13 +5810,13 @@ static int wcd939x_probe(struct platform_device *pdev)
 
 	if (ret) {
 		dev_err(dev, "Failed to read port mapping\n");
-		goto err;
+		goto err_supplies;
 	}
 	ret = wcd939x_parse_port_params(dev, "qcom,swr-tx-port-params",
 					CODEC_TX);
 	if (ret) {
 		dev_err(dev, "Failed to read port params\n");
-		goto err;
+		goto err_supplies;
 	}
 
 	mutex_init(&wcd939x->wakeup_lock);
@@ -5839,7 +5839,19 @@ static int wcd939x_probe(struct platform_device *pdev)
 err_lock_init:
 	mutex_destroy(&wcd939x->micb_lock);
 	mutex_destroy(&wcd939x->wakeup_lock);
-err:
+err_supplies:
+	if (msm_cdc_is_ondemand_supply(wcd939x->dev, wcd939x->supplies,
+			pdata->regulator, pdata->num_supplies, "cdc-vdd-px")) {
+		msm_cdc_disable_ondemand_supply(wcd939x->dev,
+				wcd939x->supplies, pdata->regulator,
+				pdata->num_supplies, "cdc-vdd-px");
+	}
+err_static_supplies:
+	msm_cdc_release_supplies(&pdev->dev, wcd939x->supplies,
+				     pdata->regulator,
+				     pdata->num_supplies);
+	pdata->regulator = NULL;
+	pdata->num_supplies = 0;
 	return ret;
 }
 

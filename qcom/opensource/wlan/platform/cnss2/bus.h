@@ -83,4 +83,7 @@ int cnss_bus_get_msi_assignment(struct cnss_plat_data *plat_priv,
 				u32 *user_base_data,
 				u32 *base_vector);
 void cnss_bus_start_xdump_timer(struct cnss_plat_data *plat_priv);
+int cnss_bus_get_msi_address(struct cnss_plat_data *plat_priv,
+			     u32 *msi_addr_low, u32 *msi_addr_high);
+void cnss_bus_notify_mhi_error(struct cnss_plat_data *plat_priv);
 #endif /* _CNSS_BUS_H */

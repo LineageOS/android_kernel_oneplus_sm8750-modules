@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 /*
@@ -30,6 +30,7 @@
 #include "kgsl_sync.h"
 #include "kgsl_timeline.h"
 #include "kgsl_trace.h"
+#include "kgsl_util.h"
 
 /*
  * Define an kmem cache for the memobj structures since we
@@ -145,7 +146,7 @@ void kgsl_dump_syncpoints(struct kgsl_device *device,
 static void syncobj_timer(struct timer_list *t)
 {
 	struct kgsl_device *device;
-	struct kgsl_drawobj_sync *syncobj = from_timer(syncobj, t, timer);
+	struct kgsl_drawobj_sync *syncobj = kgsl_timer_container_of(syncobj, t, timer);
 	struct kgsl_drawobj *drawobj;
 	struct kgsl_drawobj_sync_event *event;
 	unsigned int i;

@@ -181,7 +181,7 @@ int gmu_core_timed_poll_check(struct kgsl_device *device,
 		unsigned int offset, unsigned int expected_ret,
 		unsigned int timeout_ms, unsigned int mask)
 {
-	u32 val;
+	u32 val = 0;
 
 	return kgsl_regmap_read_poll_timeout(&device->regmap, offset,
 		val, (val & mask) == expected_ret, 100, timeout_ms * 1000);

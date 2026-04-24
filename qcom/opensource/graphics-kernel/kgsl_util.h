@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef _KGSL_UTIL_H_
@@ -257,4 +257,9 @@ static inline void kgsl_qcom_va_md_unregister(struct kgsl_device *device)
  */
 void isdb_write(void __iomem *base, u32 offset);
 
+#if (KERNEL_VERSION(6, 16, 0) <= LINUX_VERSION_CODE)
+#define kgsl_timer_container_of timer_container_of
+#else
+#define kgsl_timer_container_of from_timer
+#endif
 #endif

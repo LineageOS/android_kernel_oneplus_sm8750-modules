@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022, 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
@@ -310,6 +310,8 @@ struct sde_kms {
 	void **lb_displays;
 	int lb_disp_count;
 	bool dsc_switch_support;
+	void **hdmi_displays;
+	int hdmi_display_count;
 
 	bool has_danger_ctrl;
 
