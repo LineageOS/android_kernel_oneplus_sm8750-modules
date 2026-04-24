@@ -51,7 +51,7 @@
 /* I2C R/W configuration literal */
 #define RAYDIUM_I2C_WRITE       I2C_SMBUS_WRITE
 #define RAYDIUM_I2C_READ        I2C_SMBUS_READ
-#define SYN_I2C_RETRY_TIMES     1
+#define SYN_I2C_RETRY_TIMES     10
 #define MAX_WRITE_PACKET_SIZE   128
 #define MAX_READ_PACKET_SIZE    128
 
@@ -304,6 +304,7 @@ enum raydium_touch_status {
 #include <drm/drm_panel.h>
 #endif
 
+extern uint32_t slate_ack_resp;
 
 enum raydium_fb_state {
 	FB_ON,
@@ -360,7 +361,16 @@ struct raydium_ts_data {
 	struct pinctrl_state *pinctrl_state_active;
 	struct pinctrl_state *pinctrl_state_suspend;
 	struct pinctrl_state *pinctrl_state_release;
+
+#ifdef CONFIG_ARCH_VIENNA
+	struct pinctrl_state *pmx_ts_int_active;
+	struct pinctrl_state *pmx_ts_reset_active;
+	struct pinctrl_state *pmx_ts_int_suspend;
+	struct pinctrl_state *pmx_ts_reset_suspend;
+#endif
+
 #endif /*end of MSM_NEW_VER*/
+	int touch_offload;
 
 
 };
@@ -493,6 +503,8 @@ extern int raydium_i2c_pda_set_address(unsigned int u32_address,
 				       unsigned char u8_mode);
 extern void raydium_mem_table_init(unsigned short u16_id);
 extern int raydium_id_init(unsigned char u8_type);
+extern int raydium_get_regulator(struct raydium_ts_data *cd, bool get);
+extern int raydium_enable_regulator(struct raydium_ts_data *cd, bool en);
 
 #ifdef RAD_SELFTEST
 extern int raydium_do_selftest(struct raydium_ts_data *ts);

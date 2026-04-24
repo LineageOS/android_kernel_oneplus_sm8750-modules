@@ -113,6 +113,7 @@ void cnss_dereg_pci_event(struct cnss_pci_data *pci_priv);
  */
 int cnss_wlan_adsp_pc_enable(struct cnss_pci_data *pci_priv,
 			     bool control);
+int cnss_set_pci_pwrctrl(struct cnss_pci_data *pci_priv, bool power_on);
 int cnss_set_pci_link(struct cnss_pci_data *pci_priv, bool link_up);
 int cnss_pci_prevent_l1(struct device *dev);
 int __cnss_pci_prevent_l1(struct device *dev);
@@ -178,6 +179,11 @@ int cnss_reg_pci_event(struct cnss_pci_data *pci_priv)
 void cnss_dereg_pci_event(struct cnss_pci_data *pci_priv) {}
 
 int cnss_wlan_adsp_pc_enable(struct cnss_pci_data *pci_priv, bool control)
+{
+	return 0;
+}
+
+int cnss_set_pci_pwrctrl(struct cnss_pci_data *pci_priv, bool power_on)
 {
 	return 0;
 }

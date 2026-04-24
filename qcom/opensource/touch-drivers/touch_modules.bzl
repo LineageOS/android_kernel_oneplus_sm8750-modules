@@ -99,6 +99,24 @@ module_entry(
     ]
 )
 
+
+#define ddk_module() for synaptics_tcm2_ts
+module_entry(
+    name = "synaptics_tcm2_ts",
+    config_option = "CONFIG_TOUCHSCREEN_SYNAPTICS_TCM2",
+    srcs = [
+			"synaptics_tcm2/syna_tcm2.c",
+			"synaptics_tcm2/syna_tcm2_platform_spi.c",
+			"synaptics_tcm2/syna_tcm2_sysfs.c",
+			"synaptics_tcm2/syna_tcm2_cdev.c",
+			"synaptics_tcm2/tcm/synaptics_touchcom_func_base.c",
+			"synaptics_tcm2/tcm/synaptics_touchcom_func_touch.c",
+			"synaptics_tcm2/tcm/synaptics_touchcom_core_v1.c",
+			"synaptics_tcm2/tcm/synaptics_touchcom_image_parsing.c",
+			"synaptics_tcm2/tcm/synaptics_touchcom_func_reflash.c"
+    ]
+)
+
 #define ddk_module() for atmel_mxt_ts
 module_entry(
     name = "atmel_mxt_ts",
@@ -114,6 +132,15 @@ module_entry(
     config_option = "CONFIG_TOUCHSCREEN_DUMMY",
     srcs = [
             "dummy_touch/dummy_touch.c"
+    ]
+)
+
+#define ddk_module() for glink_interface_ts
+module_entry(
+    name = "glink_comm",
+    config_option = "CONFIG_TOUCHSCREEN_MSM_GLINK",
+    srcs = [
+            "glink_interface_ts/glink_interface.c"
     ]
 )
 
@@ -182,5 +209,8 @@ module_entry(
             "raydium/chip_raydium/f303_ic_test.c",
             "raydium/chip_raydium/ic_drv_global.c",
             "raydium/chip_raydium/ic_drv_interface.c"
+    ],
+    deps = [
+	    "glink_comm"
     ]
 )

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/debugfs.h>
@@ -348,6 +348,7 @@ static const struct gen8_pwrup_extlist gen8_0_0_pwrup_extlist[] = {
 	{ GEN8_GRAS_NC_MODE_CNTL, BIT(PIPE_BV) | BIT(PIPE_BR)},
 	{ GEN8_GRAS_DBG_ECO_CNTL, BIT(PIPE_BV) | BIT(PIPE_BR)},
 	{ GEN8_RB_CCU_CNTL, BIT(PIPE_BR)},
+	{ GEN8_RB_CCU_DBG_ECO_CNTL, BIT(PIPE_BR)},
 	{ GEN8_RB_CCU_NC_MODE_CNTL, BIT(PIPE_BR)},
 	{ GEN8_RB_CMP_NC_MODE_CNTL, BIT(PIPE_BR)},
 	{ GEN8_RB_RESOLVE_PREFETCH_CNTL, BIT(PIPE_BR)},
@@ -377,6 +378,7 @@ static const struct gen8_pwrup_extlist gen8_3_0_pwrup_extlist[] = {
 	{ GEN8_GRAS_NC_MODE_CNTL, BIT(PIPE_BV) | BIT(PIPE_BR)},
 	{ GEN8_GRAS_DBG_ECO_CNTL, BIT(PIPE_BV) | BIT(PIPE_BR)},
 	{ GEN8_RB_CCU_CNTL, BIT(PIPE_BR)},
+	{ GEN8_RB_CCU_DBG_ECO_CNTL, BIT(PIPE_BR)},
 	{ GEN8_RB_CCU_NC_MODE_CNTL, BIT(PIPE_BR)},
 	{ GEN8_RB_CMP_NC_MODE_CNTL, BIT(PIPE_BR)},
 	{ GEN8_RB_RESOLVE_PREFETCH_CNTL, BIT(PIPE_BR)},
@@ -408,7 +410,7 @@ struct gen8_nonctxt_overrides gen8_nc_overrides[] = {
 	{ GEN8_GRAS_NC_MODE_CNTL, BIT(PIPE_BV) | BIT(PIPE_BR), 0, 0, 0, },
 	{ GEN8_GRAS_DBG_ECO_CNTL, BIT(PIPE_BV) | BIT(PIPE_BR), 0, 0, 0, },
 	{ GEN8_RB_DBG_ECO_CNTL, BIT(PIPE_BR), 0, 0, 3, },
-	{ GEN8_RB_CCU_DBG_ECO_CNTL, BIT(PIPE_BR), 0, 0, 3, },
+	{ GEN8_RB_CCU_DBG_ECO_CNTL, BIT(PIPE_BR), 0, 0, 0, },
 	{ GEN8_RB_CCU_CNTL, BIT(PIPE_BR), 0, 0, 0, },
 	{ GEN8_RB_CCU_NC_MODE_CNTL, BIT(PIPE_BR), 0, 0, 0, },
 	{ GEN8_RB_SLICE_UFC_PREFETCH_CNTL, BIT(PIPE_BR), 0, 0, 3, },
@@ -2599,11 +2601,19 @@ int gen8_perfcounter_update(struct adreno_device *adreno_dev,
 	u16 perfcntr_list_len = lock->dynamic_list_len - gen8_dev->ext_pwrup_list_len;
 	unsigned long irq_flags;
 	int ret = 0;
+	u32 num_dependencies = 0;
+	u32 pending_triplets = 2;
 
 	if (!ADRENO_ACQUIRE_CP_SEMAPHORE(adreno_dev, irq_flags))
 		return -EBUSY;
 
 	if (flags & ADRENO_PERFCOUNTER_GROUP_RESTORE) {
+		for (i = 0; i < PERFCOUNTER_REG_DEPENDENCY_LEN && reg->reg_dependency[i]; i++)
+			num_dependencies++;
+
+		/* Number of triplets to add: 1 main + dependencies + 2 controls */
+		pending_triplets += num_dependencies + 1;
+
 		for (i = 0; i < perfcntr_list_len - 2; i++) {
 			if ((data[offset + 1] == reg->select) && (data[offset] == pipe)) {
 				start_offset = offset;
@@ -2614,6 +2624,13 @@ int gen8_perfcounter_update(struct adreno_device *adreno_dev,
 		}
 	} else if (perfcntr_list_len) {
 		goto update;
+	}
+
+	/* Ensure there is enough space in the reglist buffer for new triplets */
+	if ((start_offset == -1) && (offset + (pending_triplets * 3)) >=
+		(adreno_dev->pwrup_reglist->size / sizeof(u32))) {
+		ret = -ENOSPC;
+		goto err;
 	}
 
 	if (kgsl_hwlock(lock)) {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/iommu.h>
@@ -2694,7 +2694,7 @@ static void gen7_hwsched_hw_fence_timeout(struct work_struct *work)
 
 static void gen7_hwsched_hw_fence_timer(struct timer_list *t)
 {
-	struct gen7_hwsched_hfi *hfi = from_timer(hfi, t, hw_fence_timer);
+	struct gen7_hwsched_hfi *hfi = kgsl_timer_container_of(hfi, t, hw_fence_timer);
 
 	kgsl_schedule_work(&hfi->hw_fence_ws);
 }
@@ -4002,7 +4002,7 @@ int gen7_hwsched_counter_inline_enable(struct adreno_device *adreno_dev,
 	struct gen7_hwsched_hfi *hfi = to_gen7_hwsched_hfi(adreno_dev);
 	struct kgsl_device *device = KGSL_DEVICE(adreno_dev);
 	struct adreno_perfcount_register *reg = &group->regs[counter];
-	u32 val, *cmds, count = 0;
+	u32 val = 0, *cmds, count = 0;
 	int ret;
 
 	ret = register_global_ctxt(adreno_dev);

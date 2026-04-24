@@ -45,6 +45,7 @@ def define_sun():
                     "CONFIG_MSM_EXT_DISPLAY",
                     "CONFIG_DRM_SDE_CESTA",
                     "CONFIG_SMMU_PROXY",
+                    "CONFIG_DRM_MSM_HDMI",
 #if defined(CONFIG_PXLW_IRIS)
                     "CONFIG_PXLW_IRIS",
                     "CONFIG_PXLW_IRIS7P",
