@@ -5684,7 +5684,6 @@ static int __cam_isp_ctx_apply_req_in_activated_state(
 
 	rc = ctx->hw_mgr_intf->hw_config(ctx->hw_mgr_intf->hw_mgr_priv, &cfg);
 	if (!rc) {
-		ctx_isp->last_apply_settings = false;
 		spin_lock_bh(&ctx->lock);
 		atomic_set(&ctx_isp->last_applied_default, 0);
 		ctx_isp->substate_activated = next_state;
@@ -7500,7 +7499,6 @@ static int __cam_isp_ctx_release_hw_in_top_state(struct cam_context *ctx,
 	ctx_isp->custom_enabled = false;
 	ctx_isp->use_frame_header_ts = false;
 	ctx_isp->use_default_apply = false;
-	ctx_isp->last_apply_settings = false;
 	ctx_isp->frame_id = 0;
 	ctx_isp->active_req_cnt = 0;
 	ctx_isp->reported_req_id = 0;
@@ -9939,7 +9937,6 @@ static int __cam_isp_ctx_apply_default_settings(
 				"Apply default failed in active substate %d rc %d ctx: %u link: 0x%x",
 				ctx_isp->substate_activated, rc, ctx->ctx_id, ctx->link_hdl);
 		atomic_set(&ctx_isp->last_applied_default, 1);
-		ctx_isp->last_apply_settings = true;
 	}
 
 	return rc;
@@ -10466,7 +10463,6 @@ int cam_isp_context_init(struct cam_isp_context *ctx,
 	ctx->custom_enabled = false;
 	ctx->use_frame_header_ts = false;
 	ctx->use_default_apply = false;
-	ctx->last_apply_settings = false;
 	ctx->active_req_cnt = 0;
 	ctx->reported_req_id = 0;
 	ctx->bubble_frame_cnt = 0;
