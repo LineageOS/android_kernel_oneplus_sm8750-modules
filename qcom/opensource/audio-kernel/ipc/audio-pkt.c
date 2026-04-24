@@ -51,14 +51,18 @@ static spinlock_t gskb_lock;
 static void *audio_pkt_ilctxt;
 
 static int audio_pkt_debug_mask;
+#ifndef OPLUS_ARCH_EXTENDS
 static struct sk_buff_head audio_pkt_backup_buffers;
 static struct work_struct audio_pkt_skb_backup_work;
+#endif
 module_param_named(debug_mask, audio_pkt_debug_mask, int, 0664);
 
 #define APM_CMD_SHARED_MEM_MAP_REGIONS		0x0100100C
 #define APM_MEMORY_MAP_BIT_MASK_IS_OFFSET_MODE	0x00000004UL
+#ifndef OPLUS_ARCH_EXTENDS
 #define AUDIO_PKT_BUF_SIZE SZ_4K
 #define AUDIO_PKT_BACKUP_BUFFERS_NUM 10
+#endif
 
 enum {
 	AUDIO_PKT_INFO = 1U << 0,
@@ -509,6 +513,7 @@ static const struct file_operations audio_pkt_fops = {
 	.poll = audio_pkt_poll,
 };
 
+#ifndef OPLUS_ARCH_EXTENDS
 static void audio_pkt_alloc_backup(struct work_struct *work)
 {
 	struct sk_buff *skb;
@@ -533,6 +538,8 @@ static struct sk_buff *audio_pkt_get_backup(void)
 	queue_work(system_unbound_wq, &audio_pkt_skb_backup_work);
 	return buf;
 }
+#endif
+
 /**
  * audio_pkt_srvc_callback() - Callback from gpr driver
  * adev:	pointer to the gpr device of this audio packet device
@@ -778,9 +785,11 @@ static int audio_pkt_platform_driver_probe(struct platform_device *pdev)
 	skb_queue_head_init(&audpkt_dev->queue);
 	init_waitqueue_head(&audpkt_dev->readq);
 
+#ifndef OPLUS_ARCH_EXTENDS
 	skb_queue_head_init(&audio_pkt_backup_buffers);
 	INIT_WORK(&audio_pkt_skb_backup_work, audio_pkt_alloc_backup);
 	queue_work(system_unbound_wq, &audio_pkt_skb_backup_work);
+#endif
 
 	cdev_init(&audpkt_dev->cdev, &audio_pkt_fops);
 	audpkt_dev->cdev.owner = THIS_MODULE;
@@ -848,8 +857,10 @@ static int audio_pkt_platform_driver_remove(struct platform_device *adev)
 	mutex_destroy(&ap_priv->lock);
 
 	//of_platform_depopulate(&adev->dev);
+#ifndef OPLUS_ARCH_EXTENDS
 	cancel_work_sync(&audio_pkt_skb_backup_work);
 	skb_queue_purge(&audio_pkt_backup_buffers);
+#endif
 	AUDIO_PKT_INFO("Audio Packet Port Driver Removed\n");
 
 	return 0;
