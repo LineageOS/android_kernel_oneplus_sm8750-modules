@@ -42,6 +42,8 @@
 #include "dp_display.h"
 #include "dp_drm.h"
 #include "dp_mst_drm.h"
+#include "hdmi_display.h"
+#include "hdmi_drm.h"
 
 #include "sde_kms.h"
 #include "sde_core_irq.h"
@@ -1981,7 +1983,30 @@ static int _sde_kms_get_displays(struct sde_kms *sde_kms)
 			sde_kms->lb_displays[i] =  sde_kms->dsi_displays[i];
 	}
 
+	/* hdmi */
+	sde_kms->hdmi_displays = NULL;
+	sde_kms->hdmi_display_count = hdmi_display_get_num_of_displays(sde_kms->dev);
+	if (sde_kms->hdmi_display_count) {
+		sde_kms->hdmi_displays = kcalloc(sde_kms->hdmi_display_count,
+				sizeof(void *),
+				GFP_KERNEL);
+		if (!sde_kms->hdmi_displays) {
+			SDE_ERROR("failed to allocate hdmi displays\n");
+			goto exit_deinit_hdmi;
+		}
+		sde_kms->hdmi_display_count =
+			hdmi_display_get_displays(sde_kms->dev,
+					sde_kms->hdmi_displays,
+					sde_kms->hdmi_display_count);
+	}
+
+
 	return 0;
+
+exit_deinit_hdmi:
+	kfree(sde_kms->hdmi_displays);
+	sde_kms->hdmi_display_count = 0;
+	sde_kms->hdmi_displays = NULL;
 
 exit_deinit_lb:
 	kfree(sde_kms->lb_displays);
@@ -2024,6 +2049,103 @@ static void _sde_kms_release_displays(struct sde_kms *sde_kms)
 	kfree(sde_kms->dsi_displays);
 	sde_kms->dsi_displays = NULL;
 	sde_kms->dsi_display_count = 0;
+}
+
+int setup_hdmi_displays(struct drm_device *dev,
+						struct msm_drm_private *priv,
+						struct sde_kms *sde_kms,
+						int max_encoders,
+						int max_dp_mixer_count,
+						int max_dp_dsc_count)
+{
+	static const struct sde_connector_ops hdmi_ops = {
+		.set_info_blob = hdmi_connector_set_info_blob,
+		.post_init  = hdmi_connector_post_init,
+		.detect     = hdmi_connector_detect,
+		.get_modes  = hdmi_connector_get_modes,
+		.atomic_check = hdmi_connector_atomic_check,
+		.mode_valid = hdmi_connector_mode_valid,
+		.get_info   = hdmi_connector_get_info,
+		.get_mode_info  = hdmi_connector_get_mode_info,
+		.post_open  = hdmi_connector_post_open,
+		.check_status = NULL,
+		.set_colorspace = hdmi_connector_set_colorspace,
+		.config_hdr = hdmi_connector_config_hdr,
+		.cmd_transfer = NULL,
+		.cont_splash_config = NULL,
+		.cont_splash_res_disable = NULL,
+		.get_panel_vfp = NULL,
+		.update_pps = hdmi_connector_update_pps,
+		.cmd_receive = NULL,
+		.install_properties = hdmi_connector_install_properties,
+		.set_allowed_mode_switch = NULL,
+		.set_dyn_bit_clk = NULL,
+		.update_transfer_time = NULL,
+	};
+
+	int i, connector_poll = 0, rc;
+	void *display, *connector;
+	struct drm_encoder *encoder;
+	struct msm_display_info info;
+	char cesta_client_name[32];
+	struct sde_cesta_client *cesta_client;
+
+	/* hdmi */
+	for (i = 0; i < sde_kms->hdmi_display_count &&
+			priv->num_encoders < max_encoders; ++i) {
+
+		display = sde_kms->hdmi_displays[i];
+		encoder = NULL;
+
+		memset(&info, 0x0, sizeof(info));
+		rc = hdmi_connector_get_info(NULL, &info, display);
+		if (rc) {
+			SDE_ERROR("failed to read hdmi info, %d\n", rc);
+			continue;
+		}
+
+		if (info.capabilities & MSM_DISPLAY_CAP_HOT_PLUG)
+			connector_poll = DRM_CONNECTOR_POLL_HPD;
+		// FIXME; fix this
+		//info.h_tile_instance[0] = dp_info.intf_idx[0];
+
+		snprintf(cesta_client_name, sizeof(cesta_client_name), "hdmi%u", i);
+		cesta_client = sde_cesta_create_client(DPUID(dev), cesta_client_name);
+
+		encoder = sde_encoder_init(dev, &info, cesta_client);
+		if (IS_ERR_OR_NULL(encoder)) {
+			SDE_ERROR("hdmi encoder init failed %d\n", i);
+			continue;
+		}
+
+		// FIXME: mixer count = total - dsi mixers.
+		// hdmi or dp are free to use.
+		rc = hdmi_drm_bridge_init(display, encoder,
+				max_dp_mixer_count, max_dp_dsc_count);
+		if (rc) {
+			SDE_ERROR("hdmi bridge %d init failed, %d\n", i, rc);
+			sde_encoder_destroy(encoder);
+			continue;
+		}
+
+		connector = sde_connector_init(dev,
+					encoder,
+					NULL,
+					display,
+					&hdmi_ops,
+					connector_poll,
+					DRM_MODE_CONNECTOR_HDMIA, false);
+		if (connector) {
+			priv->encoders[priv->num_encoders++] = encoder;
+			priv->connectors[priv->num_connectors++] = connector;
+		} else {
+			SDE_ERROR("hdmi %d connector init failed\n", i);
+			hdmi_drm_bridge_deinit(display);
+			sde_encoder_destroy(encoder);
+		}
+	}
+
+	return 0;
 }
 
 /**
@@ -2157,7 +2279,9 @@ static int _sde_kms_setup_displays(struct drm_device *dev,
 
 	max_encoders = sde_kms->dsi_display_count + sde_kms->wb_display_count +
 				sde_kms->dp_display_count +
-				sde_kms->dp_stream_count + sde_kms->lb_disp_count;
+				sde_kms->dp_stream_count +
+				sde_kms->lb_disp_count +
+				sde_kms->hdmi_display_count;
 	if (max_encoders > ARRAY_SIZE(priv->encoders)) {
 		max_encoders = ARRAY_SIZE(priv->encoders);
 		SDE_ERROR("capping number of displays to %d", max_encoders);
@@ -2406,6 +2530,9 @@ static int _sde_kms_setup_displays(struct drm_device *dev,
 		}
 	}
 
+	setup_hdmi_displays(dev, priv, sde_kms, max_encoders,
+				max_dp_mixer_count, max_dp_dsc_count);
+
 	return 0;
 }
 
@@ -2547,8 +2674,12 @@ static int _sde_kms_drm_obj_init(struct sde_kms *sde_kms)
 	}
 
 	/* All CRTCs are compatible with all encoders */
-	for (i = 0; i < priv->num_encoders; i++)
+	for (i = 0; i < priv->num_encoders; i++) {
 		priv->encoders[i]->possible_crtcs = (1 << priv->num_crtcs) - 1;
+		if (catalog->max_cwb > 0)
+			priv->encoders[i]->possible_clones =
+				sde_encoder_get_clones(priv->encoders[i]);
+	}
 
 	return 0;
 fail:

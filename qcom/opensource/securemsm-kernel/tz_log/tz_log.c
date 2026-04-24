@@ -1370,15 +1370,12 @@ static ssize_t tzdbg_fs_read_encrypted(int tz_id, char __user *buf,
 static ssize_t tzdbg_fs_read(struct file *file, char __user *buf,
 	size_t count, loff_t *offp)
 {
-	struct seq_file *seq = file->private_data;
 	int tz_id = TZDBG_STATS_MAX;
 
-	if (seq)
-		tz_id = *(int *)(seq->private);
-	else {
-		pr_err("%s: Seq data null unable to proceed\n", __func__);
-		return 0;
-	}
+	tz_id = *(int *)((struct seq_file *)file->private_data)->private;
+
+	if (tz_id < 0 || tz_id >= TZDBG_STATS_MAX)
+		return -EINVAL;
 
 	if (!tzdbg.is_encrypted_log_enabled ||
 	    (tz_id == TZDBG_HYP_GENERAL || tz_id == TZDBG_HYP_LOG)
@@ -1390,13 +1387,18 @@ static ssize_t tzdbg_fs_read(struct file *file, char __user *buf,
 
 static int tzdbg_procfs_open(struct inode *inode, struct file *file)
 {
+	void *data = NULL;
 
-#if (LINUX_VERSION_CODE <= KERNEL_VERSION(6,0,0))
-       return single_open(file, NULL, PDE_DATA(inode));
+#if KERNEL_VERSION(6, 0, 0) >= LINUX_VERSION_CODE
+	data = PDE_DATA(inode);
 #else
-       return single_open(file, NULL, pde_data(inode));
+	data = pde_data(inode);
 #endif
 
+	if (!data)
+		return -EINVAL;
+
+	return single_open(file, NULL, data);
 }
 
 static int tzdbg_procfs_release(struct inode *inode, struct file *file)

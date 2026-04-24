@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/module.h>
@@ -150,6 +150,7 @@ struct lpass_cdc_tx_macro_priv {
 	int child_count;
 	bool bcs_enable;
 	int dec_mode[NUM_DECIMATORS];
+	int dec_ref_cnt[NUM_DECIMATORS];
 	int bcs_ch;
 	bool bcs_clk_en;
 	bool hs_slow_insert_complete;
@@ -539,7 +540,7 @@ static void mute_stream_dec_unmute(struct work_struct *work)
 		tx_mute_ctl_reg = LPASS_CDC_TX0_TX_PATH_CTL +
 			LPASS_CDC_TX_MACRO_TX_PATH_OFFSET * decimator;
 		snd_soc_component_update_bits(component, tx_mute_ctl_reg, 0x10, 0x00);
-
+		tx_priv->dec_ref_cnt[decimator]++;
 		if (tx_priv->swr_dmic_gain_disable) {
 			dec_gain_reg = LPASS_CDC_TX0_TX_PATH_CFG1 +
 				LPASS_CDC_TX_MACRO_TX_PATH_OFFSET * decimator;
@@ -1345,8 +1346,14 @@ static int lpass_cdc_tx_mute_stream(struct snd_soc_dai *dai, int mute, int strea
 		}
 		tx_mute_ctl_reg = LPASS_CDC_TX0_TX_PATH_CTL +
 			LPASS_CDC_TX_MACRO_TX_PATH_OFFSET * decimator;
+
 		if (mute) {
-			snd_soc_component_update_bits(component, tx_mute_ctl_reg, 0x10, 0x10);
+			if (tx_priv->dec_ref_cnt[decimator] > 0)
+				tx_priv->dec_ref_cnt[decimator]--;
+
+			if (!tx_priv->dec_ref_cnt[decimator])
+				snd_soc_component_update_bits(component,
+						tx_mute_ctl_reg, 0x10, 0x10);
 		} else {
 			if (!is_msm_dmic_enabled(component, decimator)) {
 				snd_soc_component_update_bits(component, tx_mute_ctl_reg,

@@ -1,5 +1,6 @@
 load("//build/kernel/kleaf:kernel.bzl", "ddk_module", "ddk_submodule", "kernel_module_group")
-load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
+load("@rules_pkg//pkg:install.bzl", "pkg_install")
+load("@rules_pkg//pkg:mappings.bzl", "pkg_files", "strip_prefix")
 
 def _register_module_to_map(module_map, name, path, config_option, srcs, deps):
     module = struct(
@@ -92,13 +93,16 @@ def define_target_variant_modules(target, variant, registry, modules, config_opt
         name = "{}_touch_modules".format(kernel_build),
         srcs = all_module_rules,
     )
-    copy_to_dist_dir(
+
+    pkg_files(
+        name = kernel_build + "_dist_files",
+        srcs = [":{}_touch_modules".format(kernel_build)],
+        visibility = ["//visibility:private"],
+        strip_prefix = strip_prefix.files_only(),
+    )
+
+    pkg_install(
         name = "{}_touch_drivers_dist".format(kernel_build),
-        data = [":{}_touch_modules".format(kernel_build)],
-        dist_dir = "out/target/product/{}/dlkm/lib/modules".format(target),
-        flat = True,
-        wipe_dist_dir = False,
-        allow_duplicate_filenames = False,
-        mode_overrides = {"**/*": "644"},
-        log = "info",
+        srcs = [":{}_dist_files".format(kernel_build)],
+        destdir = "out/target/product/{}/dlkm/lib/modules".format(target),
     )

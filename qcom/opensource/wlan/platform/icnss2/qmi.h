@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __ICNSS_QMI_H__
@@ -267,6 +267,11 @@ int icnss_get_feature_list(struct icnss_priv *priv,
 {
 	return 0;
 }
+
+int icnss_wlfw_xo_trim_result_send_sync(struct icnss_priv *priv, int result)
+{
+	return 0;
+}
 #else
 int wlfw_ind_register_send_sync_msg(struct icnss_priv *priv);
 int icnss_connect_to_fw_server(struct icnss_priv *priv, void *data);
@@ -337,6 +342,7 @@ int icnss_load_aux(struct icnss_priv *priv);
 int icnss_set_feature_list(struct icnss_priv *priv,
 			   enum cnss_feature_v01 feature);
 int icnss_get_feature_list(struct icnss_priv *priv, u64 *feature_list);
+int icnss_wlfw_xo_trim_result_send_sync(struct icnss_priv *priv, int result);
 #endif
 
 #endif /* __ICNSS_QMI_H__*/

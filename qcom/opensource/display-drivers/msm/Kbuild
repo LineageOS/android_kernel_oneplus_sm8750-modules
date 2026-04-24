@@ -78,6 +78,7 @@ LINUX_INC +=	-I$(DISPLAY_ROOT) \
 	-I$(DISPLAY_ROOT)/rotator \
 	-I$(DISPLAY_ROOT)/msm \
 	-I$(DISPLAY_ROOT)/msm/dp \
+	-I$(DISPLAY_ROOT)/msm/hdmi \
 	-I$(DISPLAY_ROOT)/msm/dsi \
 	-I$(DISPLAY_ROOT)/msm/sde \
 	-I$(DISPLAY_ROOT)/../mm-drivers/hw_fence/include \
@@ -292,6 +293,21 @@ endif
 msm_drm-$(CONFIG_DSI_PARSER) += dsi/dsi_parser.o
 
 msm_drm-$(CONFIG_THERMAL_OF) += msm_cooling_device.o
+
+msm_drm-$(CONFIG_DRM_MSM_HDMI) += hdmi/hdmi_audio.o \
+				hdmi/hdmi_cec.o \
+				hdmi/hdmi_debug.o \
+				hdmi/hdmi_display.o \
+				hdmi/hdmi_drm.o \
+				hdmi/hdmi_hdcp2p2.o \
+				hdmi/hdmi_panel.o \
+				hdmi/hdmi_parser.o \
+				hdmi/hdmi_phy.o \
+				hdmi/hdmi_phy_snps.o \
+				hdmi/hdmi_pll.o \
+				hdmi/hdmi_pll_snps.o \
+				hdmi/hdmi_power.o \
+				hdmi/hdmi_util.o
 
 msm_drm-$(CONFIG_DRM_MSM) += msm_atomic.o \
 			     msm_fb.o \

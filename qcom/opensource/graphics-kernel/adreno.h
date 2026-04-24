@@ -1804,7 +1804,7 @@ static inline void adreno_perfcntr_active_oob_put(
 static inline int adreno_wait_for_halt_ack(struct kgsl_device *device,
 	int ack_reg, unsigned int mask)
 {
-	u32 val;
+	u32 val = 0;
 	int ret = kgsl_regmap_read_poll_timeout(&device->regmap, ack_reg,
 		val, (val & mask) == mask, 100, 100 * 1000);
 

@@ -14,6 +14,8 @@
 
 #define DBC_START_OFFSET 4
 #define EDID_DTD_LEN 18
+#define MAX_TMDS_300_MHZ 300000
+#define MAX_TMDS_600_MHZ 600000
 
 enum data_block_types {
 	RESERVED,
@@ -88,6 +90,36 @@ sde_cea_db_offsets(const u8 *cea, int *start, int *end)
 for ((i) = (start); \
 (i) < (end) && (i) + sde_cea_db_payload_len(&(cea)[(i)]) < (end); \
 (i) += sde_cea_db_payload_len(&(cea)[(i)]) + 1)
+
+static bool sde_cea_db_is_hdmi_vsdb(const u8 *db)
+{
+	int hdmi_id;
+
+	if (sde_cea_db_tag(db) != VENDOR_SPECIFIC_DATA_BLOCK)
+		return false;
+
+	if (sde_cea_db_payload_len(db) < 6)
+		return false;
+
+	hdmi_id = db[1] | (db[2] << 8) | (db[3] << 16);
+
+	return hdmi_id == HDMI_IEEE_OUI;
+}
+
+static bool sde_cea_db_is_hdmi_hf_vsdb(const u8 *db)
+{
+	int hdmi_id;
+
+	if (sde_cea_db_tag(db) != VENDOR_SPECIFIC_DATA_BLOCK)
+		return false;
+
+	if (sde_cea_db_payload_len(db) < 7)
+		return false;
+
+	hdmi_id = db[1] | (db[2] << 8) | (db[3] << 16);
+
+	return hdmi_id == HDMI_FORUM_IEEE_OUI;
+}
 
 static const u8 *_sde_edid_find_block(const u8 *in_buf, u32 start_offset,
 	u8 type, u8 *len)
@@ -433,6 +465,64 @@ struct sde_edid_ctrl *sde_edid_init(void)
 	return edid_ctrl;
 }
 
+static void _sde_edid_extract_hdmi_vsdb_block(struct drm_connector *connector,
+					struct sde_edid_ctrl *edid_ctrl)
+{
+	int i, start, end;
+	u8 *cea;
+	struct drm_display_info *info = NULL;
+
+	SDE_EDID_DEBUG("%s +\n", __func__);
+
+	if (!edid_ctrl || !connector) {
+		SDE_ERROR("invalid input\n");
+		return;
+	}
+
+	if (!edid_ctrl->edid) {
+		SDE_DEBUG("EDID not present\n");
+		return;
+	}
+
+	info = &connector->display_info;
+	cea = sde_find_cea_extension(edid_ctrl->edid);
+
+	if (!cea) {
+		SDE_DEBUG("no cea extension\n");
+		goto out;
+	}
+
+	if (sde_cea_db_offsets(cea, &start, &end)) {
+		SDE_DEBUG("HDMI VSDB block NOT present\n");
+		goto out;
+	}
+
+	sde_for_each_cea_db(cea, i, start, end) {
+		if (sde_cea_db_is_hdmi_vsdb(&cea[i])) {
+			if (sde_cea_db_payload_len(&cea[i]) <= 6) {
+				SDE_DEBUG("No HDMI 1.4x VSDB Max TMDS BLK\n");
+				info->max_tmds_clock = MAX_TMDS_300_MHZ;
+			}
+		}
+
+		if (sde_cea_db_is_hdmi_hf_vsdb(&cea[i])) {
+			if (sde_cea_db_payload_len(&cea[i]) <= 6) {
+				SDE_DEBUG("No HDMI 2.x VSDB Max TMDS BLK\n");
+				info->max_tmds_clock = MAX_TMDS_600_MHZ;
+			}
+			break;
+		}
+	}
+
+out:
+	/**
+	 * For no VSDB block and unsupported format, fix
+	 * tmds_clk = 300 MHz.
+	 */
+	if (info->max_tmds_clock == 0)
+		info->max_tmds_clock = MAX_TMDS_300_MHZ;
+}
+
 void sde_free_edid(void **input)
 {
 	struct sde_edid_ctrl *edid_ctrl = (struct sde_edid_ctrl *)(*input);
@@ -466,6 +556,7 @@ int _sde_edid_update_modes(struct drm_connector *connector,
 		rc = drm_add_edid_modes(connector, edid_ctrl->edid);
 		sde_edid_parse_extended_blk_info(connector,
 				edid_ctrl->edid);
+		_sde_edid_extract_hdmi_vsdb_block(connector, edid_ctrl);
 		SDE_EDID_DEBUG("%s -", __func__);
 		return rc;
 	}

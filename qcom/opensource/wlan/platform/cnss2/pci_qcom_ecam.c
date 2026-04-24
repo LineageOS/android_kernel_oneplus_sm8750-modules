@@ -61,44 +61,51 @@ int cnss_wlan_adsp_pc_enable(struct cnss_pci_data *pci_priv, bool control)
 	return 0;
 }
 
-int cnss_set_pci_link(struct cnss_pci_data *pci_priv, bool link_up)
+/* cnss_rc_rtpm_mgmt_wrapper() -
+ *	Handle the PCIe RC device's RTPM state machine for
+ *	PCIe link suspend/resume.
+ *
+ * Typically, this should be managed by the RC driver itself.
+ * However, since the upstream RC driver is in use and it is difficult
+ * to upstream this logic immediately, this function is maintained
+ * in the CNSS driver as a short-term solution.
+ *
+ * The RC RTPM implementation provided here was reviewed by the
+ * RC driver team and will be maintained by them.
+ */
+static inline
+int cnss_rc_rtpm_mgmt_wrapper(struct pci_dev *pdev, bool link_up)
 {
-	int ret = 0;
+	int ret = -EINVAL;
 	struct device *dev, *host_bridge_dev;
 	struct pci_dev *root_port;
 
-	if (!pci_priv) {
-		cnss_pr_err("pci_priv is null\n");
-		return -EINVAL;
-	}
-
-	root_port = pcie_find_root_port(pci_priv->pci_dev);
+	root_port = pcie_find_root_port(pdev);
 	if (!root_port) {
 		cnss_pr_err("PCIe root port is null\n");
-		return -EINVAL;
+		return ret;
 	}
 
 	host_bridge_dev = root_port->dev.parent;
 	if (!host_bridge_dev) {
 		cnss_pr_err("host_bridge_dev is null\n");
-		return -EINVAL;
+		return ret;
 	}
 
 	dev = host_bridge_dev->parent;
 	if (!dev) {
 		cnss_pr_err("PCIe platform device is null\n");
-		return -EINVAL;
+		return ret;
 	}
-
-	cnss_pr_info("%s PCI link, \n", link_up ? "Resuming" : "Suspending");
 
 	cnss_pr_info("PCIe PM: usage_count:%d, runtime_status:%d\n",
 		     atomic_read(&dev->power.usage_count),
 		     dev->power.runtime_status);
 
 	if (link_up) {
-		dev->power.ignore_children = false;
-		ret = pm_runtime_get_sync(dev);
+		pm_suspend_ignore_children(dev, false);
+		ret = pm_runtime_resume(dev);
+		pm_runtime_barrier(dev);
 		cnss_pr_info("PCIe resume: ret:%d, usage_count:%d, runtime_status:%d\n",
 			     ret, atomic_read(&dev->power.usage_count),
 			     dev->power.runtime_status);
@@ -109,8 +116,9 @@ int cnss_set_pci_link(struct cnss_pci_data *pci_priv, bool link_up)
 			return ret;
 		}
 	} else {
-		dev->power.ignore_children = true;
-		ret = pm_runtime_put_sync(dev);
+		pm_suspend_ignore_children(dev, true);
+		ret = pm_runtime_suspend(dev);
+		pm_runtime_barrier(dev);
 		cnss_pr_info("PCIe suspend: ret:%d, usage_count:%d, runtime_status:%d\n",
 			     ret, atomic_read(&dev->power.usage_count),
 			     dev->power.runtime_status);
@@ -124,6 +132,29 @@ int cnss_set_pci_link(struct cnss_pci_data *pci_priv, bool link_up)
 	}
 
 	return ret;
+}
+
+int cnss_set_pci_link(struct cnss_pci_data *pci_priv, bool link_up)
+{
+	int ret = 0;
+
+	if (!pci_priv) {
+		cnss_pr_err("pci_priv is NULL\n");
+		return -ENODEV;
+	}
+
+	cnss_pr_info("%s PCI link, \n", link_up ? "Resuming" : "Suspending");
+
+	ret = cnss_rc_rtpm_mgmt_wrapper(pci_priv->pci_dev, link_up);
+
+	cnss_pr_info("cnss_set_pci_link, ret = %d\n", ret);
+
+	return ret;
+}
+
+int cnss_set_pci_pwrctrl(struct cnss_pci_data *pci_priv, bool power_on)
+{
+	return 0;
 }
 
 int cnss_pci_prevent_l1(struct device *dev)

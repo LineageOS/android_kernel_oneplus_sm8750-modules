@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/slab.h>
@@ -2400,7 +2400,7 @@ static void adreno_dispatcher_queue_context(struct adreno_device *adreno_dev,
  */
 static void adreno_dispatcher_timer(struct timer_list *t)
 {
-	struct adreno_dispatcher *dispatcher = from_timer(dispatcher, t, timer);
+	struct adreno_dispatcher *dispatcher = kgsl_timer_container_of(dispatcher, t, timer);
 	struct adreno_device *adreno_dev = container_of(dispatcher,
 					struct adreno_device, dispatcher);
 

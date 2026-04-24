@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2015-2021, The Linux Foundation. All rights reserved. */
-/* Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved. */
+/* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries. */
 
 #ifndef WLAN_FIRMWARE_SERVICE_V01_H
 #define WLAN_FIRMWARE_SERVICE_V01_H
@@ -344,6 +344,7 @@ enum cnss_feature_v01 {
 	CNSS_PCIE_PERST_NO_PULL_V01 = 4,
 	CNSS_RC_EP_ULTRASHORT_CHANNEL_V01 = 5,
 	CNSS_AUX_UC_SUPPORT_V01 = 6,
+	CNSS_EXT_2P2RFA_SUPPORT_V01 = 7,
 	CNSS_MAX_FEATURE_V01 = 64,
 	CNSS_FEATURE_MAX_VAL_V01 = INT_MAX,
 };
@@ -543,6 +544,7 @@ enum wlfw_partner_chip_state_v01 {
 #define QMI_WLFW_CE_CMN_CFG_SUPPORT_V01 ((u64)0x10ULL)
 #define QMI_WLFW_WLAN_DUMP_OVER_BT_SUPPORT_V01 ((u64)0x20ULL)
 #define QMI_WLFW_BT_DUMP_OVER_WLAN_SUPPORT_V01 ((u64)0x40ULL)
+#define QMI_WLFW_DIRECT_REFILL_SUPPORT_V01 ((u64)0x80ULL)
 
 #define QMI_WLFW_DIRECT_LINK_SKU_SUPPORT_V01 ((u64)0x01ULL)
 
@@ -986,8 +988,10 @@ struct wlfw_bdf_download_resp_msg_v01 {
 	struct qmi_response_type_v01 resp;
 	u8 host_bdf_data_valid;
 	u64 host_bdf_data;
+	u8 xo_trim_val_valid;
+	u8 xo_trim_val;
 };
-#define WLFW_BDF_DOWNLOAD_RESP_MSG_V01_MAX_MSG_LEN 18
+#define WLFW_BDF_DOWNLOAD_RESP_MSG_V01_MAX_MSG_LEN 22
 extern struct qmi_elem_info wlfw_bdf_download_resp_msg_v01_ei[];
 
 struct wlfw_cal_report_req_msg_v01 {
