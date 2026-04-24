@@ -61,10 +61,14 @@ static int parse_dt(struct device *dev, struct syna_tcm_board_data *bdata)
 {
 	int retval;
 	struct device_node *np = dev->of_node;
-
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 11, 0))
 	retval = of_get_named_gpio_flags(np,
 			"synaptics,irq-gpio", 0,
 			(enum of_gpio_flags *)&bdata->irq_flags);
+#else
+	retval = of_get_named_gpio(np,
+			"synaptics,irq-gpio", 0);
+#endif
 	if (!gpio_is_valid(retval)) {
 		if (retval != -EPROBE_DEFER)
 			dev_err(dev, "Error getting irq_gpio\n");
@@ -80,9 +84,13 @@ static int parse_dt(struct device *dev, struct syna_tcm_board_data *bdata)
 			&bdata->bus_reg_name);
 	of_property_read_string(np, "synaptics,firmware-name",
 			&bdata->fw_name);
-
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 11, 0))
 	bdata->power_gpio = of_get_named_gpio_flags(np,
 			"synaptics,power-gpio", 0, NULL);
+#else
+	bdata->power_gpio = of_get_named_gpio(np,
+			"synaptics,power-gpio", 0);
+#endif
 
 	retval = of_property_read_u32(np, "synaptics,power-on-state",
 			&bdata->power_on_state);
@@ -97,9 +105,13 @@ static int parse_dt(struct device *dev, struct syna_tcm_board_data *bdata)
 		LOGE(dev, "Failed to read synaptics,power-delay-ms\n");
 		return retval;
 	}
-
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 11, 0))
 	retval = of_get_named_gpio_flags(np,
 			"synaptics,reset-gpio", 0, NULL);
+#else
+	retval = of_get_named_gpio(np,
+			"synaptics,reset-gpio", 0);
+#endif
 	if (!gpio_is_valid(retval)) {
 		if (retval != -EPROBE_DEFER)
 			dev_err(dev, "Error getting reset gpio\n");
@@ -403,9 +415,12 @@ static int syna_tcm_check_default_tp(struct device_node *dt, const char *prop)
 
 	return ret;
 }
-
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 11, 0))
 static int syna_tcm_i2c_probe(struct i2c_client *i2c,
 		const struct i2c_device_id *dev_id)
+#else
+static int syna_tcm_i2c_probe(struct i2c_client *i2c)
+#endif
 {
 	int retval;
 	struct device_node *dt = i2c->dev.of_node;

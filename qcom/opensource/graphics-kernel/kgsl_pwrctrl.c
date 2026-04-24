@@ -1561,7 +1561,7 @@ static int kgsl_cx_gdsc_event(struct notifier_block *nb,
 {
 	struct kgsl_pwrctrl *pwr = container_of(nb, struct kgsl_pwrctrl, cx_gdsc_nb);
 	struct kgsl_device *device = container_of(pwr, struct kgsl_device, pwrctrl);
-	u32 val;
+	u32 val = 0;
 
 	if (!pwr->cx_gdsc_wait)
 		return 0;
@@ -2106,7 +2106,7 @@ done:
 
 void kgsl_timer(struct timer_list *t)
 {
-	struct kgsl_device *device = from_timer(device, t, idle_timer);
+	struct kgsl_device *device = kgsl_timer_container_of(device, t, idle_timer);
 
 	if (device->requested_state != KGSL_STATE_SUSPEND) {
 		kgsl_pwrctrl_request_state(device, KGSL_STATE_SLUMBER);

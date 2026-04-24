@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include "msm_cvp.h"
@@ -423,8 +423,13 @@ static int cvp_fence_proc(struct msm_cvp_inst *inst,
 
 	hfi_err = hdr.error_type;
 	if (rc) {
-		dprintk(CVP_ERR, "%s %s: cvp_wait_process_message rc %d\n",
-			current->comm, __func__, rc);
+		dprintk(CVP_ERR, "%s %s: msg timeout rc: %d, sess_id: 0x%x, tran_id: %d",
+			current->comm, __func__, rc,
+			pkt->session_id, pkt->client_data.data1);
+
+		dprintk(CVP_ERR, "pkt_type: 0x%x, frame_id: %llu, ktid: %llu\n",
+			pkt->packet_type, pkt->client_data.transaction_id, ktid);
+
 		synx_state = SYNX_STATE_SIGNALED_CANCEL;
 		goto exit;
 	}

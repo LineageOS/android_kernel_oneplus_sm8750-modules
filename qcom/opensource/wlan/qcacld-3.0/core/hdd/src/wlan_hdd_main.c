@@ -255,6 +255,7 @@
 #include "wifi_pos_api.h"
 #include "wlan_mgmt_rx_srng_ucfg_api.h"
 #include "wifi_pos_pasn_api.h"
+#include "wlan_cp_stats_ucfg_api.h"
 
 #ifdef MULTI_CLIENT_LL_SUPPORT
 #define WLAM_WLM_HOST_DRIVER_PORT_ID 0xFFFFFF
@@ -16648,6 +16649,9 @@ static int hdd_update_cds_config(struct hdd_context *hdd_ctx)
 	hdd_lpass_populate_cds_config(cds_cfg, hdd_ctx);
 	cds_cfg->is_pm_fw_debug_enable =
 				ucfg_pmo_is_fw_debug_enable(hdd_ctx->psoc);
+	cds_cfg->enable_bcn_rssi_history_report =
+		ucfg_cp_stats_is_bcn_rssi_history_report_cfg_enable(
+								hdd_ctx->psoc);
 	cds_init_ini_config(cds_cfg);
 	return 0;
 
@@ -17688,6 +17692,7 @@ static int hdd_features_init(struct hdd_context *hdd_ctx)
 	struct tx_power_limit hddtxlimit;
 	QDF_STATUS status;
 	int ret;
+	void *hif_ctx;
 	mac_handle_t mac_handle;
 	bool b_cts2self, is_imps_enabled;
 	bool rf_test_mode;
@@ -17701,12 +17706,24 @@ static int hdd_features_init(struct hdd_context *hdd_ctx)
 	if (ret)
 		hdd_warn("Error initializing mws-coex");
 
-	/* FW capabilities received, Set the Dot11 mode */
-	mac_handle = hdd_ctx->mac_handle;
-	sme_setdef_dot11mode(mac_handle);
+	hif_ctx = cds_get_context(QDF_MODULE_ID_HIF);
+	if (!hif_ctx)
+		return -ENOENT;
+
+	/*
+	 * Need to reset init phase before IMPS or RTPM is enabled during
+	 * driver load so that HIF access to registers ensures force wake-up
+	 * of BUS (RTPM) and UMAC (IMPS) which can be in suspend due to
+	 * respectieve PS modes.
+	 */
+	hdd_set_hif_init_phase(hif_ctx, false);
 
 	ucfg_mlme_is_imps_enabled(hdd_ctx->psoc, &is_imps_enabled);
 	hdd_set_idle_ps_config(hdd_ctx, is_imps_enabled);
+
+	/* FW capabilities received, Set the Dot11 mode */
+	mac_handle = hdd_ctx->mac_handle;
+	sme_setdef_dot11mode(mac_handle);
 
 	fw_data_stall_evt = ucfg_dp_fw_data_stall_evt_enabled();
 

@@ -194,10 +194,11 @@ config CNSS2_FMD_FEATURE_ENABLE
 
 config MHI_BUF_LEN
 	int "Mhi buffer size"
-	default "32768"
+	default "16384"
 	depends on CNSS2
 	help
 	  If configured, CNSS platform driver set mhi buffer size with external value.
+
 config CNSS_ETM_TRACE
 	bool "CNSS2 Platform Driver ETM Trace Support"
 	depends on CNSS2
@@ -215,3 +216,15 @@ config CNSS2_DIRECT_CX_SDAM
 	depends on CNSS2
 	help
 	  This option is to enable CNSS2 platform driver usage of PMIC SDAM.
+
+config CNSS_SHUTDOWN_CALLBACK
+	bool "Enable/Disable shutdown callback in CNSS side"
+	depends on CNSS2
+	depends on PCI
+	select PCIE_SHUTDOWN_CALLBACK
+	help
+	  If enabled, CNSS platform driver will register shutdown callback to
+	  platform. Once platform reboot or shutdown, this callback will be
+	  called and then cnss_remove be called. If target or system disabled
+	  IOMMU during shutdown and PCIe required this feature, then enabled
+	  it.

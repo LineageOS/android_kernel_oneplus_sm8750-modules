@@ -452,7 +452,7 @@ void sde_hw_reset_ubwc(struct sde_hw_mdp *mdp, struct sde_mdss_cfg *m)
 	}
 }
 
-static void sde_hw_intf_audio_select(struct sde_hw_mdp *mdp)
+static void sde_hw_intf_audio_select(struct sde_hw_mdp *mdp, int audio_core)
 {
 	struct sde_hw_blk_reg_map *c;
 
@@ -461,7 +461,7 @@ static void sde_hw_intf_audio_select(struct sde_hw_mdp *mdp)
 
 	c = &mdp->hw;
 
-	SDE_REG_WRITE(c, HDMI_DP_CORE_SELECT, 0x1);
+	SDE_REG_WRITE(c, HDMI_DP_CORE_SELECT, audio_core);
 }
 
 static void sde_hw_mdp_events(struct sde_hw_mdp *mdp, bool enable)

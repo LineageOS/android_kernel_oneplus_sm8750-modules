@@ -10,7 +10,21 @@ module_entry(
       config_option = "CONFIG_DRM_MSM",
       path = None,
       config_srcs = {
-         "CONFIG_HDCP_QSEECOM": [
+         "CONFIG_DRM_MSM_HDMI" : [
+            "msm/hdmi/hdmi_debug.c",
+            "msm/hdmi/hdmi_display.c",
+            "msm/hdmi/hdmi_parser.c",
+            "msm/hdmi/hdmi_power.c",
+            "msm/hdmi/hdmi_drm.c",
+            "msm/hdmi/hdmi_util.c",
+            "msm/hdmi/hdmi_panel.c",
+            "msm/hdmi/hdmi_pll.c",
+            "msm/hdmi/hdmi_pll_snps.c",
+            "msm/hdmi/hdmi_phy.c",
+            "msm/hdmi/hdmi_phy_snps.c",
+	    "msm/hdmi/hdmi_audio.c",
+        ],
+        "CONFIG_HDCP_QSEECOM": [
             "hdcp/msm_hdcp.c",
             "msm/dp/dp_hdcp2p2.c",
             "msm/sde_hdcp_1x.c",

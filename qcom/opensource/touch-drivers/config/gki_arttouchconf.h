@@ -1,0 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ */
+#define CONFIG_TOUCHSCREEN_NT36XXX_I2C 1
+#define CONFIG_TOUCHSCREEN_GOODIX_BRL 1
+#define CONFIG_TOUCHSCREEN_ATMEL_MXT 1
+#define CONFIG_TOUCHSCREEN_ST 1
+#define CONFIG_QTS_ENABLE 1
+#define CONFIG_TOUCHSCREEN_SYNAPTICS_TCM2 1

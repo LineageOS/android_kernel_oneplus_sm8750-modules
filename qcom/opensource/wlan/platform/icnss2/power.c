@@ -33,6 +33,8 @@ static struct icnss_vreg_cfg icnss_wcn7750_vreg_list[] = {
 	{"vdd-1.3-rfa", 1256000, 1352000, 0, 0, 0, false, true},
 	{"vdd-1.8-io", 1800000, 1800000, 0, 0, 0, false, true},
 	{"vdd-1.2-io", 1200000, 1200000, 0, 0, 0, false, true},
+	{"vdd-2p2", 2200000, 2200000, 0, 0, 0, false, true},
+	{"vdd-2p2-ext", 2200000, 2200000, 0, 0, 0, false, false},
 };
 
 static struct icnss_vreg_cfg icnss_adrestea_vreg_list[] = {
@@ -77,6 +79,8 @@ static struct icnss_clk_cfg icnss_adrestea_clk_list[] = {
 #define ICNSS_CLK_ADRESTEA_LIST_SIZE	ARRAY_SIZE(icnss_adrestea_clk_list)
 
 #define ICNSS_CHAIN1_REGULATOR                          "vdd-3.3-ch1"
+#define ICNSS_2P2_REGULATOR                          "vdd-2p2"
+#define ICNSS_2P2_EXT_REGULATOR                          "vdd-2p2-ext"
 #define MAX_PROP_SIZE					32
 
 #define SW_CTRL_GPIO			"pin_sw-ctrl-gpio"
@@ -90,6 +94,7 @@ static struct icnss_clk_cfg icnss_adrestea_clk_list[] = {
 
 #define ICNSS_BATTERY_LEVEL_COUNT	ARRAY_SIZE(icnss_battery_level)
 #define ICNSS_MAX_BATTERY_LEVEL		100
+#define WCN_KTB_EXT_RAIL		3
 
 /**
  * enum icnss_vreg_param: Voltage regulator TCS param
@@ -198,11 +203,19 @@ static int icnss_get_vreg_single(struct icnss_priv *priv,
 		}
 	}
 
+	if (priv->wcn_ktb_info_buf && *priv->wcn_ktb_info_buf == WCN_KTB_EXT_RAIL) {
+		if (!strcmp(vreg->cfg.name, ICNSS_2P2_REGULATOR))
+			vreg->cfg.is_supported = false;
+
+		if (!strcmp(vreg->cfg.name, ICNSS_2P2_EXT_REGULATOR))
+			vreg->cfg.is_supported = true;
+	}
+
 done:
-	icnss_pr_dbg("Got regulator: %s, min_uv: %u, max_uv: %u, load_ua: %u, delay_us: %u, need_unvote: %u\n",
+	icnss_pr_dbg("Got regulator: %s, min_uv: %u, max_uv: %u, load_ua: %u, delay_us: %u, need_unvote: %u, is_supported: %d\n",
 		     vreg->cfg.name, vreg->cfg.min_uv,
 		     vreg->cfg.max_uv, vreg->cfg.load_ua,
-		     vreg->cfg.delay_us, vreg->cfg.need_unvote);
+		     vreg->cfg.delay_us, vreg->cfg.need_unvote, vreg->cfg.is_supported);
 
 	return 0;
 
@@ -916,6 +929,7 @@ int icnss_power_on_chain1_reg(struct icnss_priv *priv)
 
 void icnss_put_resources(struct icnss_priv *priv)
 {
+	icnss_xo_trim_deinit(priv);
 	icnss_put_clk(priv);
 	icnss_put_vreg(priv);
 }
@@ -1114,28 +1128,39 @@ int icnss_aop_pdc_reconfig(struct icnss_priv *priv)
 void icnss_power_misc_params_init(struct icnss_priv *priv)
 {
 	struct device *dev = &priv->pdev->dev;
+	const char *prop_name;
 	int ret;
 
 	/* common DT Entries */
-	priv->pdc_init_table_len =
-				of_property_count_strings(dev->of_node,
-							  "qcom,pdc_init_table");
-	if (priv->pdc_init_table_len > 0) {
-		priv->pdc_init_table =
-			kcalloc(priv->pdc_init_table_len,
-				sizeof(char *), GFP_KERNEL);
-		if (priv->pdc_init_table) {
-			ret = of_property_read_string_array(dev->of_node,
-						"qcom,pdc_init_table",
-						priv->pdc_init_table,
-						priv->pdc_init_table_len);
-			if (ret < 0)
-				icnss_pr_err("Failed to get PDC Init Table\n");
-		} else {
-			icnss_pr_err("Failed to alloc PDC Init Table mem\n");
-		}
-	} else {
+	if (priv->wcn_ktb_info_buf &&
+	    *priv->wcn_ktb_info_buf == WCN_KTB_EXT_RAIL)
+		prop_name = "qcom,pdc_init_table_v1";
+	else
+		prop_name = "qcom,pdc_init_table";
+
+	priv->pdc_init_table_len = of_property_count_strings(dev->of_node, prop_name);
+
+	if (priv->pdc_init_table_len <= 0) {
 		icnss_pr_dbg("PDC Init Table not configured\n");
+	} else {
+		priv->pdc_init_table = kcalloc(priv->pdc_init_table_len,
+					       sizeof(char *), GFP_KERNEL);
+
+		if (!priv->pdc_init_table) {
+			icnss_pr_err("Failed to alloc PDC Init Table mem\n");
+			priv->pdc_init_table_len = 0;
+		} else {
+			ret = of_property_read_string_array(dev->of_node, prop_name,
+							    priv->pdc_init_table,
+							    priv->pdc_init_table_len);
+
+			if (ret < 0) {
+				icnss_pr_err("Failed to get PDC Init Table\n");
+				kfree(priv->pdc_init_table);
+				priv->pdc_init_table = NULL;
+				priv->pdc_init_table_len = 0;
+			}
+		}
 	}
 }
 

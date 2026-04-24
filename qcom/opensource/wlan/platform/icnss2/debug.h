@@ -88,6 +88,13 @@ extern void *icnss_ipc_soc_wake_context;
 #define ICNSS_ASSERT(_condition) do { } while (0)
 #endif
 
+#define ICNSS_ASSERT_ALWAYS(_condition) do {                            \
+		if (!(_condition)) {                                    \
+			icnss_pr_err("ASSERT at line %d\n", __LINE__);  \
+			BUG();                                          \
+		}                                                       \
+	} while (0)
+
 #define icnss_fatal_err(_fmt, ...)                                      \
 	icnss_pr_err("fatal: "_fmt, ##__VA_ARGS__)
 
