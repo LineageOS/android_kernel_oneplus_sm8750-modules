@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 #include <linux/types.h>
 #include <linux/list.h>
@@ -215,6 +215,7 @@ int fw_unload(struct msm_vidc_core *core)
 	if (!core->fw_cookie)
 		return -EINVAL;
 
+	d_vpr_h("%s: unloading video firmware\n", __func__);
 	ret = qcom_scm_pas_shutdown(core->fw_cookie);
 	if (ret)
 		d_vpr_e("Firmware unload failed rc=%d\n", ret);

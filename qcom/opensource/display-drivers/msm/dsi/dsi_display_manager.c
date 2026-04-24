@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/of.h>
@@ -662,7 +662,11 @@ int dsi_display_mgr_panel_post_unprepare(struct dsi_display *display)
 		return -EINVAL;
 	}
 
-	if (!display->panel->ctl_op_sync && !display->twm_enabled)
+	/* Incase of TWM mode, skip panel disable sequence */
+	if (display->twm_enabled)
+		return rc;
+
+	if (!display->panel->ctl_op_sync)
 		return dsi_panel_post_unprepare(display->panel);
 
 	mutex_lock(&disp_mgr.disp_mgr_mutex);
@@ -676,8 +680,7 @@ int dsi_display_mgr_panel_post_unprepare(struct dsi_display *display)
 
 	display->panel->powered = false;
 
-	if (!m_display->panel->powered && !s_display->panel->powered &&
-		!display->twm_enabled)
+	if (!m_display->panel->powered && !s_display->panel->powered)
 		rc = dsi_panel_post_unprepare(m_display->panel);
 
 error_display_get:

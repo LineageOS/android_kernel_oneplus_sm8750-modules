@@ -3232,6 +3232,26 @@ struct qmi_elem_info wlfw_bdf_download_resp_msg_v01_ei[] = {
 					   host_bdf_data),
 	},
 	{
+		.data_type      = QMI_OPT_FLAG,
+		.elem_len       = 1,
+		.elem_size      = sizeof(u8),
+		.array_type       = NO_ARRAY,
+		.tlv_type       = 0x11,
+		.offset         = offsetof(struct
+					   wlfw_bdf_download_resp_msg_v01,
+					   xo_trim_val_valid),
+	},
+	{
+		.data_type      = QMI_UNSIGNED_1_BYTE,
+		.elem_len       = 1,
+		.elem_size      = sizeof(u8),
+		.array_type       = NO_ARRAY,
+		.tlv_type       = 0x11,
+		.offset         = offsetof(struct
+					   wlfw_bdf_download_resp_msg_v01,
+					   xo_trim_val),
+	},
+	{
 		.data_type      = QMI_EOTI,
 		.array_type       = NO_ARRAY,
 		.tlv_type       = QMI_COMMON_TLV_TYPE,

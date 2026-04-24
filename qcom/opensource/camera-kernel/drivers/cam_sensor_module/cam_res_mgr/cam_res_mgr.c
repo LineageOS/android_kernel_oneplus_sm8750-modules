@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/init.h>
@@ -469,6 +469,20 @@ int cam_res_mgr_gpio_request(struct device *dev, uint gpio,
 				gpio, label, rc);
 			goto end;
 		}
+
+		gpio_res = CAM_MEM_ZALLOC(sizeof(struct cam_gpio_res), GFP_KERNEL);
+		if (!gpio_res) {
+			CAM_ERR(CAM_RES, "Not Enough Mem");
+			rc = -ENOMEM;
+			goto end;
+		}
+
+		gpio_res->gpio = gpio;
+		gpio_res->power_on_count = 0;
+		INIT_LIST_HEAD(&gpio_res->list);
+		INIT_LIST_HEAD(&gpio_res->dev_list);
+
+		list_add_tail(&gpio_res->list, &cam_res->gpio_res_list);
 	}
 
 	/*
@@ -482,23 +496,19 @@ int cam_res_mgr_gpio_request(struct device *dev, uint gpio,
 		(cam_res_mgr_gpio_is_in_shared_pctrl_gpio(gpio)))) {
 		CAM_DBG(CAM_RES, "gpio: %u is shared", gpio);
 
-		gpio_res = CAM_MEM_ZALLOC(sizeof(struct cam_gpio_res), GFP_KERNEL);
+		gpio_res = cam_res_mgr_find_if_gpio_in_list(gpio);
 		if (!gpio_res) {
-			rc = -ENOMEM;
+			CAM_ERR(CAM_RES, "gpio: %u not found", gpio);
+			rc = -EINVAL;
 			goto end;
 		}
-		gpio_res->gpio = gpio;
-		gpio_res->power_on_count = 0;
-		INIT_LIST_HEAD(&gpio_res->list);
-		INIT_LIST_HEAD(&gpio_res->dev_list);
 
 		rc = cam_res_mgr_add_device(dev, gpio_res);
 		if (rc) {
-			CAM_MEM_FREE(gpio_res);
+			CAM_ERR(CAM_RES,
+				"add device to gpio res list failed rc: %d", rc);
 			goto end;
 		}
-
-		list_add_tail(&gpio_res->list, &cam_res->gpio_res_list);
 	}
 
 	/* if shared gpio is in pinctrl gpio list */
@@ -577,8 +587,6 @@ EXPORT_SYMBOL(cam_res_mgr_util_check_if_gpio_is_shared);
 static void cam_res_mgr_gpio_free(struct device *dev, uint gpio)
 {
 	bool                   gpio_found = false;
-	bool                   need_free = true;
-	int                    dev_num = 0;
 	struct cam_gpio_res   *gpio_res = NULL;
 	bool                   is_shared_pctrl_gpio = false;
 	int                    pctrl_idx = -1;
@@ -586,51 +594,34 @@ static void cam_res_mgr_gpio_free(struct device *dev, uint gpio)
 	is_shared_pctrl_gpio =
 			cam_res_mgr_gpio_is_in_shared_pctrl_gpio(gpio);
 
+	if (!cam_res) {
+		CAM_ERR(CAM_RES, "cam_res data is not avaialbe");
+		return;
+	}
+
 	mutex_lock(&cam_res->gpio_res_lock);
-	if (cam_res && cam_res->shared_gpio_enabled) {
-		list_for_each_entry(gpio_res, &cam_res->gpio_res_list, list) {
-			if (gpio == gpio_res->gpio) {
-				gpio_found = true;
-				break;
-			}
+	list_for_each_entry(gpio_res, &cam_res->gpio_res_list, list) {
+		if (gpio == gpio_res->gpio) {
+			gpio_found = true;
+			break;
 		}
 	}
 
 	if (gpio_found && cam_res
 		&& cam_res->shared_gpio_enabled) {
-		struct list_head *list;
 		struct cam_dev_res *dev_res = NULL;
 
-		/* Count the dev number in the dev_list */
-		list_for_each(list, &gpio_res->dev_list)
-			dev_num++;
-
-		/*
-		 * Need free the gpio if only has last 1 device
-		 * in the dev_list, otherwise, not free this
-		 * gpio.
-		 */
-		if (dev_num == 1) {
-			dev_res = list_first_entry(&gpio_res->dev_list,
-				struct cam_dev_res, list);
-			list_del_init(&dev_res->list);
-			CAM_MEM_FREE(dev_res);
-			list_del_init(&gpio_res->list);
-			CAM_MEM_FREE(gpio_res);
-		} else {
-			list_for_each_entry(dev_res,
-				&gpio_res->dev_list, list) {
-				if (dev_res->dev == dev) {
-					list_del_init(&dev_res->list);
-					CAM_MEM_FREE(dev_res);
-					need_free = false;
-					break;
-				}
+		list_for_each_entry(dev_res,
+			&gpio_res->dev_list, list) {
+			if (dev_res->dev == dev) {
+				list_del_init(&dev_res->list);
+				CAM_MEM_FREE(dev_res);
+				break;
 			}
 		}
 	}
 
-	if (need_free) {
+	if (gpio_found && list_empty(&gpio_res->dev_list)) {
 		if (is_shared_pctrl_gpio) {
 			pctrl_idx =
 				cam_res_mgr_util_get_idx_from_shared_pctrl_gpio(
@@ -644,6 +635,8 @@ static void cam_res_mgr_gpio_free(struct device *dev, uint gpio)
 		}
 
 		CAM_DBG(CAM_RES, "freeing gpio: %u", gpio);
+		list_del_init(&gpio_res->list);
+		CAM_MEM_FREE(gpio_res);
 		gpio_free(gpio);
 	}
 
@@ -664,22 +657,29 @@ int cam_res_mgr_gpio_set_value(unsigned int gpio, int value)
 	bool found = false;
 	struct cam_gpio_res *gpio_res = NULL;
 
+	if (!cam_res) {
+		CAM_ERR(CAM_RES, "cam_res data is not avaialbe");
+		return -EINVAL;
+	}
+
 	mutex_lock(&cam_res->gpio_res_lock);
-	if (cam_res && cam_res->shared_gpio_enabled) {
-		list_for_each_entry(gpio_res, &cam_res->gpio_res_list, list) {
-			if (gpio == gpio_res->gpio) {
-				found = true;
-				break;
-			}
+	list_for_each_entry(gpio_res, &cam_res->gpio_res_list, list) {
+		if (gpio == gpio_res->gpio) {
+			found = true;
+			break;
 		}
 	}
 
 	/*
-	 * Set the value directly if can't find the gpio from
-	 * gpio_res_list, otherwise, need add ref count support
+	 * Set the value directly for non-shared gpio, for shared
+	 * gpio need add ref count support.
 	 **/
 	if (!found) {
+		CAM_ERR(CAM_RES, "gpio: %u not found", gpio);
+		return -EINVAL;
+	} else if (!cam_res->shared_gpio_enabled) {
 		gpio_set_value_cansleep(gpio, value);
+		CAM_DBG(CAM_RES, "Set GPIO(%d) : %d", gpio, value);
 	} else {
 		if (value) {
 			gpio_res->power_on_count++;

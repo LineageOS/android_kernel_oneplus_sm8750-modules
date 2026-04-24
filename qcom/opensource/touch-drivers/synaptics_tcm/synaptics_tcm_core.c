@@ -34,6 +34,7 @@
 #include <linux/kthread.h>
 #include <linux/interrupt.h>
 #include <linux/regulator/consumer.h>
+#include <linux/pinctrl/consumer.h>
 #include "synaptics_tcm_core.h"
 
 /* #define RESET_ON_RESUME */
@@ -1754,7 +1755,7 @@ static int syna_tcm_enable_irq(struct syna_tcm_hcd *tcm_hcd, bool en, bool ns)
 
 		if (irq_freed) {
 			retval = request_threaded_irq(tcm_hcd->irq, NULL,
-					syna_tcm_isr, bdata->irq_flags,
+					syna_tcm_isr, bdata->irq_flags | IRQF_ONESHOT,
 					PLATFORM_DRIVER_NAME, tcm_hcd);
 			if (retval < 0) {
 				LOGE(tcm_hcd->pdev->dev.parent,
@@ -3680,8 +3681,11 @@ err_enable_irq:
 	return retval;
 }
 
-
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 11, 0))
 static int syna_tcm_remove(struct platform_device *pdev)
+#else
+static void syna_tcm_remove(struct platform_device *pdev)
+#endif
 {
 	int idx;
 	struct syna_tcm_module_handler *mod_handler;
@@ -3771,8 +3775,11 @@ static int syna_tcm_remove(struct platform_device *pdev)
 	RELEASE_BUFFER(tcm_hcd->in);
 
 	kfree(tcm_hcd);
-
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 11, 0))
 	return 0;
+#else
+	return;
+#endif
 }
 
 #ifdef CONFIG_PM

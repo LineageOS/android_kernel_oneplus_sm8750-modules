@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef __H_CVP_CORE_HFI_H__
@@ -324,7 +324,7 @@ struct msm_cvp_inst *cvp_get_inst_from_id(struct msm_cvp_core *core,
 		ktid = (cmd_hdr->client_data.kdata  & (FENCE_BIT - 1)); \
 		trace_tracing_eva_frame_from_sw(aon_cycles, tag, sess_id, \
 			stream_id, pkt_id, t_id, ktid); \
-		dprintk(CVP_ERR, \
+		dprintk(CVP_INFO, \
 			"tracing_eva_frame_from_sw: AON_TIMESTAMP: %llu %s session_id = 0x%x "\
 			"stream_id = 0x%x packet_id = 0x%x transaction_id = 0x%x ktid = 0x%x\n",\
 			aon_cycles, tag, sess_id, stream_id, pkt_id, t_id, ktid); \
@@ -349,7 +349,7 @@ struct msm_cvp_inst *cvp_get_inst_from_id(struct msm_cvp_core *core,
 		ktid = (msg_hdr->client_data.kdata  & (FENCE_BIT - 1)); \
 		trace_tracing_eva_frame_from_sw(aon_cycles, tag, session_id, \
 			stream_id, pkt_id, t_id, ktid); \
-		dprintk(CVP_ERR,\
+		dprintk(CVP_INFO,\
 			"tracing_eva_frame_from_sw: AON_TIMESTAMP: %llu %s session_id = 0x%x "\
 			"stream_id = 0x%x packet_id = 0x%x transaction_id = 0x%x ktid = 0x%x\n",\
 			aon_cycles, tag, session_id, stream_id, pkt_id, t_id, ktid); \

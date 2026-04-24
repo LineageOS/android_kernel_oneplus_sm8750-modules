@@ -20,3 +20,13 @@ config CNSS2_DEBUG
 	  primarily includes providing additional verbose logs for certain
 	  features, enabling kernel panic for certain cases to aid the
 	  debugging, and enabling any other debug mechanisms.
+
+config CNSS_PREALLOC_DEBUG_LEAK
+	bool "CNSS Prealloc Debug Leak Support"
+	depends on WCNSS_MEM_PRE_ALLOC
+	help
+	  This option enables leakage debug for memory allocations
+	  in the CNSS prealloc driver. When enabled, the driver will record
+	  the call stack for each memory allocation, which can be
+	  used for debugging memory leaks. This feature adds some memory
+	  overhead and should only be enabled for debugging purposes.

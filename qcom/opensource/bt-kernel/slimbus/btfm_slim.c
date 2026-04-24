@@ -177,6 +177,7 @@ int btfm_slim_disable_ch(struct btfmslim *btfmslim, struct btfmslim_ch *ch,
 {
 	int ret = -1;
 	int i = 0;
+	struct btfmslim_ch *chan = ch;
 	int chipset_ver = 0;
 	if (!btfmslim || !ch)
 		return -EINVAL;
@@ -215,9 +216,9 @@ int btfm_slim_disable_ch(struct btfmslim *btfmslim, struct btfmslim_ch *ch,
 		BTFMSLIM_ERR("slim_stream_unprepare failed returned val = %d", ret);
 
 	/* Disable port through registration setting */
-	for (i = 0; i < nchan; i++, ch++) {
+	for (i = 0; i < nchan; i++, chan++) {
 		if (btfmslim->vendor_port_en) {
-			ret = btfmslim->vendor_port_en(btfmslim, ch->port,
+			ret = btfmslim->vendor_port_en(btfmslim, chan->port,
 				rxport, 0);
 			if (ret < 0) {
 				BTFMSLIM_ERR("vendor_port_en failed [%d]", ret);
@@ -236,7 +237,10 @@ int btfm_slim_disable_ch(struct btfmslim *btfmslim, struct btfmslim_ch *ch,
 	if (btfm_num_ports_open > 0)
 		btfm_num_ports_open--;
 
-	ch->dai.sruntime = NULL;
+	if (ch->dai.sruntime != NULL) {
+		slim_stream_free(ch->dai.sruntime);
+		ch->dai.sruntime = NULL;
+	}
 
 	BTFMSLIM_INFO("btfm_num_ports_open: %d", btfm_num_ports_open);
 

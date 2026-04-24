@@ -391,4 +391,7 @@ int cnss_pci_get_user_msi_assignment(struct cnss_pci_data *pci_priv,
 				     u32 *base_vector);
 void cnss_register_iommu_fault_handler_irq(struct cnss_pci_data *pci_priv);
 void cnss_pci_start_xdump_timer(struct cnss_pci_data *pci_priv);
+int cnss_pci_get_msi_address(struct cnss_pci_data *pci_priv, u32 *msi_addr_low,
+			     u32 *msi_addr_high);
+void cnss_pci_notify_mhi_error(struct cnss_pci_data *pci_priv);
 #endif /* _CNSS_PCI_H */

@@ -428,6 +428,8 @@ struct cam_isp_fcg_prediction_tracker {
  *                             by other devices on the link as part of link setup
  * @mode_switch_en:            Indicates if mode switch is enabled
  * @sfe_en:                    Indicates if SFE is being used
+ * @init_pending_req_cnt:      Count of the init pending reqs received before stream on
+ * @max_delay:                 The max pipeline delay
  *
  */
 struct cam_isp_context {
@@ -498,6 +500,8 @@ struct cam_isp_context {
 	bool                                  mode_switch_en;
 	bool                                  sfe_en;
 	bool                                  standby_en;
+	uint32_t                              init_pending_req_cnt;
+	enum cam_pipeline_delay               max_delay;
 };
 
 /**

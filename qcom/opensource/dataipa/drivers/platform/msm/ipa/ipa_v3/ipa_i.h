@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2012-2021, The Linux Foundation. All rights reserved.
  *
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef _IPA3_I_H_
@@ -137,6 +137,10 @@ enum {
 
 #define IPA_MAX_NAPI_SORT_PAGE_THRSHLD 3
 #define IPA_MAX_PAGE_WQ_RESCHED_TIME 2
+
+#define MAX_RETRY_ALLOC 10
+#define ALLOC_MIN_SLEEP_RX 50000
+#define ALLOC_MAX_SLEEP_RX 100000
 
 #define IPA_WDI2_OVER_GSI() (ipa3_ctx->ipa_wdi2_over_gsi \
 		&& (ipa_get_wdi_version() == IPA_WDI_2))
@@ -1656,6 +1660,8 @@ struct ipa3_stats {
 	u64 num_of_times_wq_reschd;
 	u64 page_recycle_cnt_in_tasklet;
 	u32 ttl_cnt;
+	u64 ssr_mem_alloc_atomic;
+	u64 ssr_mem_alloc_non_atomic;
 };
 
 /* offset for each stats */
