@@ -611,6 +611,33 @@ int oplus_chg_get_curr_time_ms(unsigned long *time_ms)
 	return *time_ms;
 }
 
+/*
+ * Get battery FCC with SOH correction, matching /sys/class/oplus_chg/battery/battery_fcc
+ */
+static int oplus_gki_get_corrected_fcc(struct oplus_gki_device *chip)
+{
+	union mms_msg_data data = { 0 };
+	int fcc = chip->batt_fcc;
+	int soh = 0;
+	int fcc_coeff = 0;
+
+	/* Get SOH and FCC coefficient from gauge */
+	if (oplus_mms_get_item_data(chip->gauge_topic, GAUGE_ITEM_SOH, &data, false) == 0)
+		soh = data.intval;
+	if (oplus_mms_get_item_data(chip->gauge_topic, GAUGE_ITEM_FCC_COEFF, &data, false) == 0)
+		fcc_coeff = data.intval;
+
+	/* Apply SOH correction if valid */
+	if (soh > 0 && soh <= 100 && fcc_coeff != 0) {
+		fcc = chip->batt_fcc + fcc_coeff * soh / 100;
+		/* Clamp to design capacity */
+		if (fcc > chip->batt_capacity_mah)
+			fcc = chip->batt_capacity_mah;
+	}
+
+	return fcc;
+}
+
 static int oplus_gki_get_batt_status(struct oplus_gki_device *chip)
 {
 	int oplus_batt_status;
@@ -798,7 +825,8 @@ static int battery_psy_get_prop(struct power_supply *psy,
 		pval->intval = chip->batt_capacity_mah * 1000;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
-		pval->intval = chip->batt_capacity_mah * 1000;
+		/* Use actual battery FCC with SOH correction, matching battery_fcc sysfs node */
+		pval->intval = oplus_gki_get_corrected_fcc(chip) * 1000;
 		break;
 	case POWER_SUPPLY_PROP_ENERGY_FULL:
 		oplus_gauge_get_qmax(chip->gauge_topic, 0, &batt_qmax_0);
