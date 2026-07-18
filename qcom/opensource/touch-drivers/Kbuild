@@ -99,7 +99,8 @@ endif
 LINUX_INC +=	-Iinclude/linux \
 		-Iinclude/linux/drm \
 		-Iinclude/linux/gunyah \
-		-Iinclude/linux/input
+		-Iinclude/linux/input \
+		-I$(TOUCH_ROOT)/include/uapi
 
 CDEFINES +=	-DANI_LITTLE_BYTE_ENDIAN \
 	-DANI_LITTLE_BIT_ENDIAN \

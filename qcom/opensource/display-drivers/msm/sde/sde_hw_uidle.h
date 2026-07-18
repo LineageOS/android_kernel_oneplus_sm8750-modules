@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023,2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
  *
  */
@@ -37,6 +37,7 @@ struct sde_uidle_ctl_cfg {
 	u32 fal10_exit_cnt;
 	u32 fal10_exit_danger;
 	u32 fal10_danger;
+	bool fal10_override;
 	enum sde_uidle_state uidle_state;
 };
 

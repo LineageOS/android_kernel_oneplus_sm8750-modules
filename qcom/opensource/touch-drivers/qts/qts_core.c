@@ -208,18 +208,10 @@ static int qts_populate_vm_info(struct qts_data *qts_data)
 	return 0;
 }
 
-static void qts_destroy_vm_info(struct qts_data *qts_data)
-{
-	kfree(qts_data->vm_info->iomem_sizes);
-	kfree(qts_data->vm_info->iomem_bases);
-	kfree(qts_data->vm_info);
-}
-
 static void qts_vm_deinit(struct qts_data *qts_data)
 {
 	if (qts_data->vm_info->mem_cookie)
 		gh_mem_notifier_unregister(qts_data->vm_info->mem_cookie);
-	qts_destroy_vm_info(qts_data);
 }
 
 static int qts_trusted_touch_get_vm_state(struct qts_data *qts_data)
@@ -1097,6 +1089,7 @@ static int qts_trusted_touch_pvm_vm_mode_enable(struct qts_data *qts_data)
 {
 	int rc = 0;
 	struct trusted_touch_vm_info *vm_info = qts_data->vm_info;
+	int lend_irq;
 
 	atomic_set(&qts_data->trusted_touch_transition, 1);
 	mutex_lock(&qts_data->transition_lock);
@@ -1130,8 +1123,36 @@ static int qts_trusted_touch_pvm_vm_mode_enable(struct qts_data *qts_data)
 		atomic_set(&qts_data->delayed_tvm_probe_pending, 0);
 	}
 
+#if IS_ENABLED(CONFIG_MPM_LEGACY)
+	struct irq_data *irqd;
+	int dir_conn_irq = 0;
+
+	dir_conn_irq =  msm_gpio_get_dir_conn_irq(qts_data->irq);
+	pr_info("gpio_irq=%d dir_conn_irq=%d\n", qts_data->irq, dir_conn_irq);
+	if (dir_conn_irq < 0) {
+		pr_err("something wrong\n");
+		goto abort_handler;
+	}
+
+	irqd = irq_get_irq_data(dir_conn_irq);
+	if (!irqd) {
+		pr_err("Invalid irq data for dir_conn_irq\n");
+		goto abort_handler;
+	}
+	if (!irqd->hwirq) {
+		pr_err("Invalid hwirq in irq data\n");
+		goto abort_handler;
+	}
+	if (irqd->hwirq != qts_data->vm_info->hw_irq) {
+		pr_err("expected %d received %lu\n", qts_data->vm_info->hw_irq, irqd->hwirq);
+		goto abort_handler;
+	}
+	lend_irq = dir_conn_irq;
+#else
+	lend_irq = qts_data->irq;
+#endif
 	rc = gh_irq_lend_v2(vm_info->irq_label, vm_info->vm_name,
-		qts_data->irq, &qts_vm_irq_on_release_callback, qts_data);
+		lend_irq, &qts_vm_irq_on_release_callback, qts_data);
 	if (rc) {
 		pr_err("Failed to lend irq\n");
 		goto abort_handler;

@@ -288,7 +288,7 @@ module_entry(
 #endif /* OPLUS_FEATURE_TP_BASIC */
       },
       deps = [
-         "//vendor/qcom/opensource/mm-drivers:mm_drivers_headers",
+         "//vendor/qcom/sm8750-modules/qcom/opensource/mm-drivers:mm_drivers_headers",
 #ifdef OPLUS_FEATURE_DISPLAY
          "//vendor/oplus/kernel/device_info/oplus_fpga:oplus_bsp_fpga_monitor",
 #endif /* OPLUS_FEATURE_DISPLAY */
@@ -297,25 +297,25 @@ module_entry(
       # Configs are handled by config_options = []
       config_deps = {
          "CONFIG_QTI_HW_FENCE" : [
-             "//vendor/qcom/opensource/mm-drivers/hw_fence:%b_msm_hw_fence",
-             "//vendor/qcom/opensource/synx-kernel:%b_modules",
-             "//vendor/qcom/opensource/synx-kernel:synx_headers",
+             "//vendor/qcom/sm8750-modules/qcom/opensource/mm-drivers/hw_fence:%b_msm_hw_fence",
+             "//vendor/qcom/sm8750-modules/qcom/opensource/synx-kernel:%b_modules",
+             "//vendor/qcom/sm8750-modules/qcom/opensource/synx-kernel:synx_headers",
         ],
         "CONFIG_QCOM_SPEC_SYNC" : [
-            "//vendor/qcom/opensource/mm-drivers/sync_fence:%b_sync_fence",
+            "//vendor/qcom/sm8750-modules/qcom/opensource/mm-drivers/sync_fence:%b_sync_fence",
         ],
         "CONFIG_MSM_EXT_DISPLAY" : [
-            "//vendor/qcom/opensource/mm-drivers/msm_ext_display:%b_msm_ext_display",
+            "//vendor/qcom/sm8750-modules/qcom/opensource/mm-drivers/msm_ext_display:%b_msm_ext_display",
         ],
         "CONFIG_HDCP_QSEECOM" : [
-            "//vendor/qcom/opensource/securemsm-kernel:%b_hdcp_qseecom_dlkm"
+            "//vendor/qcom/sm8750-modules/qcom/opensource/securemsm-kernel:%b_hdcp_qseecom_dlkm"
         ],
         "CONFIG_MSM_MMRM" : [
-            "//vendor/qcom/opensource/mmrm-driver:%b_mmrm_driver",
+            "//vendor/qcom/sm8750-modules/qcom/opensource/mmrm-driver:%b_mmrm_driver",
         ],
         "CONFIG_SMMU_PROXY" : [
-            "//vendor/qcom/opensource/securemsm-kernel:%b_smmu_proxy_dlkm",
-             "//vendor/qcom/opensource/securemsm-kernel:smmu_proxy_headers",
+            "//vendor/qcom/sm8750-modules/qcom/opensource/securemsm-kernel:%b_smmu_proxy_dlkm",
+             "//vendor/qcom/sm8750-modules/qcom/opensource/securemsm-kernel:smmu_proxy_headers",
         ],
       },
 )

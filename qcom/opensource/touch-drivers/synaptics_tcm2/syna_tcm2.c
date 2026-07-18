@@ -37,8 +37,9 @@
  * through TouchComm command-response protocol.
  */
 
+#include <linux/spi/spi.h>
 #include "syna_tcm2.h"
-#include "syna_tcm2_cdev.h"
+#include <linux/synaptics_tcm2/syna_tcm2_cdev.h>
 #include "syna_tcm2_platform.h"
 #include "tcm/synaptics_touchcom_core_dev.h"
 #include "tcm/synaptics_touchcom_func_base.h"
@@ -49,6 +50,8 @@
 #ifdef REFLASH_TDDI
 #include "tcm/synaptics_touchcom_func_reflash_tddi.h"
 #endif
+
+#include "../qts/qts_core_common.h"
 
 #ifdef USE_CUSTOM_TOUCH_REPORT_CONFIG
 /* An example of the format of custom touch configuration  */
@@ -76,6 +79,16 @@ static unsigned char custom_touch_format[] = {
 /* The delayed time when doing power mode switching */
 #define DEV_POWER_SWITCHING_DELAY_MS (100)
 
+static int syna_ts_suspend_helper(void *data);
+static int syna_ts_resume_helper(void *data);
+static int syna_ts_enable_touch_irq(void *data, bool enable);
+static int syna_ts_get_irq_num(void *data);
+static int syna_ts_set_irq_num(void *data, int irq);
+static int syna_ts_pre_la_tui_enable(void *data);
+static int syna_ts_post_la_tui_enable(void *data);
+static int syna_ts_post_le_tui_enable(void *data);
+static int syna_ts_post_le_tui_disable(void *data);
+static irqreturn_t syna_irq_handler(int irq, void *data);
 
 #if defined(ENABLE_HELPER)
 /*
@@ -634,7 +647,16 @@ static int syna_dev_create_input_device(struct syna_tcm *tcm)
 	input_dev->phys = TOUCH_INPUT_PHYS_PATH;
 	input_dev->id.product = SYNAPTICS_TCM_DRIVER_ID;
 	input_dev->id.version = SYNAPTICS_TCM_DRIVER_VERSION;
-	input_dev->dev.parent = tcm->pdev->dev.parent;
+	/*
+	 * In TVM mode tcm->pdev->dev.parent is a virtual platform device,
+	 * so the input device would be registered under
+	 * /devices/platform/input/inputN instead of under the SPI bus path.
+	 * Use hw_if->pdev (the SPI device) as parent when available.
+	 */
+	if (tcm->hw_if && tcm->hw_if->pdev)
+		input_dev->dev.parent = &((struct spi_device *)tcm->hw_if->pdev)->dev;
+	else
+		input_dev->dev.parent = tcm->pdev->dev.parent;
 	input_set_drvdata(input_dev, tcm);
 
 	set_bit(EV_SYN, input_dev->evbit);
@@ -1544,6 +1566,7 @@ static int syna_dev_suspend(struct device *dev)
 
 	return 0;
 }
+
 /*
  * Output the device information.
  *
@@ -1592,6 +1615,397 @@ static void syna_dev_show_info(struct syna_tcm *tcm)
 		(tcm->lpwg_enabled) ? "yes" : "no",
 		(has_custom_tp_config) ? "yes" : "no",
 		(background_helper_enabled) ? "yes" : "no");
+}
+
+/*
+ * TVM: Suspend helper callback for QTS framework
+ */
+static int syna_ts_suspend_helper(void *data)
+{
+	struct syna_tcm *tcm = data;
+
+	if (!tcm || !tcm->init_done)
+		return 0;
+
+	return syna_dev_suspend(&tcm->pdev->dev);
+}
+
+/*
+ * TVM: Resume helper callback for QTS framework
+ */
+static int syna_ts_resume_helper(void *data)
+{
+	struct syna_tcm *tcm = data;
+
+	if (!tcm || !tcm->init_done)
+		return 0;
+
+	return syna_dev_resume(&tcm->pdev->dev);
+}
+
+/*
+ * TVM: Enable/disable touch IRQ callback for QTS framework
+ */
+static int syna_ts_enable_touch_irq(void *data, bool enable)
+{
+	int ret = 0;
+	struct syna_tcm *tcm = data;
+	struct syna_hw_attn_data *attn;
+	struct tcm_hw_platform *hw;
+
+	if (!tcm || !tcm->hw_if)
+		return -EINVAL;
+
+	attn = &tcm->hw_if->bdata_attn;
+	hw = &tcm->hw_if->hw_platform;
+
+	syna_pal_mutex_lock(&attn->irq_en_mutex);
+
+	if (enable) {
+		if (!attn->irq_enabled && attn->irq_id > 0) {
+			enable_irq(attn->irq_id);
+			attn->irq_enabled = true;
+			LOGI("TVM: IRQ %d enabled\n", attn->irq_id);
+		}
+	} else {
+		if (attn->irq_enabled && attn->irq_id > 0) {
+			disable_irq_nosync(attn->irq_id);
+			attn->irq_enabled = false;
+			LOGI("TVM: IRQ %d disabled\n", attn->irq_id);
+		}
+	}
+
+	syna_pal_mutex_unlock(&attn->irq_en_mutex);
+	return ret;
+}
+
+/*
+ * TVM: Get IRQ number callback for QTS framework
+ */
+static int syna_ts_get_irq_num(void *data)
+{
+	struct syna_tcm *tcm = data;
+
+	if (!tcm || !tcm->hw_if)
+		return -EINVAL;
+
+	return tcm->hw_if->bdata_attn.irq_id;
+}
+
+/*
+ * TVM: Set IRQ number callback for QTS framework
+ */
+static int syna_ts_set_irq_num(void *data, int irq)
+{
+	struct syna_tcm *tcm = data;
+
+	if (!tcm || !tcm->hw_if)
+		return -EINVAL;
+
+	LOGI("TVM: Updating IRQ number from %d to %d\n",
+		tcm->hw_if->bdata_attn.irq_id, irq);
+	tcm->hw_if->bdata_attn.irq_id = irq;
+
+	return 0;
+}
+
+/*
+ * TVM: Pre-LA TUI enable callback
+ */
+static int syna_ts_pre_la_tui_enable(void *data)
+{
+	struct syna_tcm *tcm = data;
+	struct syna_hw_attn_data *attn;
+
+	if (!tcm || !tcm->hw_if)
+		return -EINVAL;
+
+	attn = &tcm->hw_if->bdata_attn;
+
+	mutex_lock(&tcm->tui_transition_lock);
+
+	/* Disable IRQ to prevent interrupts during TUI transition */
+	if (attn->irq_enabled && attn->irq_id > 0) {
+		disable_irq_nosync(attn->irq_id);
+		attn->irq_enabled = false;
+	}
+
+#if defined(STARTUP_REFLASH) || defined(FLASH_RECOVERY)
+	/* Flush any pending reflash work */
+	if (tcm->reflash_workqueue) {
+		cancel_delayed_work_sync(&tcm->reflash_work);
+		flush_workqueue(tcm->reflash_workqueue);
+	}
+#endif
+
+#if defined(ENABLE_HELPER)
+	/* Flush helper work */
+	if (tcm->helper.workqueue) {
+		cancel_work_sync(&tcm->helper.work);
+		flush_workqueue(tcm->helper.workqueue);
+	}
+#endif
+
+	LOGI("TVM: Pre-LA TUI enable completed\n");
+
+	return 0;
+}
+
+/*
+ * TVM: Post-LA TUI enable callback
+ * Optimized to properly release touch events and unlock mutex
+ */
+static int syna_ts_post_la_tui_enable(void *data)
+{
+	struct syna_tcm *tcm = data;
+
+	if (!tcm)
+		return -EINVAL;
+
+	/* Release all pending touch events */
+	syna_dev_free_input_events(tcm);
+
+	/* Clear any pending commands */
+	if (tcm->tcm_dev)
+		syna_tcm_clear_command_processing(tcm->tcm_dev);
+
+	mutex_unlock(&tcm->tui_transition_lock);
+
+	LOGI("TVM: Post-LA TUI enable completed\n");
+
+	return 0;
+}
+
+/*
+ * TVM: Post-LE TUI enable callback - CRITICAL HARDWARE INITIALIZATION
+ * Optimized based on ST FTS pattern with proper error handling and chip verification
+ */
+static int syna_ts_post_le_tui_enable(void *data)
+{
+	struct syna_tcm *tcm = data;
+	struct syna_hw_interface *hw_if;
+	struct tcm_dev *tcm_dev;
+	int retval;
+
+	if (!tcm || !tcm->hw_if || !tcm->tcm_dev)
+		return -EINVAL;
+
+	hw_if = tcm->hw_if;
+	tcm_dev = tcm->tcm_dev;
+
+	LOGI("TVM: post_le_tui_enable - Hardware now accessible\n");
+
+	if (hw_if->ops_power_on) {
+		retval = hw_if->ops_power_on(true);
+		if (retval < 0) {
+			LOGE("TVM: Fail to power on device\n");
+			return retval;
+		}
+		if (hw_if->bdata_pwr.power_delay_ms > 0)
+			syna_pal_sleep_ms(hw_if->bdata_pwr.power_delay_ms);
+	}
+
+	if (hw_if->ops_hw_reset) {
+		hw_if->ops_hw_reset();
+		syna_pal_sleep_ms(hw_if->bdata_rst.reset_delay_ms);
+	}
+
+#if defined(TOUCHCOMM_VERSION_1)
+	retval = syna_tcm_detect_device(tcm_dev, PROTOCOL_DETECT_VERSION_1, false);
+#elif defined(TOUCHCOMM_VERSION_2)
+	retval = syna_tcm_detect_device(tcm_dev, PROTOCOL_DETECT_VERSION_2, false);
+#else
+	LOGE("TVM: TouchComm protocol not specified\n");
+	return -EINVAL;
+#endif
+	if (retval < 0) {
+		LOGE("TVM: Fail to detect device\n");
+		return retval;
+	}
+
+	LOGI("TVM: Device detected, mode: 0x%02X\n", tcm_dev->dev_mode);
+
+	/* Step 5: Set up application firmware if in app mode */
+	if (IS_APP_FW_MODE(tcm_dev->dev_mode)) {
+		retval = syna_dev_set_up_app_fw(tcm);
+		if (retval < 0) {
+			LOGE("TVM: Fail to set up app firmware\n");
+			return retval;
+		}
+
+		/* Step 6: Set up input device (NOW we have max_x/max_y from IC) */
+		retval = syna_dev_set_up_input_device(tcm);
+		if (retval < 0) {
+			LOGE("TVM: Fail to set up input device\n");
+			return retval;
+		}
+
+#if defined(TOUCHCOMM_TDDI) && defined(REPORT_KNOB)
+		/* Set up knob input device if needed */
+		retval = syna_dev_create_input_knob_device(tcm);
+		if (retval < 0) {
+			LOGW("TVM: Fail to set up knob input device\n");
+			/* Non-critical, continue */
+		}
+#endif
+	} else {
+		LOGW("TVM: Device not in app mode: 0x%02X\n", tcm_dev->dev_mode);
+	}
+
+	tcm->pwr_state = PWR_ON;
+	syna_dev_show_info(tcm);
+	LOGI("TVM: Hardware initialization completed successfully\n");
+
+	return 0;
+}
+
+/*
+ * TVM: Pre-LE TUI disable callback
+ * Optimized to flush any pending work before TUI session ends
+ */
+static int syna_ts_pre_le_tui_disable(void *data)
+{
+	struct syna_tcm *tcm = data;
+
+	if (!tcm)
+		return -EINVAL;
+
+#if defined(STARTUP_REFLASH) || defined(FLASH_RECOVERY)
+	/* Flush any pending reflash work */
+	if (tcm->reflash_workqueue)
+		flush_workqueue(tcm->reflash_workqueue);
+#endif
+
+#if defined(ENABLE_HELPER)
+	/* Flush helper work */
+	if (tcm->helper.workqueue)
+		flush_workqueue(tcm->helper.workqueue);
+#endif
+
+	LOGI("TVM: Pre-LE TUI disable completed\n");
+
+	return 0;
+}
+
+/*
+ * TVM: Post-LE TUI disable callback
+ * Optimized to properly clean up after TUI session
+ */
+static int syna_ts_post_le_tui_disable(void *data)
+{
+	struct syna_tcm *tcm = data;
+
+	if (!tcm)
+		return -EINVAL;
+
+	/* Release all pending touch events */
+	syna_dev_free_input_events(tcm);
+
+	/* Clear any pending commands */
+	if (tcm->tcm_dev)
+		syna_tcm_clear_command_processing(tcm->tcm_dev);
+
+	LOGI("TVM: Post-LE TUI disable completed\n");
+
+	return 0;
+}
+
+/*
+ * TVM: IRQ handler wrapper with TUI transition lock
+ * Optimized with trylock pattern from ST FTS
+ */
+static irqreturn_t syna_irq_handler(int irq, void *data)
+{
+	struct syna_tcm *tcm = data;
+
+	if (!tcm)
+		return IRQ_HANDLED;
+
+	/* Use trylock to avoid blocking during TUI transitions */
+	if (!mutex_trylock(&tcm->tui_transition_lock))
+		return IRQ_HANDLED;
+
+	syna_dev_isr(irq, data);
+
+	mutex_unlock(&tcm->tui_transition_lock);
+
+	return IRQ_HANDLED;
+}
+
+/*
+ * TVM: Fill QTS vendor data structure
+ * Optimized with proper error handling and GPIO configuration
+ */
+static void syna_ts_fill_qts_vendor_data(struct qts_vendor_data *qts_vendor_data,
+		struct syna_tcm *tcm)
+{
+	struct device_node *node;
+	struct syna_hw_attn_data *attn;
+	struct syna_hw_rst_data *rst;
+	const char *touch_type;
+	int rc;
+
+	if (!tcm || !tcm->pdev || !tcm->hw_if) {
+		LOGE("TVM: Invalid parameters for QTS vendor data\n");
+		return;
+	}
+
+	node = tcm->pdev->dev.of_node;
+	attn = &tcm->hw_if->bdata_attn;
+	rst = &tcm->hw_if->bdata_rst;
+
+	/* Determine touch type (primary or secondary) */
+	rc = of_property_read_string(node, "synaptics,touch-type", &touch_type);
+	if (rc) {
+		LOGI("TVM: No touch type specified, defaulting to primary\n");
+		qts_vendor_data->client_type = QTS_CLIENT_PRIMARY_TOUCH;
+	} else {
+		if (!strcmp(touch_type, "primary"))
+			qts_vendor_data->client_type = QTS_CLIENT_PRIMARY_TOUCH;
+		else
+			qts_vendor_data->client_type = QTS_CLIENT_SECONDARY_TOUCH;
+	}
+
+	/* Set bus type and device pointers */
+	if (tcm->hw_if->hw_platform.type == BUS_TYPE_SPI) {
+		qts_vendor_data->client = NULL;
+		qts_vendor_data->spi = tcm->hw_if->pdev;
+		qts_vendor_data->bus_type = QTS_BUS_TYPE_SPI;
+		LOGI("TVM: Bus type: SPI\n");
+	} else if (tcm->hw_if->hw_platform.type == BUS_TYPE_I2C) {
+		qts_vendor_data->client = tcm->hw_if->pdev;
+		qts_vendor_data->spi = NULL;
+		qts_vendor_data->bus_type = QTS_BUS_TYPE_I2C;
+		LOGI("TVM: Bus type: I2C\n");
+	}
+
+	/* Set GPIO configuration */
+	qts_vendor_data->irq_gpio = attn->irq_gpio;
+	qts_vendor_data->irq_gpio_flags = attn->irq_flags;
+	qts_vendor_data->reset_gpio = rst->reset_gpio;
+
+	/* Set vendor data and flags */
+	qts_vendor_data->vendor_data = tcm;
+	qts_vendor_data->schedule_suspend = false;
+	qts_vendor_data->schedule_resume = false;
+
+	/* Set vendor operations callbacks */
+	qts_vendor_data->qts_vendor_ops.suspend = syna_ts_suspend_helper;
+	qts_vendor_data->qts_vendor_ops.resume = syna_ts_resume_helper;
+	qts_vendor_data->qts_vendor_ops.enable_touch_irq = syna_ts_enable_touch_irq;
+	qts_vendor_data->qts_vendor_ops.get_irq_num = syna_ts_get_irq_num;
+	qts_vendor_data->qts_vendor_ops.set_irq_num = syna_ts_set_irq_num;
+	qts_vendor_data->qts_vendor_ops.pre_la_tui_enable = syna_ts_pre_la_tui_enable;
+	qts_vendor_data->qts_vendor_ops.post_la_tui_enable = syna_ts_post_la_tui_enable;
+	qts_vendor_data->qts_vendor_ops.pre_la_tui_disable = NULL;
+	qts_vendor_data->qts_vendor_ops.post_la_tui_disable = NULL;
+	qts_vendor_data->qts_vendor_ops.pre_le_tui_enable = NULL;
+	qts_vendor_data->qts_vendor_ops.post_le_tui_enable = syna_ts_post_le_tui_enable;
+	qts_vendor_data->qts_vendor_ops.pre_le_tui_disable = syna_ts_pre_le_tui_disable;
+	qts_vendor_data->qts_vendor_ops.post_le_tui_disable = syna_ts_post_le_tui_disable;
+	qts_vendor_data->qts_vendor_ops.irq_handler = syna_irq_handler;
+
+	LOGI("TVM: QTS vendor data configured successfully\n");
 }
 
 /*
@@ -1678,6 +2092,22 @@ static int syna_dev_connect(struct syna_tcm *tcm)
 		return 0;
 	}
 
+#ifdef CONFIG_ARCH_QTI_VM
+	/* TVM: Defer all hardware initialization to post_le_tui_enable callback
+	 * At probe time in TVM:
+	 * - No IC access, no SPI operations, no power control
+	 * - Hardware becomes accessible only after TVM receives IRQ/memory from PVM
+	 * - Do NOT call syna_dev_set_up_input_device() here (requires max_x/max_y from IC)
+	 */
+	LOGI("TVM mode: Defer hardware initialization to post_le_tui_enable\n");
+
+	tcm->is_connected = true;
+	tcm->pwr_state = PWR_OFF;
+
+	LOGI("TVM: Driver probe completed, waiting for TUI session\n");
+	return 0;
+#endif
+	/* PVM: Normal hardware initialization */
 	/* power on the connected device */
 	if (hw_if->ops_power_on) {
 		retval = hw_if->ops_power_on(true);
@@ -1890,6 +2320,7 @@ static int syna_dev_probe(struct platform_device *pdev)
 	struct syna_tcm *tcm = NULL;
 	struct tcm_dev *tcm_dev = NULL;
 	struct syna_hw_interface *hw_if = NULL;
+	struct qts_vendor_data qts_vendor_data;
 
 	hw_if = pdev->dev.platform_data;
 	if (!hw_if) {
@@ -1957,6 +2388,24 @@ static int syna_dev_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, tcm);
 
 	device_init_wakeup(&pdev->dev, 1);
+
+	/* TVM: Initialize TUI transition lock */
+	mutex_init(&tcm->tui_transition_lock);
+
+	/* TVM: Check if QTS is enabled and register with QTS framework */
+	if (hw_if->bdata_tvm.qts_en) {
+		memset(&qts_vendor_data, 0, sizeof(qts_vendor_data));
+		syna_ts_fill_qts_vendor_data(&qts_vendor_data, tcm);
+
+		retval = qts_client_register(&qts_vendor_data);
+		if (retval) {
+			LOGE("QTS client register failed, rc %d\n", retval);
+			mutex_destroy(&tcm->tui_transition_lock);
+			goto err_qts_register;
+		}
+		tcm->qts_enabled = true;
+		LOGI("TVM: QTS client registered successfully\n");
+	}
 
 	/* connect to target device */
 	retval = syna_dev_connect(tcm);
@@ -2036,6 +2485,11 @@ err_create_cdev:
 #ifndef FORCE_CONNECTION
 err_connect:
 #endif
+	if (tcm->qts_enabled) {
+		qts_client_unregister();
+		mutex_destroy(&tcm->tui_transition_lock);
+	}
+err_qts_register:
 	syna_tcm_buf_release(&tcm->event_data);
 	syna_pal_mutex_free(&tcm->tp_event_mutex);
 err_setup_timings:
@@ -2078,11 +2532,18 @@ static int syna_dev_remove(struct platform_device *pdev)
 	flush_workqueue(tcm->helper.workqueue);
 	destroy_workqueue(tcm->helper.workqueue);
 #endif
+
+	/* Unregister QTS client */
+	if (tcm->qts_enabled) {
+		qts_client_unregister();
+		mutex_destroy(&tcm->tui_transition_lock);
+	}
+
 #if defined(ENABLE_DISP_NOTIFIER)
 #if defined(USE_DRM_BRIDGE)
-	syna_dev_unregister_panel(&tcm->panel_bridge);
+		syna_dev_unregister_panel(&tcm->panel_bridge);
 #else
-	fb_unregister_client(&tcm->fb_notifier);
+		fb_unregister_client(&tcm->fb_notifier);
 #endif
 #endif
 
@@ -2157,8 +2618,6 @@ static struct platform_driver syna_dev_driver = {
 	.shutdown = syna_dev_shutdown,
 };
 
-
-
 /*
  * Entry of the TouchComm device driver.
  */
@@ -2183,9 +2642,10 @@ static void __exit syna_dev_module_exit(void)
 	LOGI("Driver %s uninstalled\n", PLATFORM_DRIVER_NAME);
 }
 
+
 late_initcall(syna_dev_module_init);
 module_exit(syna_dev_module_exit);
 
+MODULE_SOFTDEP("pre: qts");
 MODULE_DESCRIPTION("Synaptics TouchComm Touch Driver");
 MODULE_LICENSE("GPL");
-

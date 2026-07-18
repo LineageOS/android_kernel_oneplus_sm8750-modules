@@ -173,7 +173,8 @@ enum icnss_phy_qam_cap {
 };
 
 enum icnss_fw_caps {
-	ICNSS_FW_CAP_CE_CMN_CFG_SUPPORT
+	ICNSS_FW_CAP_CE_CMN_CFG_SUPPORT,
+	ICNSS_FW_CAP_DIRECT_REFILL_SUPPORT,
 };
 
 struct icnss_soc_info {

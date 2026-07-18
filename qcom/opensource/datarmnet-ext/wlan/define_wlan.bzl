@@ -3,7 +3,7 @@ load("//build/kernel/kleaf:kernel.bzl", "ddk_module")
 
 def define_wlan(target, variant):
     kernel_build_variant = "{}_{}".format(target, variant)
-    include_base = "../../../{}".format(native.package_name())
+    include_base = "../../../../../{}".format(native.package_name())
 
     ddk_module(
         name = "{}_wlan".format(kernel_build_variant),
@@ -20,11 +20,11 @@ def define_wlan(target, variant):
             "rmnet_wlan_stats.c",
             "rmnet_wlan_stats.h",
         ],
-        kernel_build = "//msm-kernel:{}".format(kernel_build_variant),
+        kernel_build = "//vendor/qcom/kernel:{}".format(kernel_build_variant),
         deps = [
-            "//msm-kernel:all_headers",
-            "//vendor/qcom/opensource/datarmnet:{}_rmnet_core".format(kernel_build_variant),
-            "//vendor/qcom/opensource/datarmnet:rmnet_core_headers",
+            "//vendor/qcom/kernel:all_headers",
+            "//vendor/qcom/sm8750-modules/qcom/opensource/datarmnet:{}_rmnet_core".format(kernel_build_variant),
+            "//vendor/qcom/sm8750-modules/qcom/opensource/datarmnet:rmnet_core_headers",
         ],
         copts = ["-Wno-misleading-indentation"],
     )

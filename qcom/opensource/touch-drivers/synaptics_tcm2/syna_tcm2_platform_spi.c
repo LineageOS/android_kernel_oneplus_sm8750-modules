@@ -235,6 +235,8 @@ static int syna_spi_put_regulator(struct regulator *reg_dev)
  * return
  *    on success, return the pointer to the requested regulator; otherwise, on error.
  */
+
+#ifndef CONFIG_ARCH_QTI_VM
 static struct regulator *syna_spi_get_regulator(const char *name)
 {
 	struct regulator *reg_dev = NULL;
@@ -259,6 +261,271 @@ static struct regulator *syna_spi_get_regulator(const char *name)
 
 	return reg_dev;
 }
+#endif
+/*
+ * Parse ATTN (interrupt) configuration from device tree
+ */
+static void syna_spi_parse_dt_attn(struct device_node *np,
+	struct syna_hw_attn_data *attn)
+{
+#ifndef CONFIG_ARCH_QTI_VM
+	struct property *prop;
+	int temp_value = 0;
+#endif
+
+	if (!attn)
+		return;
+
+#ifndef CONFIG_ARCH_QTI_VM
+	attn->irq_gpio = -1;
+	prop = of_find_property(np, "synaptics,irq-gpio", NULL);
+	if (prop && prop->length)
+		attn->irq_gpio = of_get_named_gpio(np, "synaptics,irq-gpio", 0);
+
+	attn->irq_flags = (IRQF_ONESHOT | IRQF_TRIGGER_LOW);
+	prop = of_find_property(np, "synaptics,irq-flags", NULL);
+	if (prop && prop->length) {
+		of_property_read_u32(np, "synaptics,irq-flags",
+			(unsigned int *)&temp_value);
+		attn->irq_flags = temp_value;
+	}
+
+	attn->irq_on_state = 0;
+	prop = of_find_property(np, "synaptics,irq-on-state", NULL);
+	if (prop && prop->length)
+		of_property_read_u32(np, "synaptics,irq-on-state",
+			&attn->irq_on_state);
+#else
+	/* TVM mode: Skip GPIO parsing - managed by QTS */
+	attn->irq_gpio = -1;
+	attn->irq_flags = (IRQF_ONESHOT | IRQF_TRIGGER_LOW);
+	attn->irq_on_state = 0;
+	LOGI("TVM mode: Skip IRQ GPIO parsing\n");
+#endif
+}
+
+/*
+ * Parse power configuration from device tree
+ */
+static void syna_spi_parse_dt_power(struct device_node *np,
+	struct syna_hw_pwr_data *pwr)
+{
+	struct property *prop;
+
+	if (!pwr)
+		return;
+
+	pwr->power_on_state = 1;
+	prop = of_find_property(np, "synaptics,power-on-state", NULL);
+	if (prop && prop->length)
+		of_property_read_u32(np, "synaptics,power-on-state",
+			&pwr->power_on_state);
+
+	pwr->power_delay_ms = 0;
+	prop = of_find_property(np, "synaptics,power-delay-ms", NULL);
+	if (prop && prop->length)
+		of_property_read_u32(np, "synaptics,power-delay-ms",
+			&pwr->power_delay_ms);
+
+	/* VDD configuration */
+	pwr->vdd.control = 0;
+	prop = of_find_property(np, "synaptics,vdd-control", NULL);
+	if (prop && prop->length)
+		of_property_read_u32(np, "synaptics,vdd-control",
+			&pwr->vdd.control);
+
+	pwr->vdd.regulator_name = NULL;
+	prop = of_find_property(np, "synaptics,vdd-name", NULL);
+	if (prop && prop->length)
+		of_property_read_string(np, "synaptics,vdd-name",
+			&pwr->vdd.regulator_name);
+
+	pwr->vdd.gpio = -1;
+	prop = of_find_property(np, "synaptics,vdd-gpio", NULL);
+	if (prop && prop->length)
+		pwr->vdd.gpio = of_get_named_gpio(np, "synaptics,vdd-gpio", 0);
+
+	pwr->vdd.power_on_delay_ms = 0;
+	prop = of_find_property(np, "synaptics,vdd-power-on-delay-ms", NULL);
+	if (prop && prop->length)
+		of_property_read_u32(np, "synaptics,vdd-power-on-delay-ms",
+			&pwr->vdd.power_on_delay_ms);
+
+	pwr->vdd.power_off_delay_ms = 0;
+	prop = of_find_property(np, "synaptics,vdd-power-off-delay-ms", NULL);
+	if (prop && prop->length)
+		of_property_read_u32(np, "synaptics,vdd-power-off-delay-ms",
+			&pwr->vdd.power_off_delay_ms);
+
+	/* VIO configuration */
+	pwr->vio.control = 0;
+	prop = of_find_property(np, "synaptics,vio-control", NULL);
+	if (prop && prop->length)
+		of_property_read_u32(np, "synaptics,vio-control", &pwr->vio.control);
+
+	pwr->vio.regulator_name = NULL;
+	prop = of_find_property(np, "synaptics,vio-name", NULL);
+	if (prop && prop->length)
+		of_property_read_string(np, "synaptics,vio-name", &pwr->vio.regulator_name);
+
+	pwr->vio.gpio = -1;
+	prop = of_find_property(np, "synaptics,vio-gpio", NULL);
+	if (prop && prop->length)
+		pwr->vio.gpio = of_get_named_gpio(np, "synaptics,vio-gpio", 0);
+
+	pwr->vio.power_on_delay_ms = 0;
+	prop = of_find_property(np, "synaptics,vio-power-on-delay-ms", NULL);
+	if (prop && prop->length)
+		of_property_read_u32(np, "synaptics,vio-power-on-delay-ms",
+			&pwr->vio.power_on_delay_ms);
+
+	pwr->vio.power_off_delay_ms = 0;
+	prop = of_find_property(np, "synaptics,vio-power-off-delay-ms", NULL);
+	if (prop && prop->length)
+		of_property_read_u32(np, "synaptics,vio-power-off-delay-ms",
+			&pwr->vio.power_off_delay_ms);
+}
+
+/*
+ * Parse reset configuration from device tree
+ */
+static void syna_spi_parse_dt_reset(struct device_node *np,
+	struct syna_hw_rst_data *rst)
+{
+#ifndef CONFIG_ARCH_QTI_VM
+	struct property *prop;
+#endif
+
+	if (!rst)
+		return;
+
+#ifndef CONFIG_ARCH_QTI_VM
+	rst->reset_on_state = 0;
+	prop = of_find_property(np, "synaptics,reset-on-state", NULL);
+	if (prop && prop->length)
+		of_property_read_u32(np, "synaptics,reset-on-state", &rst->reset_on_state);
+
+	rst->reset_gpio = -1;
+	prop = of_find_property(np, "synaptics,reset-gpio", NULL);
+	if (prop && prop->length)
+		rst->reset_gpio = of_get_named_gpio(np, "synaptics,reset-gpio", 0);
+
+	prop = of_find_property(np, "synaptics,reset-active-ms", NULL);
+	if (prop && prop->length)
+		of_property_read_u32(np, "synaptics,reset-active-ms",
+			&rst->reset_active_ms);
+
+	prop = of_find_property(np, "synaptics,reset-delay-ms", NULL);
+	if (prop && prop->length)
+		of_property_read_u32(np, "synaptics,reset-delay-ms",
+			&rst->reset_delay_ms);
+#else
+	/* TVM mode: Skip reset GPIO parsing - managed by QTS */
+	rst->reset_on_state = 0;
+	rst->reset_gpio = -1;
+	rst->reset_active_ms = 0;
+	rst->reset_delay_ms = 0;
+	LOGI("TVM mode: Skip reset GPIO parsing\n");
+#endif
+}
+
+/*
+ * Parse bus configuration from device tree
+ */
+static void syna_spi_parse_dt_bus(struct device_node *np,
+	struct syna_hw_bus_data *bus)
+{
+	struct property *prop;
+
+	if (!bus)
+		return;
+
+	bus->switch_gpio = -1;
+	prop = of_find_property(np, "synaptics,io-switch-gpio", NULL);
+	if (prop && prop->length)
+		bus->switch_gpio = of_get_named_gpio(np, "synaptics,io-switch-gpio", 0);
+
+	prop = of_find_property(np, "synaptics,io-switch-state", NULL);
+	if (prop && prop->length)
+		of_property_read_u32(np, "synaptics,io-switch-state", &bus->switch_state);
+
+	bus->spi_byte_delay_us = 0;
+	prop = of_find_property(np, "synaptics,spi-byte-delay-us", NULL);
+	if (prop && prop->length)
+		of_property_read_u32(np, "synaptics,spi-byte-delay-us",
+			&bus->spi_byte_delay_us);
+
+	bus->spi_block_delay_us = 0;
+	prop = of_find_property(np, "synaptics,spi-block-delay-us", NULL);
+	if (prop && prop->length)
+		of_property_read_u32(np, "synaptics,spi-block-delay-us",
+			&bus->spi_block_delay_us);
+
+	bus->spi_mode = 0;
+	prop = of_find_property(np, "synaptics,spi-mode", NULL);
+	if (prop && prop->length)
+		of_property_read_u32(np, "synaptics,spi-mode", &bus->spi_mode);
+}
+
+/*
+ * Parse product-specific configuration from device tree
+ */
+static void syna_spi_parse_dt_product(struct device_node *np,
+	struct product_specific *product)
+{
+	struct property *prop;
+	int retval;
+	int temp_value[3] = { 0 };
+
+	if (!product)
+		return;
+
+	prop = of_find_property(np, "synaptics,flash-access-delay-us", NULL);
+	if (prop && prop->length) {
+		retval = of_property_read_u32_array(np, "synaptics,flash-access-delay-usy",
+				temp_value, 3);
+		if (retval >= 0) {
+			product->timings.flash_ops_delay_us[0] = temp_value[0];
+			product->timings.flash_ops_delay_us[1] = temp_value[1];
+			product->timings.flash_ops_delay_us[2] = temp_value[2];
+		}
+	}
+
+	prop = of_find_property(np, "synaptics,command-timeout-ms", NULL);
+	if (prop && prop->length)
+		of_property_read_u32(np, "synaptics,command-timeout-ms",
+				&product->timings.cmd_timeout_ms);
+
+	prop = of_find_property(np, "synaptics,command-polling-ms", NULL);
+	if (prop && prop->length)
+		of_property_read_u32(np, "synaptics,command-polling-ms",
+				&product->timings.cmd_polling_ms);
+
+	prop = of_find_property(np, "synaptics,command-turnaround-us", NULL);
+	if (prop && prop->length)
+		of_property_read_u32(np, "synaptics,command-turnaround-us",
+				&product->timings.cmd_turnaround_us);
+
+	prop = of_find_property(np, "synaptics,command-retry-ms", NULL);
+	if (prop && prop->length)
+		of_property_read_u32(np, "synaptics,command-retry-ms",
+				&product->timings.cmd_retry_ms);
+
+	prop = of_find_property(np, "synaptics,fw-switch-delay-ms", NULL);
+	if (prop && prop->length)
+		of_property_read_u32(np, "synaptics,fw-switch-delay-ms",
+				&product->timings.fw_switch_delay_ms);
+
+	LOGI("Load from dt: command timeout(%d) turnaround time(%d) retry time(%d)\n",
+		product->timings.cmd_timeout_ms, product->timings.cmd_turnaround_us,
+		product->timings.cmd_retry_ms);
+	LOGI("Load from dt: fw switch(%d) flash erase(%d) flash write(%d) flash read(%d)\n",
+		product->timings.fw_switch_delay_ms,
+		product->timings.flash_ops_delay_us[0],
+		product->timings.flash_ops_delay_us[1],
+		product->timings.flash_ops_delay_us[2]);
+}
+
 /*
  * Parse and obtain board specific data from the device tree source file.
  *
@@ -275,12 +542,7 @@ static int syna_spi_parse_dt(void)
 	struct property *prop;
 	struct device *dev = syna_request_managed_device();
 	struct device_node *np;
-	struct syna_hw_attn_data *attn;
-	struct syna_hw_pwr_data *pwr;
-	struct syna_hw_rst_data *rst;
-	struct syna_hw_bus_data *bus;
-	struct product_specific *product;
-	int temp_value[5] = { 0 };
+	int temp_value[2] = { 0 };
 
 	if (!dev) {
 		LOGE("Invalid device\n");
@@ -294,151 +556,19 @@ static int syna_spi_parse_dt(void)
 		return -EINVAL;
 	}
 
-	attn = &p_hw_spi_if->bdata_attn;
-	if (attn) {
-		attn->irq_gpio = -1;
-		prop = of_find_property(np, "synaptics,irq-gpio", NULL);
-		if (prop && prop->length)
-			attn->irq_gpio = of_get_named_gpio(np, "synaptics,irq-gpio", 0);
+	/* Parse ATTN configuration */
+	syna_spi_parse_dt_attn(np, &p_hw_spi_if->bdata_attn);
 
-		attn->irq_flags = (IRQF_ONESHOT | IRQF_TRIGGER_LOW);
-		prop = of_find_property(np, "synaptics,irq-flags", NULL);
-		if (prop && prop->length) {
-			of_property_read_u32(np, "synaptics,irq-flags",
-				(unsigned int *)&temp_value[0]);
-			attn->irq_flags = temp_value[0];
-		}
+	/* Parse power configuration */
+	syna_spi_parse_dt_power(np, &p_hw_spi_if->bdata_pwr);
 
-		attn->irq_on_state = 0;
-		prop = of_find_property(np, "synaptics,irq-on-state", NULL);
-		if (prop && prop->length)
-			of_property_read_u32(np, "synaptics,irq-on-state",
-				&attn->irq_on_state);
-	}
+	/* Parse reset configuration */
+	syna_spi_parse_dt_reset(np, &p_hw_spi_if->bdata_rst);
 
-	pwr = &p_hw_spi_if->bdata_pwr;
-	if (pwr) {
-		pwr->power_on_state = 1;
-		prop = of_find_property(np, "synaptics,power-on-state", NULL);
-		if (prop && prop->length)
-			of_property_read_u32(np, "synaptics,power-on-state",
-				&pwr->power_on_state);
+	/* Parse bus configuration */
+	syna_spi_parse_dt_bus(np, &p_hw_spi_if->bdata_io);
 
-		pwr->power_delay_ms = 0;
-		prop = of_find_property(np, "synaptics,power-delay-ms", NULL);
-		if (prop && prop->length)
-			of_property_read_u32(np, "synaptics,power-delay-ms",
-				&pwr->power_delay_ms);
-
-		pwr->vdd.control = 0;
-		prop = of_find_property(np, "synaptics,vdd-control", NULL);
-		if (prop && prop->length)
-			of_property_read_u32(np, "synaptics,vdd-control",
-				&pwr->vdd.control);
-
-		pwr->vdd.regulator_name = NULL;
-		prop = of_find_property(np, "synaptics,vdd-name", NULL);
-		if (prop && prop->length)
-			of_property_read_string(np, "synaptics,vdd-name",
-				&pwr->vdd.regulator_name);
-
-		pwr->vdd.gpio = -1;
-		prop = of_find_property(np, "synaptics,vdd-gpio", NULL);
-		if (prop && prop->length)
-			pwr->vdd.gpio = of_get_named_gpio(np, "synaptics,vdd-gpio", 0);
-
-		pwr->vdd.power_on_delay_ms = 0;
-		prop = of_find_property(np, "synaptics,vdd-power-on-delay-ms", NULL);
-		if (prop && prop->length)
-			of_property_read_u32(np, "synaptics,vdd-power-on-delay-ms",
-				&pwr->vdd.power_on_delay_ms);
-
-		pwr->vdd.power_off_delay_ms = 0;
-		prop = of_find_property(np, "synaptics,vdd-power-off-delay-ms", NULL);
-		if (prop && prop->length)
-			of_property_read_u32(np, "synaptics,vdd-power-off-delay-ms",
-				&pwr->vdd.power_off_delay_ms);
-
-		pwr->vio.control = 0;
-		prop = of_find_property(np, "synaptics,vio-control", NULL);
-		if (prop && prop->length)
-			of_property_read_u32(np, "synaptics,vio-control", &pwr->vio.control);
-
-		pwr->vio.regulator_name = NULL;
-		prop = of_find_property(np, "synaptics,vio-name", NULL);
-		if (prop && prop->length)
-			of_property_read_string(np, "synaptics,vio-name", &pwr->vio.regulator_name);
-
-		pwr->vio.gpio = -1;
-		prop = of_find_property(np, "synaptics,vio-gpio", NULL);
-		if (prop && prop->length)
-			pwr->vio.gpio = of_get_named_gpio(np, "synaptics,vio-gpio", 0);
-
-		pwr->vio.power_on_delay_ms = 0;
-		prop = of_find_property(np, "synaptics,vio-power-on-delay-ms", NULL);
-		if (prop && prop->length)
-			of_property_read_u32(np, "synaptics,vio-power-on-delay-ms",
-				&pwr->vio.power_on_delay_ms);
-
-		pwr->vio.power_off_delay_ms = 0;
-		prop = of_find_property(np, "synaptics,vio-power-off-delay-ms", NULL);
-		if (prop && prop->length)
-			of_property_read_u32(np, "synaptics,vio-power-off-delay-ms",
-				&pwr->vio.power_off_delay_ms);
-	}
-
-	rst = &p_hw_spi_if->bdata_rst;
-	if (rst) {
-		rst->reset_on_state = 0;
-		prop = of_find_property(np, "synaptics,reset-on-state", NULL);
-		if (prop && prop->length)
-			of_property_read_u32(np, "synaptics,reset-on-state", &rst->reset_on_state);
-
-		rst->reset_gpio = -1;
-		prop = of_find_property(np, "synaptics,reset-gpio", NULL);
-		if (prop && prop->length)
-			rst->reset_gpio = of_get_named_gpio(np, "synaptics,reset-gpio", 0);
-
-		prop = of_find_property(np, "synaptics,reset-active-ms", NULL);
-		if (prop && prop->length)
-			of_property_read_u32(np, "synaptics,reset-active-ms",
-				&rst->reset_active_ms);
-
-		prop = of_find_property(np, "synaptics,reset-delay-ms", NULL);
-		if (prop && prop->length)
-			of_property_read_u32(np, "synaptics,reset-delay-ms",
-				&rst->reset_delay_ms);
-	}
-
-	bus = &p_hw_spi_if->bdata_io;
-	if (bus) {
-		bus->switch_gpio = -1;
-		prop = of_find_property(np, "synaptics,io-switch-gpio", NULL);
-		if (prop && prop->length)
-			bus->switch_gpio = of_get_named_gpio(np, "synaptics,io-switch-gpio", 0);
-
-		prop = of_find_property(np, "synaptics,io-switch-state", NULL);
-		if (prop && prop->length)
-			of_property_read_u32(np, "synaptics,io-switch-state", &bus->switch_state);
-
-		bus->spi_byte_delay_us = 0;
-		prop = of_find_property(np, "synaptics,spi-byte-delay-us", NULL);
-		if (prop && prop->length)
-			of_property_read_u32(np, "synaptics,spi-byte-delay-us",
-				&bus->spi_byte_delay_us);
-
-		bus->spi_block_delay_us = 0;
-		prop = of_find_property(np, "synaptics,spi-block-delay-us", NULL);
-		if (prop && prop->length)
-			of_property_read_u32(np, "synaptics,spi-block-delay-us",
-				&bus->spi_block_delay_us);
-
-		bus->spi_mode = 0;
-		prop = of_find_property(np, "synaptics,spi-mode", NULL);
-		if (prop && prop->length)
-			of_property_read_u32(np, "synaptics,spi-mode", &bus->spi_mode);
-	}
-
+	/* Parse chunk sizes */
 	prop = of_find_property(np, "synaptics,chunks", NULL);
 	if (prop && prop->length) {
 		retval = of_property_read_u32_array(np, "synaptics,chunks", temp_value, 2);
@@ -458,53 +588,11 @@ static int syna_spi_parse_dt(void)
 		p_hw_spi_if->bdata_pwr.vio.power_on_delay_ms,
 		p_hw_spi_if->bdata_pwr.vio.power_off_delay_ms);
 
-	product = &p_hw_spi_if->product;
-	if (product) {
-		prop = of_find_property(np, "synaptics,flash-access-delay-us", NULL);
-		if (prop && prop->length) {
-			retval = of_property_read_u32_array(np, "synaptics,flash-access-delay-usy",
-					temp_value, 3);
-			if (retval >= 0) {
-				product->timings.flash_ops_delay_us[0] = temp_value[0];
-				product->timings.flash_ops_delay_us[1] = temp_value[1];
-				product->timings.flash_ops_delay_us[2] = temp_value[2];
-			}
-		}
+	/* Parse product-specific configuration */
+	syna_spi_parse_dt_product(np, &p_hw_spi_if->product);
 
-		prop = of_find_property(np, "synaptics,command-timeout-ms", NULL);
-		if (prop && prop->length)
-			retval = of_property_read_u32(np, "synaptics,command-timeout-ms",
-					&product->timings.cmd_timeout_ms);
-
-		prop = of_find_property(np, "synaptics,command-polling-ms", NULL);
-		if (prop && prop->length)
-			retval = of_property_read_u32(np, "synaptics,command-polling-ms",
-					&product->timings.cmd_polling_ms);
-
-		prop = of_find_property(np, "synaptics,command-turnaround-us", NULL);
-		if (prop && prop->length)
-			retval = of_property_read_u32(np, "synaptics,command-turnaround-us",
-					&product->timings.cmd_turnaround_us);
-
-		prop = of_find_property(np, "synaptics,command-retry-ms", NULL);
-		if (prop && prop->length)
-			retval = of_property_read_u32(np, "synaptics,command-retry-ms",
-					&product->timings.cmd_retry_ms);
-
-		prop = of_find_property(np, "synaptics,fw-switch-delay-ms", NULL);
-		if (prop && prop->length)
-			retval = of_property_read_u32(np, "synaptics,fw-switch-delay-ms",
-					&product->timings.fw_switch_delay_ms);
-
-		LOGI("Load from dt: command timeout(%d) turnaround time(%d) retry time(%d)\n",
-			product->timings.cmd_timeout_ms, product->timings.cmd_turnaround_us,
-			product->timings.cmd_retry_ms);
-		LOGI("Load from dt: fw switch(%d) flash erase(%d) flash write(%d) flash read(%d)\n",
-			product->timings.fw_switch_delay_ms,
-			product->timings.flash_ops_delay_us[0],
-			product->timings.flash_ops_delay_us[1],
-			product->timings.flash_ops_delay_us[2]);
-	}
+	/* Parse TVM configuration */
+	p_hw_spi_if->bdata_tvm.qts_en = of_property_read_bool(np, "synaptics,qts_en");
 
 	return 0;
 }
@@ -559,8 +647,21 @@ static int syna_spi_request_attn_resources(void)
 	if (!attn)
 		return -EINVAL;
 
+	/* CRITICAL: Always initialize irq_en_mutex, even in TVM
+	 * This mutex is used by syna_spi_enable_irq() which is called
+	 * by QTS framework in TVM environment
+	 */
 	syna_pal_mutex_alloc(&attn->irq_en_mutex);
 
+#ifdef CONFIG_ARCH_QTI_VM
+	/* Skip GPIO setup in TVM - managed by QTS
+	 * But mutex MUST be initialized above
+	 */
+	LOGI("TVM mode: Skip ATTN GPIO setup (mutex initialized)\n");
+	return 0;
+#endif
+
+	/* PVM: Continue with GPIO setup */
 	if (attn->irq_gpio > 0) {
 		retval = syna_spi_get_gpio(attn->irq_gpio, 0, 0, str_attn_gpio);
 		if (retval < 0) {
@@ -608,6 +709,11 @@ static int syna_spi_release_reset_resources(void)
  */
 static int syna_spi_request_reset_resources(void)
 {
+#ifdef CONFIG_ARCH_QTI_VM
+	/* Skip GPIO setup in TVM - managed by QTS */
+	LOGI("TVM mode: Skip RESET GPIO setup\n");
+	return 0;
+#else
 	int retval;
 	static char str_rst_gpio[32] = {0};
 	struct syna_hw_rst_data *rst;
@@ -628,6 +734,7 @@ static int syna_spi_request_reset_resources(void)
 	}
 
 	return 0;
+#endif
 }
 /*
  * Release the resources for the use of bus transferring.
@@ -781,6 +888,16 @@ static int syna_spi_release_power_resources(void)
  */
 static int syna_spi_request_power_resources(void)
 {
+#ifdef CONFIG_ARCH_QTI_VM
+	/* TVM mode: Skip power resource setup - managed by QTS/PVM
+	 * In TVM environment:
+	 * - Power control is handled by PVM (Primary VM)
+	 * - TVM should not access regulators or power GPIOs
+	 * - Power state changes are coordinated through QTS framework
+	 */
+	LOGI("TVM mode: Skip power resource setup\n");
+	return 0;
+#else
 	int retval;
 	static char str_vdd_gpio[32] = {0};
 	static char str_avdd_gpio[32] = {0};
@@ -846,6 +963,7 @@ static int syna_spi_request_power_resources(void)
 	}
 
 	return 0;
+#endif /* CONFIG_ARCH_QTI_VM */
 }
 
 
@@ -1715,4 +1833,3 @@ void syna_hw_interface_unbind(void)
 
 MODULE_DESCRIPTION("Synaptics TouchComm SPI Bus Module");
 MODULE_LICENSE("GPL");
-

@@ -3,7 +3,7 @@
  * Copyright (C) 2016-2019, STMicroelectronics Limited.
  * Authors: AMG(Analog Mems Group) <marco.cali@st.com>
  *
- * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 /*
@@ -124,7 +124,7 @@ int changeSAD(struct fts_ts_info *info, u8 sad)
 	return OK;
 }
 
-u16 getI2CSAD(struct fts_ts_info *info)
+static u16 getI2CSAD(struct fts_ts_info *info)
 {
 	int idx = 0;
 
@@ -218,7 +218,7 @@ u8 remap_reg(u8 reg, u16 bus_type)
 	return reg;
 }
 
-int remap_dummy_byte(int dymmy_byte, u16 bus_type)
+static int remap_dummy_byte(int dymmy_byte, u16 bus_type)
 {
 	if (bus_type != BUS_I2C)
 		return dymmy_byte;

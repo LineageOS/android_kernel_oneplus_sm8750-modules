@@ -53,6 +53,7 @@
 #define HEIC    MSM_VIDC_HEIC
 #define CODECS_ALL     (H264 | HEVC | VP9 | HEIC | AV1)
 #define MAXIMUM_OVERRIDE_VP9_FPS 200
+#define MAX_SESSION_COUNT_IOT 24
 
 static struct codec_info codec_data_sun[] = {
 	{
@@ -285,7 +286,7 @@ static struct matrix_coeff_info matrix_coeff_data_sun[] = {
 	},
 };
 
-static const struct msm_platform_core_capability core_data_sun[] = {
+static struct msm_platform_core_capability core_data_sun[] = {
 	/* {type, value} */
 	{ENC_CODECS, H264 | HEVC | HEIC},
 	{DEC_CODECS, H264 | HEVC | VP9 | AV1 | HEIC},
@@ -3100,6 +3101,23 @@ static int msm_vidc_init_data(struct msm_vidc_core *core)
 		d_vpr_h("%s: update frequency table for sun v2\n", __func__);
 		core->platform->data.freq_tbl = sun_freq_table_v2;
 		core->platform->data.freq_tbl_size = ARRAY_SIZE(sun_freq_table_v2);
+	}
+
+	if (of_device_is_compatible(dev->of_node, "qcom,sm8750-vidc-v3")) {
+		int i = 0;
+		const u32 num_core_cap_data = core->platform->data.core_data_size;
+		struct msm_platform_core_capability *core_cap_data = NULL;
+
+		core_cap_data =
+			(struct msm_platform_core_capability *)core->platform->data.core_data;
+		for (i = 0; i < num_core_cap_data; i++) {
+			if (core_cap_data[i].type == MAX_SESSION_COUNT)
+				core_cap_data[i].value = MAX_SESSION_COUNT_IOT;
+			else if (core_cap_data[i].type == MAX_NUM_720P_SESSIONS)
+				core_cap_data[i].value = MAX_SESSION_COUNT_IOT;
+			else if (core_cap_data[i].type == MAX_NUM_1080P_SESSIONS)
+				core_cap_data[i].value = MAX_SESSION_COUNT_IOT;
+		}
 	}
 
 	core->mem_ops = get_mem_ops_ext();

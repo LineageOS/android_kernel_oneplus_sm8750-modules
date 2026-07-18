@@ -114,7 +114,8 @@ module_entry(
 			"synaptics_tcm2/tcm/synaptics_touchcom_core_v1.c",
 			"synaptics_tcm2/tcm/synaptics_touchcom_image_parsing.c",
 			"synaptics_tcm2/tcm/synaptics_touchcom_func_reflash.c"
-    ]
+    ],
+    deps = ["qts"],
 )
 
 #define ddk_module() for atmel_mxt_ts

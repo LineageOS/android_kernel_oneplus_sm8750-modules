@@ -20,8 +20,8 @@ register_synx_module(
     # Configs are handled by config_options = []
     config_deps = {
         "CONFIG_QTI_HW_FENCE" : [
-            "//vendor/qcom/opensource/mm-drivers/hw_fence:%b_msm_hw_fence",
-            "//vendor/qcom/opensource/mm-drivers/hw_fence:hw_fence_headers",
+            "//vendor/qcom/sm8750-modules/qcom/opensource/mm-drivers/hw_fence:%b_msm_hw_fence",
+            "//vendor/qcom/sm8750-modules/qcom/opensource/mm-drivers/hw_fence:hw_fence_headers",
         ],
     },
 )

@@ -1,7 +1,7 @@
  /*
   * Goodix Touchscreen Driver
   * Copyright (C) 2020 - 2021 Goodix, Inc.
-  * Copyright (c) 2022 - 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
   *
   * This program is free software; you can redistribute it and/or modify
   * it under the terms of the GNU General Public License as published by
@@ -273,7 +273,7 @@ power_off:
 }
 
 #define GOODIX_SLEEP_CMD	0x84
-int brl_suspend(struct goodix_ts_core *cd)
+static int brl_suspend(struct goodix_ts_core *cd)
 {
 #ifdef GOODIX_SUSPEND_GESTURE_ENABLE
 	struct goodix_ts_cmd sleep_cmd;
@@ -289,7 +289,7 @@ int brl_suspend(struct goodix_ts_core *cd)
 	return 0;
 }
 
-int brl_resume(struct goodix_ts_core *cd)
+static int brl_resume(struct goodix_ts_core *cd)
 {
 	int ret = 0;
 
@@ -308,7 +308,7 @@ int brl_resume(struct goodix_ts_core *cd)
 
 #define GOODIX_GESTURE_CMD_BA	0x12
 #define GOODIX_GESTURE_CMD		0xA6
-int brl_gesture(struct goodix_ts_core *cd, int gesture_type)
+static int brl_gesture(struct goodix_ts_core *cd, int gesture_type)
 {
 	struct goodix_ts_cmd cmd;
 

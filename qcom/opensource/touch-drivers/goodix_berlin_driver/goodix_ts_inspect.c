@@ -1,7 +1,7 @@
 /*
  * Goodix Touchscreen Driver
  * Copyright (C) 2020 - 2021 Goodix, Inc.
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1957,14 +1957,14 @@ static void goodix_capacitance_test(struct goodix_ts_test *ts_test)
 				ts_test->test_result[GTP_SELFNOISE_TEST] = GTP_PANEL_REASON;
 			else
 				ts_test->test_result[GTP_SELFNOISE_TEST] = GTP_TEST_PASS;
-		}		
+		}
 	}
 
 exit:
 	goodix_cap_test_finish(ts_test);
 }
 
-char *goodix_strncat(char *dest, char *src, size_t dest_size)
+static char *goodix_strncat(char *dest, char *src, size_t dest_size)
 {
 	size_t dest_len = 0;
 
@@ -1973,7 +1973,7 @@ char *goodix_strncat(char *dest, char *src, size_t dest_size)
 	return dest;
 }
 
-char *goodix_strncatint(char *dest, int src, char *format, size_t dest_size)
+static char *goodix_strncatint(char *dest, int src, char *format, size_t dest_size)
 {
 	char src_str[MAX_STR_LEN] = {0};
 

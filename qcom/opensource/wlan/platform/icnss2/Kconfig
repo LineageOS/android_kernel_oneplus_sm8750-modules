@@ -67,3 +67,13 @@ config CNSS2_SSR_DRIVER_DUMP
 	  If enabled, ICNSS platform driver modules would collect host ssr dump
 	  from the WLAN HOST driver and sends to dump collection framework for
 	  creating host dump elf file.
+
+config ICNSS_EMULATION
+	bool "Enable specific changes for emulation hardware"
+	depends on ICNSS2
+	help
+	  This enables the changes from WLAN drivers that are specific to
+	  emulation hardware.
+	  These changes are needed for WLAN drivers to support and meet the
+	  requirement of emulation hardware.
+

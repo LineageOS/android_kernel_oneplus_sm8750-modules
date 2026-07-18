@@ -1439,8 +1439,8 @@ static int cnss_pci_select_window(struct cnss_pci_data *pci_priv, u32 offset)
 	return 0;
 }
 
-static int cnss_pci_reg_read(struct cnss_pci_data *pci_priv,
-			     u32 offset, u32 *val)
+int cnss_pci_reg_read(struct cnss_pci_data *pci_priv,
+		      u32 offset, u32 *val)
 {
 	int ret;
 	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
@@ -1479,8 +1479,8 @@ out:
 	return ret;
 }
 
-static int cnss_pci_reg_write(struct cnss_pci_data *pci_priv, u32 offset,
-			      u32 val)
+int cnss_pci_reg_write(struct cnss_pci_data *pci_priv, u32 offset,
+		       u32 val)
 {
 	int ret;
 	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
@@ -2055,7 +2055,10 @@ void cnss_pci_handle_linkdown(struct cnss_pci_data *pci_priv)
 {
 	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
 	struct pci_dev *pci_dev = pci_priv->pci_dev;
-	unsigned long flags;
+	unsigned long flags = 0;
+
+	/* Read GPIO status when PCIe link down is detected */
+	cnss_read_gpio_status_on_link_down(plat_priv);
 
 	if (test_bit(ENABLE_PCI_LINK_DOWN_PANIC,
 		     &plat_priv->ctrl_params.quirks))
@@ -2234,6 +2237,7 @@ static u32 cnss_dump_line_buf(char *line_buf, u32 data_len, bool dumpall)
 	const char *delim = "\n";
 	u32 cur = 0;
 
+	line_buf[data_len] = '\0';
 	ptr = line_buf;
 	while ((res = strsep(&ptr, delim)) != NULL) {
 		if (ptr) {
@@ -2250,8 +2254,11 @@ static u32 cnss_dump_line_buf(char *line_buf, u32 data_len, bool dumpall)
 			 * dump the data directly;
 			 * otherwise, pass the data to the next print
 			 */
-			if (dumpall || (res - line_buf < 4))
+			if (dumpall || (res - line_buf < 4)) {
 				cnss_pr_dbg("%s\n", res);
+				cur = 0;
+			}
+
 			else
 				memmove(line_buf, res, cur);
 		}
@@ -3033,7 +3040,7 @@ cnss_get_plat_priv_when_unregister_driver(struct cnss_wlan_driver *driver_ops)
 static int cnss_pci_store_qrtr_node_id(struct cnss_pci_data *pci_priv)
 {
 	int ret = 0;
-	u32 scratch = PCIE_SCRATCH_2_SOC_PCIE_REG;
+	u32 scratch;
 	struct cnss_plat_data *plat_priv;
 
 	if (!pci_priv) {
@@ -3044,6 +3051,10 @@ static int cnss_pci_store_qrtr_node_id(struct cnss_pci_data *pci_priv)
 	switch (pci_priv->device_id) {
 	case QCA6390_DEVICE_ID:
 	case QCA6490_DEVICE_ID:
+		scratch = PCIE_SCRATCH_2_SOC_PCIE_REG;
+		break;
+	case FIG_DEVICE_ID:
+		scratch = PCIE_PCIE_LOCAL_REG_PCIE_LOCAL_RSV0;
 		break;
 	default:
 		cnss_pr_dbg("device 0x%x not supported qrtr set, nothing to do\n",
@@ -4161,7 +4172,7 @@ static int cnss_qca6290_powerup(struct cnss_pci_data *pci_priv)
 	 * suspend/resume, wlan should be powered
 	 * during resume in SCMI solution
 	 * */
-	if (plat_priv->is_fw_managed_pwr &&
+	if (plat_priv->pwr_ctrl_mode == CNSS_POWER_CTRL_SCMI &&
 	    cnss_is_device_powered_on(plat_priv) &&
 	    pci_priv->pci_link_state == PCI_LINK_UP) {
 		ret = cnss_enable_pcie_device(pci_priv);
@@ -4214,6 +4225,10 @@ retry:
 
 power_on_done:
 	cnss_pci_set_wlaon_pwr_ctrl(pci_priv, false, false, false);
+
+	if (plat_priv->pwr_ctrl_mode == CNSS_POWER_CTRL_ALWAYS_ON)
+		cnss_pci_dev_warm_reset(pci_priv, true);
+
 	timeout = cnss_get_timeout(plat_priv, CNSS_TIMEOUT_QMI);
 
 	ret = cnss_pci_start_mhi(pci_priv);
@@ -4328,6 +4343,9 @@ static int cnss_qca6290_shutdown(struct cnss_pci_data *pci_priv)
 		goto skip_power_off;
 	} else {
 		cnss_pci_power_off_mhi(pci_priv, false);
+		if (plat_priv->pwr_ctrl_mode == CNSS_POWER_CTRL_ALWAYS_ON)
+			cnss_pci_dev_warm_reset(pci_priv, false);
+
 		ret = cnss_suspend_pci_link(pci_priv);
 		if (ret)
 			cnss_pr_err("Failed to suspend PCI link, err = %d\n",
@@ -4363,6 +4381,7 @@ static void cnss_qca6290_crash_shutdown(struct cnss_pci_data *pci_priv)
 	cnss_pr_dbg("Crash shutdown with driver_state 0x%lx\n",
 		    plat_priv->driver_state);
 
+	cnss_read_gpio_status_on_link_down(plat_priv);
 	ret = cnss_pci_collect_dump_info(pci_priv, true);
 	clear_bit(CNSS_IN_PANIC, &plat_priv->driver_state);
 }
@@ -4386,6 +4405,9 @@ static int cnss_qca6290_ramdump(struct cnss_pci_data *pci_priv)
 	cnss_suspend_pci_link(pci_priv);
 	cnss_pci_deinit_mhi(pci_priv);
 	cnss_power_off_device(plat_priv);
+	/* Restore caldb/rddm reuse seg if necessary */
+	if (test_bit(CNSS_DAEMON_CONNECTED, &plat_priv->driver_state))
+		cnss_caldb_rddm_reuse(plat_priv, false);
 
 	return ret;
 }
@@ -4978,7 +5000,7 @@ static int cnss_pci_suspend(struct device *dev)
 	if (!cnss_is_device_powered_on(plat_priv))
 		goto out;
 
-	if (plat_priv->is_fw_managed_pwr)
+	if (plat_priv->pwr_ctrl_mode == CNSS_POWER_CTRL_SCMI)
 		/* pcie link will be suspend by pcie PM */
 		goto out;
 
@@ -5077,7 +5099,7 @@ static int cnss_pci_resume(struct device *dev)
 	if (pci_priv->pci_link_down_ind)
 		goto out;
 
-	if (plat_priv->is_fw_managed_pwr) {
+	if (plat_priv->pwr_ctrl_mode == CNSS_POWER_CTRL_SCMI) {
 		/* pcie link have been resume by pcie bus pm */
 		pci_priv->pci_link_state = PCI_LINK_UP;
 		goto out;
@@ -5117,7 +5139,7 @@ static int cnss_pci_suspend_late(struct device *dev)
 		goto out;
 
 	plat_priv = pci_priv->plat_priv;
-	if (plat_priv->is_fw_managed_pwr) {
+	if (plat_priv->pwr_ctrl_mode == CNSS_POWER_CTRL_SCMI) {
 		pci_priv->pci_link_state = PCI_LINK_DOWN;
 		cnss_power_off_device(plat_priv);
 		goto out;
@@ -5140,7 +5162,7 @@ static int cnss_pci_resume_early(struct device *dev)
 	plat_priv = pci_priv->plat_priv;
 
 	if (!cnss_is_device_powered_on(pci_priv->plat_priv)) {
-		if (plat_priv->is_fw_managed_pwr) {
+		if (plat_priv->pwr_ctrl_mode == CNSS_POWER_CTRL_SCMI) {
 			ret = cnss_power_on_device(plat_priv, false);
 			if (ret)
 				cnss_pr_err("Failed to power on device, err = %d\n",
@@ -9156,12 +9178,13 @@ static int cnss_pci_probe(struct pci_dev *pci_dev,
 		goto unreg_mhi;
 	}
 
+	cnss_pci_init_warm_reset_params(pci_priv);
 	cnss_pci_config_regs(pci_priv);
 	if (EMULATION_HW)
 		goto out;
 	if (cnss_is_dual_wlan_enabled() && !plat_priv->enumerate_done)
 		goto probe_done;
-	if (!plat_priv->is_fw_managed_pwr)
+	if (plat_priv->pwr_ctrl_mode == CNSS_POWER_CTRL_HOST)
 		cnss_pci_suspend_pwroff(pci_dev);
 
 probe_done:
@@ -9370,4 +9393,62 @@ void cnss_pci_deinit(struct cnss_plat_data *plat_priv)
 		pci_unregister_driver(&cnss_pci_driver);
 		cnss_driver_registered = false;
 	}
+}
+
+u8 **cnss_pci_collect_rddm_seg_info(struct cnss_pci_data *pci_priv,
+				    u32 *rddm_entries,
+				    u32 *rddm_seg_len)
+{
+	struct image_info *rddm_image;
+	u8 **seg_array = NULL;
+	u32 i;
+
+	if (!pci_priv) {
+		cnss_pr_err("PCI private data is NULL\n");
+		return NULL;
+	}
+
+	/* Check MHI controller */
+	if (!pci_priv->mhi_ctrl) {
+		cnss_pr_err("MHI controller is NULL\n");
+		return NULL;
+	}
+
+	/* Get RDDM image */
+	rddm_image = pci_priv->mhi_ctrl->rddm_image;
+	if (!rddm_image) {
+		cnss_pr_err("RDDM image is NULL\n");
+		return NULL;
+	}
+
+	/* Validate RDDM image entries and buffer */
+	if (rddm_image->entries <= 1 || !rddm_image->mhi_buf) {
+		cnss_pr_err("Invalid RDDM image: entries=%d, mhi_buf=%pK\n",
+			    rddm_image->entries, rddm_image->mhi_buf);
+		return NULL;
+	}
+
+	/* Allocate array to hold segment pointers */
+	seg_array = vzalloc(sizeof(u8 *) * (rddm_image->entries - 1));
+	if (!seg_array)
+		return NULL;
+
+	/* Collect all segment pointers */
+	for (i = 0; i < rddm_image->entries - 1; i++) {
+		if (!rddm_image->mhi_buf[i].buf) {
+			cnss_pr_err("NULL buffer at segment %d\n", i);
+			vfree(seg_array);
+			return NULL;
+		}
+		seg_array[i] = (char *)rddm_image->mhi_buf[i].buf;
+	}
+
+	/* Set output parameters */
+	*rddm_entries = rddm_image->entries - 1;
+	*rddm_seg_len = pci_priv->mhi_ctrl->seg_len;
+
+	cnss_pr_info("Successfully collected %d RDDM segments, seg_len=%d\n",
+		     *rddm_entries, *rddm_seg_len);
+
+	return seg_array;
 }

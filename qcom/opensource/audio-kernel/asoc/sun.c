@@ -980,6 +980,20 @@ static struct snd_soc_dai_link ext_disp_be_dai_link[] = {
 	},
 };
 
+static struct snd_soc_dai_link ext_hdmi_be_dai_link[] = {
+	/* DISP PORT BACK END DAI Link for DP0 */
+	{
+		.name = LPASS_BE_HDMI_RX_0,
+		.stream_name = LPASS_BE_HDMI_RX_0,
+		.playback_only = 1,
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
+			SND_SOC_DPCM_TRIGGER_POST},
+		.ignore_pmdown_time = 1,
+		.ignore_suspend = 1,
+		SND_SOC_DAILINK_REG(hdmi_rx),
+	},
+};
+
 static struct snd_soc_dai_link msm_wsa_cdc_dma_be_dai_links[] = {
 	/* WSA CDC DMA Backend DAI Links */
 	{
@@ -1641,6 +1655,7 @@ static struct snd_soc_dai_link msm_sun_dai_links[
 			ARRAY_SIZE(msm_cdc_tx_va_dma_be_dai_links) +
 			ARRAY_SIZE(msm_cdc_qmp_dma_be_dai_links) +
 			ARRAY_SIZE(ext_disp_be_dai_link) +
+			ARRAY_SIZE(ext_hdmi_be_dai_link) +
 			ARRAY_SIZE(msm_common_be_dai_links) +
 			ARRAY_SIZE(msm_wcn_be_dai_links) +
 			ARRAY_SIZE(msm_swr_haptics_be_dai_links) +
@@ -1975,6 +1990,19 @@ static struct snd_soc_card *populate_snd_card_dailinks(struct device *dev, int w
 					ext_disp_be_dai_link,
 						sizeof(ext_disp_be_dai_link));
 				total_links += ARRAY_SIZE(ext_disp_be_dai_link);
+			}
+		}
+
+		rc = of_property_read_u32(dev->of_node,
+					   "qcom,ext-hdmi-audio-rx", &val);
+		if (!rc && val) {
+			if (!socinfo_get_part_info(PART_DISPLAY)) {
+				dev_dbg(dev, "%s(): ext hdmi audio support present\n",
+					__func__);
+				memcpy(msm_sun_dai_links + total_links,
+					ext_hdmi_be_dai_link,
+						sizeof(ext_hdmi_be_dai_link));
+				total_links += ARRAY_SIZE(ext_hdmi_be_dai_link);
 			}
 		}
 

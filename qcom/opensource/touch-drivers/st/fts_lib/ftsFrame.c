@@ -3,7 +3,7 @@
  * Copyright (C) 2016-2019, STMicroelectronics Limited.
  * Authors: AMG(Analog Mems Group) <marco.cali@st.com>
  *
- * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 /*
@@ -478,7 +478,7 @@ int getSSFrame3(struct fts_ts_info *info, SSFrameType type, SelfSenseFrame *fram
   * to the next data
   * @return OK if success or an error code which specify the type of error
   */
-int readSyncDataHeader(struct fts_ts_info *info, u8 type, DataHeader *msHeader,
+static int readSyncDataHeader(struct fts_ts_info *info, u8 type, DataHeader *msHeader,
 	DataHeader *ssHeader, u64 *address)
 {
 	u64 offset = ADDR_FRAMEBUFFER;

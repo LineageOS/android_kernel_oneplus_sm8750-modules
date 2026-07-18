@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef _MSM_VIDC_INTERNAL_H_
@@ -102,7 +102,7 @@ enum msm_vidc_metadata_bits {
 #define MAXIMUM_VP9_FPS   60
 #define NRT_PRIORITY_OFFSET        2
 #define RT_DEC_DOWN_PRORITY_OFFSET 1
-#define MAX_SUPPORTED_INSTANCES  16
+#define MAX_SUPPORTED_INSTANCES  24
 #define DEFAULT_BSE_VPP_DELAY    2
 #define MAX_CAP_PARENTS          20
 #define MAX_CAP_CHILDREN         25

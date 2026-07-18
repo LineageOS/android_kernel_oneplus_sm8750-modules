@@ -37,6 +37,14 @@ static struct icnss_vreg_cfg icnss_wcn7750_vreg_list[] = {
 	{"vdd-2p2-ext", 2200000, 2200000, 0, 0, 0, false, false},
 };
 
+static struct icnss_vreg_cfg icnss_wcn8750_vreg_list[] = {
+	{"vdd-cx-mx", 824000, 952000, 0, 0, 0, false, true},
+	{"vdd-1.8-xo", 1872000, 1872000, 0, 0, 0, false, true},
+	{"vdd-1.3-rfa", 1256000, 1352000, 0, 0, 0, false, true},
+	{"vdd-1.8-io", 1800000, 1800000, 0, 0, 0, false, true},
+	{"vdd-1.2-io", 1200000, 1200000, 0, 0, 0, false, true},
+};
+
 static struct icnss_vreg_cfg icnss_adrestea_vreg_list[] = {
 	{"vdd-cx-mx", 752000, 752000, 0, 0, 0, false, true},
 	{"vdd-1.8-xo", 1800000, 1800000, 0, 0, 0, false, true},
@@ -75,6 +83,7 @@ static struct icnss_clk_cfg icnss_adrestea_clk_list[] = {
 #define ICNSS_VREG_ADRESTEA_LIST_SIZE	ARRAY_SIZE(icnss_adrestea_vreg_list)
 #define ICNSS_VREG_EVROS_LIST_SIZE	ARRAY_SIZE(icnss_wcn6450_vreg_list)
 #define ICNSS_VREG_WCN7750_LIST_SIZE    ARRAY_SIZE(icnss_wcn7750_vreg_list)
+#define ICNSS_VREG_WCN8750_LIST_SIZE    ARRAY_SIZE(icnss_wcn8750_vreg_list)
 #define ICNSS_CLK_LIST_SIZE		ARRAY_SIZE(icnss_clk_list)
 #define ICNSS_CLK_ADRESTEA_LIST_SIZE	ARRAY_SIZE(icnss_adrestea_clk_list)
 
@@ -191,7 +200,8 @@ static int icnss_get_vreg_single(struct icnss_priv *priv,
 			break;
 		case 4:
 			if (priv->device_id == WCN6750_DEVICE_ID ||
-			    priv->device_id == WCN7750_DEVICE_ID)
+			    priv->device_id == WCN7750_DEVICE_ID ||
+			    priv->device_id == WCN8750_DEVICE_ID)
 				vreg->cfg.need_unvote = be32_to_cpup(&prop[4]);
 			else
 				vreg->cfg.need_unvote = 0;
@@ -207,8 +217,11 @@ static int icnss_get_vreg_single(struct icnss_priv *priv,
 		if (!strcmp(vreg->cfg.name, ICNSS_2P2_REGULATOR))
 			vreg->cfg.is_supported = false;
 
-		if (!strcmp(vreg->cfg.name, ICNSS_2P2_EXT_REGULATOR))
+		if (!strcmp(vreg->cfg.name, ICNSS_2P2_EXT_REGULATOR)) {
 			vreg->cfg.is_supported = true;
+			icnss_set_feature_list(priv, CNSS_EXT_2P2RFA_SUPPORT_V01);
+			icnss_pr_dbg("2p2_ext regulator feature supported\n");
+		}
 	}
 
 done:
@@ -362,6 +375,10 @@ static struct icnss_vreg_cfg *get_vreg_list(u32 *vreg_list_size,
 	case WCN7750_DEVICE_ID:
 		*vreg_list_size = ICNSS_VREG_WCN7750_LIST_SIZE;
 		return icnss_wcn7750_vreg_list;
+
+	case WCN8750_DEVICE_ID:
+		*vreg_list_size = ICNSS_VREG_WCN8750_LIST_SIZE;
+		return icnss_wcn8750_vreg_list;
 
 	default:
 		icnss_pr_err("Unsupported device_id 0x%lx\n", device_id);
@@ -570,7 +587,8 @@ int icnss_get_clk(struct icnss_priv *priv)
 		clk_list_size = ICNSS_CLK_ADRESTEA_LIST_SIZE;
 	} else if (priv->device_id == WCN6750_DEVICE_ID ||
 		   priv->device_id == WCN6450_DEVICE_ID ||
-		   priv->device_id == WCN7750_DEVICE_ID) {
+		   priv->device_id == WCN7750_DEVICE_ID ||
+		   priv->device_id == WCN8750_DEVICE_ID) {
 		clk_cfg = icnss_clk_list;
 		clk_list_size = ICNSS_CLK_LIST_SIZE;
 	}

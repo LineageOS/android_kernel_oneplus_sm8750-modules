@@ -30,6 +30,10 @@ struct btfmswr *pbtfmswr;
 static int btfm_num_ports_open;
 
 #define BT_CMD_SWR_TEST	0xbfac
+#define SWRS_SCP_STATUS 0x00000044
+#define SWRS_SCP_CONTROL 0x00000044
+#define DELAY_FOR_SWR_SLAVE_RESET 20
+#define DELAY_BEFORE_SLAVE_RESET 10
 
 static int btfm_swr_probe(struct swr_device *pdev);
 
@@ -61,6 +65,7 @@ int btfm_swr_hw_init(void)
 	int ret = 0;
 	int chipset_ver;
 	uint8_t retry = 0;
+	uint8_t reg_val = 0;
 
 	BTFMSWR_DBG("");
 
@@ -98,6 +103,34 @@ int btfm_swr_hw_init(void)
 		goto err;
 	}
 
+        // for first port open, reset SWR slave. This will trigger enumeration again.
+	if (btfm_num_ports_open == 0) {
+		BTFMSWR_INFO("Doing %d msec sleep before slave reset",
+				DELAY_BEFORE_SLAVE_RESET);
+		msleep(DELAY_BEFORE_SLAVE_RESET);
+		BTFMSWR_INFO("Doing slave reset");
+		reg_val = 0x80;
+		swr_write(pbtfmswr->swr_slave, dev_num,
+				 SWRS_SCP_CONTROL, &reg_val);
+		msleep(DELAY_FOR_SWR_SLAVE_RESET);
+		BTFMSWR_INFO("Done writing %x to SWR slave register", reg_val);
+
+		// get logical address again
+		for (retry = 0; retry < MAX_GET_DEV_NUM_RETRY; retry++) {
+		ret = swr_get_logical_dev_num(pbtfmswr->swr_slave,
+						pbtfmswr->p_dai_port->ea,
+							&dev_num);
+			if (ret == 0)
+				break;
+			usleep_range(2000, 2100);
+		}
+		if (ret) {
+			BTFMSWR_ERR("error getting logical dev num after slave reset retry %u",
+					retry);
+			goto err;
+		}
+	}
+
 	pbtfmswr->swr_slave->dev_num = dev_num;
 	pbtfmswr->initialized = true;
 
@@ -114,6 +147,7 @@ int btfm_swr_enable_port(u8 port_num, u8 ch_count, u32 sample_rate, u8 usecase)
 	u32 ch_rate[MAX_BT_PORTS];
 	u8 port_type[MAX_BT_PORTS];
 	u8 num_port = 1;
+	int reg_val = 0;
 
 	// master expects port num -1 to be sent
 	port_id[0] = port_num-1;
@@ -122,7 +156,15 @@ int btfm_swr_enable_port(u8 port_num, u8 ch_count, u32 sample_rate, u8 usecase)
 	ch_rate[0] = sample_rate;
 	port_type[0] = usecase;
 
-	BTFMSWR_INFO("enabling port : %d\n", port_num);
+	BTFMSWR_INFO("enabling port : %d, with num channels %d\n", port_num, ch_count);
+
+	if (btfm_num_ports_open == 0) {
+		BTFMSWR_INFO("reading SWRS_SCP_STATUS");
+		swr_read(pbtfmswr->swr_slave, pbtfmswr->swr_slave->dev_num,
+				 SWRS_SCP_STATUS, &reg_val, 1);
+		BTFMSWR_INFO("read %d from SWRS_SCP_STATUS", reg_val);
+	}
+
 	ret = swr_connect_port(pbtfmswr->swr_slave, &port_id[0], num_port,
 							&ch_mask[0], &ch_rate[0], &num_ch[0],
 							&port_type[0]);
@@ -154,11 +196,17 @@ int btfm_swr_disable_port(u8 port_num, u8 ch_count, u8 usecase)
 	u8 ch_mask[MAX_BT_PORTS];
 	u8 port_type[MAX_BT_PORTS];
 	u8 num_port = 1;
+	int reg_val = 0;
 
 	// master expects port num -1 to be sent
 	port_id[0] = port_num-1;
 	ch_mask[0] = ch_count == 2 ? TWO_CHANNEL_MASK :	ONE_CHANNEL_MASK;
 	port_type[0] = usecase;
+
+	BTFMSWR_INFO("reading SWRS_SCP_STATUS before disabling the port");
+	swr_read(pbtfmswr->swr_slave, pbtfmswr->swr_slave->dev_num,
+			SWRS_SCP_STATUS, &reg_val, 1);
+	BTFMSWR_INFO("read %d from SWRS_SCP_STATUS", reg_val);
 
 	BTFMSWR_INFO("disabling port : %d\n", port_num);
 	ret = swr_disconnect_port(pbtfmswr->swr_slave, &port_id[0], num_port,

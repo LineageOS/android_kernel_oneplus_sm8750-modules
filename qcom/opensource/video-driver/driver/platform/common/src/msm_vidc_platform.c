@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/io.h>
@@ -229,12 +229,22 @@ static const struct msm_vidc_compat_handle compat_handle[] = {
 		.init_iris                  = msm_vidc_init_iris35,
 	},
 	{
+		.compat                     = "qcom,sm8750-vidc-v3",
+		.init_platform              = msm_vidc_init_platform_sun,
+		.init_iris                  = msm_vidc_init_iris35,
+	},
+	{
 		.compat                     = "qcom,tuna-vidc",
 		.init_platform              = msm_vidc_init_platform_tuna,
 		.init_iris                  = msm_vidc_init_iris33,
 	},
 	{
 		.compat                     = "qcom,kera-vidc",
+		.init_platform              = msm_vidc_init_platform_kera,
+		.init_iris                  = msm_vidc_init_iris33,
+	},
+	{
+		.compat                     = "qcom,kera-vidc-v2",
 		.init_platform              = msm_vidc_init_platform_kera,
 		.init_iris                  = msm_vidc_init_iris33,
 	},

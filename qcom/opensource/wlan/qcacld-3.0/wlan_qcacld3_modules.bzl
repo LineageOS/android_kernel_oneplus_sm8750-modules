@@ -2291,6 +2291,11 @@ _conditional_srcs = {
             "cmn/qdf/linux/src/qdf_page_pool.c",
         ],
     },
+    "CONFIG_WLAN_HAPS_ENABLE": {
+        True: [
+            "components/dp/core/src/wlan_dp_haps.c",
+        ],
+    },
 }
 
 def _define_module_for_target_variant_chipset(target, variant, chipset):
@@ -2301,37 +2306,10 @@ def _define_module_for_target_variant_chipset(target, variant, chipset):
     chipset_ipaths = _chipset_header_map[chipset]
     hw_ipaths = _hw_header_map[hw]
 
-    deps = select({
-        "//build/kernel/kleaf:socrepo_true": [
-            "//soc-repo:all_headers",
-            "//soc-repo:{}/net/wireless/cfg80211".format(tv),
-            "//soc-repo:{}/drivers/iommu/qcom_iommu_util".format(tv),
-            "//soc-repo:{}/drivers/remoteproc/rproc_qcom_common".format(tv),
-            "//soc-repo:{}/drivers/soc/qcom/qmi_helpers".format(tv),
-            "//soc-repo:{}/kernel/sched/walt/sched-walt".format(tv),
-        ],
-        "//build/kernel/kleaf:socrepo_false": ["//msm-kernel:all_headers"],
+    deps = ["//vendor/qcom/kernel:all_headers"],
     })
 
-    if target == "sun":
-        deps += select({
-            "//build/kernel/kleaf:socrepo_true": [
-                "//soc-repo:{}/drivers/soc/qcom/qcom_va_minidump".format(tv),
-            ],
-            "//build/kernel/kleaf:socrepo_false": [],
-        })
-
-    if target == "neo-la":
-        kernel_build = select({
-            "//build/kernel/kleaf:microxr_kernel_build_true": "//:target_kernel_build",
-            "//build/kernel/kleaf:socrepo_true": "//soc-repo:{}_base_kernel".format(tv),
-            "//conditions:default": "//msm-kernel:{}".format(tv),
-        })
-    else:
-        kernel_build = select({
-            "//build/kernel/kleaf:socrepo_true": "//soc-repo:{}_base_kernel".format(tv),
-            "//build/kernel/kleaf:socrepo_false": "//msm-kernel:{}".format(tv),
-        })
+    kernel_build = "//vendor/qcom/kernel:{}".format(tv),
 
     ipaths = chipset_ipaths + hw_ipaths + _fixed_ipaths
 
@@ -2450,24 +2428,24 @@ def _define_module_for_target_variant_chipset(target, variant, chipset):
 
     if chipset == "qca6750" or chipset == "wcn7750" or chipset == "wcn6450":
         deps += [
-            "//vendor/qcom/opensource/wlan/platform:{}_icnss2".format(tv),
+            "//vendor/qcom/sm8750-modules/qcom/opensource/wlan/platform:{}_icnss2".format(tv),
         ]
     else:
         deps += [
-            "//vendor/qcom/opensource/wlan/platform:{}_cnss2".format(tv),
+            "//vendor/qcom/sm8750-modules/qcom/opensource/wlan/platform:{}_cnss2".format(tv),
         ]
 
     deps = deps + [
-        "//vendor/qcom/opensource/wlan/platform:{}_cnss_prealloc".format(tv),
-        "//vendor/qcom/opensource/wlan/platform:{}_cnss_utils".format(tv),
-        "//vendor/qcom/opensource/wlan/platform:{}_cnss_nl".format(tv),
-        "//vendor/qcom/opensource/wlan/platform:wlan-platform-headers",
+        "//vendor/qcom/sm8750-modules/qcom/opensource/wlan/platform:{}_cnss_prealloc".format(tv),
+        "//vendor/qcom/sm8750-modules/qcom/opensource/wlan/platform:{}_cnss_utils".format(tv),
+        "//vendor/qcom/sm8750-modules/qcom/opensource/wlan/platform:{}_cnss_nl".format(tv),
+        "//vendor/qcom/sm8750-modules/qcom/opensource/wlan/platform:wlan-platform-headers",
     ]
 
     if target != "x1e80100" and target != "anorak" and target != "neo-la":
         deps = deps + [
-            "//vendor/qcom/opensource/dataipa:include_headers",
-            "//vendor/qcom/opensource/dataipa:{}_{}_ipam".format(target, variant),
+            "//vendor/qcom/sm8750-modules/qcom/opensource/dataipa:include_headers",
+            "//vendor/qcom/sm8750-modules/qcom/opensource/dataipa:{}_{}_ipam".format(target, variant),
         ]
 
     print("name=", name)

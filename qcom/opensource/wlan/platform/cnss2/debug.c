@@ -317,6 +317,10 @@ static ssize_t cnss_dev_boot_debug_write(struct file *fp,
 		cnss_driver_event_post(plat_priv,
 				       CNSS_DRIVER_EVENT_XDUMP_BT_OVER_WL_REQ,
 				       0, NULL);
+	} else if (sysfs_streq(cmd, "caldb_reuse_save")) {
+		cnss_caldb_rddm_reuse(plat_priv, true);
+	} else if (sysfs_streq(cmd, "caldb_reuse_restore")) {
+		cnss_caldb_rddm_reuse(plat_priv, false);
 	} else {
 		pci_priv = plat_priv->bus_priv;
 		if (!pci_priv)

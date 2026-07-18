@@ -424,6 +424,16 @@ static int32_t cam_sensor_pkt_parse(struct cam_sensor_ctrl_t *s_ctrl,
 	if (csl_packet->header.request_id > s_ctrl->last_flush_req)
 		s_ctrl->last_flush_req = 0;
 
+	if ((int64_t)csl_packet->header.request_id < 0) {
+		CAM_ERR(CAM_SENSOR,
+			"Invalid request_id: %lld for opcode: 0x%x on %s, rejecting packet",
+			(int64_t)csl_packet->header.request_id,
+			csl_packet->header.op_code & 0xFFFFFF,
+			s_ctrl->sensor_name);
+		rc = -EINVAL;
+		goto end;
+	}
+
 	prev_updated_req = s_ctrl->last_updated_req;
 	s_ctrl->is_res_info_updated = false;
 

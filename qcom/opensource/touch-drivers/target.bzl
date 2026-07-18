@@ -181,13 +181,19 @@ def define_bengal(t,v):
         variant = v,
         registry = touch_driver_modules,
         modules = [
-            "synaptics_tcm_ts"
+            "synaptics_tcm_ts",
+            "nt36xxx-i2c",
+            "qts"
+
+
         ],
         config_options = [
             "TOUCH_DLKM_ENABLE",
             "CONFIG_MSM_TOUCH",
             "CONFIG_ARCH_BENGAL",
             "CONFIG_TOUCHSCREEN_SYNAPTICS_TCM",
+            "CONFIG_TOUCHSCREEN_NT36XXX_I2C",
+            "CONFIG_QTS_ENABLE",
             "CONFIG_TOUCHSCREEN_DUMMY"
         ],
 )
@@ -391,5 +397,7 @@ def define_touch_target():
             define_artvm(t, v)
         elif t == "art-oemvm":
             define_artvm(t, v)
+        elif t == "art16k":
+            define_art(t, v)
         else:
             pass

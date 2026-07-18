@@ -52,6 +52,7 @@
 #define HEIC    MSM_VIDC_HEIC
 #define CODECS_ALL     (H264 | HEVC | VP9 | HEIC | AV1)
 #define MAXIMUM_OVERRIDE_VP9_FPS 200
+#define MAX_SESSION_COUNT_IOT 24
 
 static struct codec_info codec_data_kera[] = {
 	{
@@ -4700,6 +4701,24 @@ static int msm_vidc_init_data(struct msm_vidc_core *core)
 
 	if (core->platform->data.sku_version == SKU_VERSION_1)
 		core->platform->data = kera_data_v1;
+	if (of_device_is_compatible(dev->of_node, "qcom,kera-vidc-v2")) {
+		int i = 0;
+		const u32 num_core_cap_data = core->platform->data.core_data_size;
+		struct msm_platform_core_capability *core_cap_data = NULL;
+
+		core_cap_data =
+			(struct msm_platform_core_capability *)core->platform->data.core_data;
+		for (i = 0; i < num_core_cap_data; i++) {
+			if (core_cap_data[i].type == MAX_SESSION_COUNT)
+				core_cap_data[i].value = MAX_SESSION_COUNT_IOT;
+			else if (core_cap_data[i].type == MAX_NUM_720P_SESSIONS)
+				core_cap_data[i].value = MAX_SESSION_COUNT_IOT;
+			else if (core_cap_data[i].type == MAX_NUM_1080P_SESSIONS)
+				core_cap_data[i].value = MAX_SESSION_COUNT_IOT;
+			else if (core_cap_data[i].type == MAX_MBPF)
+				core_cap_data[i].value = 195840;    /* (24 * ((1920x1088)/256))*/
+		}
+	}
 
 	core->mem_ops = get_mem_ops_ext();
 	if (!core->mem_ops) {

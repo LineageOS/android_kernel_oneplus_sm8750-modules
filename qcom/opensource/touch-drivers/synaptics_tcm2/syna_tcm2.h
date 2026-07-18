@@ -322,6 +322,15 @@ struct syna_tcm {
 	int (*dev_set_up_app_fw)(struct syna_tcm *tcm);
 	int (*dev_resume)(struct device *dev);
 	int (*dev_suspend)(struct device *dev);
+
+	/* TVM-specific fields */
+	struct mutex tui_transition_lock;
+	bool qts_enabled;
+
+#if defined(CONFIG_DRM)
+	/* Panel notifier for power management */
+	void *notifier_cookie;
+#endif
 };
 
 /* Helpers for the character device registration */
@@ -347,4 +356,3 @@ void syna_testing_remove_dir(struct syna_tcm *tcm);
 #endif
 
 #endif /* end of _SYNAPTICS_TCM2_DRIVER_H_ */
-

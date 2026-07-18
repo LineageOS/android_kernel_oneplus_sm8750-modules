@@ -1211,7 +1211,7 @@ int synx_internal_merge(struct synx_session *session,
 	u32 *h_child_list = NULL, *h_child_idx_list = NULL;
 	struct synx_client *client;
 	struct dma_fence **fences = NULL;
-	struct synx_map_entry *map_entry;
+	struct synx_map_entry *map_entry = NULL;
 	struct synx_coredata *synx_obj, *synx_obj_child;
 	struct synx_handle_coredata *synx_data_child;
 

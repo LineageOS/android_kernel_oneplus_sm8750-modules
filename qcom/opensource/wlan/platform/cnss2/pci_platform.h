@@ -138,6 +138,9 @@ int cnss_pci_get_link_status(struct cnss_pci_data *pci_priv);
  */
 int _cnss_pci_get_reg_dump(struct cnss_pci_data *pci_priv,
 			   u8 *buf, u32 len);
+
+void cnss_pci_init_warm_reset_params(struct cnss_pci_data *pci_priv);
+int cnss_pci_dev_warm_reset(struct cnss_pci_data *pci_priv, bool power_on);
 #else
 int _cnss_pci_enumerate(struct cnss_plat_data *plat_priv, u32 rc_num)
 {
@@ -243,6 +246,16 @@ int cnss_pci_get_link_status(struct cnss_pci_data *pci_priv)
 {
 	return 0;
 }
+
+static inline void
+cnss_pci_init_warm_reset_params(struct cnss_pci_data *pci_priv)
+{
+}
+
+int cnss_pci_dev_warm_reset(struct cnss_pci_data *pci_priv, bool power_on)
+{
+	return 0;
+}
 #endif /* CONFIG_PCI_MSM */
 
 static inline bool cnss_pci_get_drv_supported(struct cnss_pci_data *pci_priv)
@@ -268,5 +281,4 @@ static inline bool cnss_pci_get_drv_supported(struct cnss_pci_data *pci_priv)
  * Return: true for sync mode, false for unsync mode
  */
 bool cnss_pci_is_sync_probe(void);
-
 #endif /* _CNSS_PCI_PLATFORM_H*/

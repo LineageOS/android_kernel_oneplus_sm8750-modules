@@ -117,6 +117,29 @@ struct cnss_misc_reg {
 	u32 val;
 };
 
+struct cnss_sw_reset_reg_params {
+	unsigned int pcie_txvecdb;
+	unsigned int pcie_txvecstatus;
+	unsigned int pcie_rxvecdb;
+	unsigned int pcie_rxvecstatus;
+	unsigned int pcie_parf_ltssm;
+	unsigned int ltssm_value;
+	unsigned int gcc_pcie_hot_rst;
+	unsigned int gcc_pcie_hot_rst_val;
+	unsigned int pcie_int_all_clear;
+	unsigned int pcie_int_clear_all;
+	unsigned int wlaon_qfprom_pwr_ctrl_reg;
+	unsigned int qfprom_pwr_ctrl_vdd4blow_mask;
+	unsigned int wlaon_warm_sw_entry;
+	unsigned int wlaon_soc_reset_cause_reg;
+	unsigned int pcie_q6_cookie_addr;
+	unsigned int pcie_soc_global_reset;
+	unsigned int pcie_soc_global_reset_v;
+	unsigned int mhistatus;
+	unsigned int mhictrl;
+	unsigned int mhictrl_reset_mask;
+};
+
 struct cnss_pm_stats {
 	atomic_t runtime_get;
 	atomic_t runtime_put;
@@ -184,6 +207,7 @@ struct cnss_pci_data {
 	struct cnss_misc_reg *pcie_reg;
 	struct cnss_misc_reg *wlaon_reg;
 	struct cnss_misc_reg *syspm_reg;
+	const struct cnss_sw_reset_reg_params *reset_regs;
 	unsigned long misc_reg_dev_mask;
 	u8 iommu_geometry;
 	bool drv_supported;
@@ -368,6 +392,8 @@ int cnss_pcie_is_device_down(struct cnss_pci_data *pci_priv);
 int cnss_pci_shutdown_cleanup(struct cnss_pci_data *pci_priv);
 int cnss_pci_suspend_bus(struct cnss_pci_data *pci_priv);
 int cnss_pci_resume_bus(struct cnss_pci_data *pci_priv);
+int cnss_pci_reg_read(struct cnss_pci_data *pci_priv, u32 offset, u32 *val);
+int cnss_pci_reg_write(struct cnss_pci_data *pci_priv, u32 offset, u32 val);
 int cnss_pci_debug_reg_read(struct cnss_pci_data *pci_priv, u32 offset,
 			    u32 *val, bool raw_access);
 int cnss_pci_debug_reg_write(struct cnss_pci_data *pci_priv, u32 offset,
@@ -394,4 +420,9 @@ void cnss_pci_start_xdump_timer(struct cnss_pci_data *pci_priv);
 int cnss_pci_get_msi_address(struct cnss_pci_data *pci_priv, u32 *msi_addr_low,
 			     u32 *msi_addr_high);
 void cnss_pci_notify_mhi_error(struct cnss_pci_data *pci_priv);
+int cnss_pci_save_rddm_seg(struct cnss_pci_data *pci_priv);
+int cnss_pci_restore_rddm_seg(struct cnss_pci_data *pci_priv);
+u8 **cnss_pci_collect_rddm_seg_info(struct cnss_pci_data *pci_priv,
+				    u32 *rddm_entries,
+				    u32 *rddm_seg_len);
 #endif /* _CNSS_PCI_H */

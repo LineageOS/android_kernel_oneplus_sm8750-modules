@@ -1540,7 +1540,7 @@ int synx_util_save_data(void *fence, u32 flags,
 	u32 h_synx)
 {
 	int rc = SYNX_SUCCESS;
-	struct synx_entry_64 *entry, *curr;
+	struct synx_entry_64 *entry = NULL, *curr;
 	u64 key;
 	u32 tbl = synx_util_map_params_to_type(flags);
 

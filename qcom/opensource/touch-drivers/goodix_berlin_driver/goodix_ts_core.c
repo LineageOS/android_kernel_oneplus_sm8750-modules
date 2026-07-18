@@ -1,7 +1,7 @@
  /*
   * Goodix Touchscreen Driver
   * Copyright (C) 2020 - 2021 Goodix, Inc.
-  * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
   *
   * This program is free software; you can redistribute it and/or modify
   * it under the terms of the GNU General Public License as published by
@@ -926,7 +926,7 @@ static BLOCKING_NOTIFIER_HEAD(ts_notifier_list);
  * @nb: notifier block to callback on events
  *  see enum ts_notify_event in goodix_ts_core.h
  */
-int goodix_ts_register_notifier(struct notifier_block *nb)
+static int goodix_ts_register_notifier(struct notifier_block *nb)
 {
 	return blocking_notifier_chain_register(&ts_notifier_list, nb);
 }
@@ -936,7 +936,7 @@ int goodix_ts_register_notifier(struct notifier_block *nb)
  * @nb: notifier block to callback on events
  *	see enum ts_notify_event in goodix_ts_core.h
  */
-int goodix_ts_unregister_notifier(struct notifier_block *nb)
+static int goodix_ts_unregister_notifier(struct notifier_block *nb)
 {
 	return blocking_notifier_chain_unregister(&ts_notifier_list, nb);
 }
@@ -1366,7 +1366,7 @@ static int goodix_ts_power_init(struct goodix_ts_core *core_data)
  * @core_data: pointer to touch core data
  * return: 0 ok, <0 failed
  */
-int goodix_ts_power_on(struct goodix_ts_core *cd)
+static int goodix_ts_power_on(struct goodix_ts_core *cd)
 {
 	int ret = 0;
 
@@ -1387,7 +1387,7 @@ int goodix_ts_power_on(struct goodix_ts_core *cd)
  * @core_data: pointer to touch core data
  * return: 0 ok, <0 failed
  */
-int goodix_ts_power_off(struct goodix_ts_core *cd)
+static int goodix_ts_power_off(struct goodix_ts_core *cd)
 {
 	int ret;
 
@@ -1573,7 +1573,7 @@ static int goodix_ts_pen_dev_config(struct goodix_ts_core *core_data)
 	return 0;
 }
 
-void goodix_ts_input_dev_remove(struct goodix_ts_core *core_data)
+static void goodix_ts_input_dev_remove(struct goodix_ts_core *core_data)
 {
 	if (!core_data->input_dev)
 		return;
@@ -1582,7 +1582,7 @@ void goodix_ts_input_dev_remove(struct goodix_ts_core *core_data)
 	core_data->input_dev = NULL;
 }
 
-void goodix_ts_pen_dev_remove(struct goodix_ts_core *core_data)
+static void goodix_ts_pen_dev_remove(struct goodix_ts_core *core_data)
 {
 	if (!core_data->pen_dev)
 		return;
@@ -2014,7 +2014,7 @@ static int goodix_generic_noti_callback(struct notifier_block *self,
 	return 0;
 }
 
-int goodix_ts_stage2_init(struct goodix_ts_core *cd)
+static int goodix_ts_stage2_init(struct goodix_ts_core *cd)
 {
 	int ret;
 	struct goodix_bus_interface *bus_interface;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2022, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/workqueue.h>
@@ -46,8 +46,10 @@ static inline bool is_video_device(struct device *dev)
 		of_device_is_compatible(dev->of_node, "qcom,volcano-vidc") ||
 		of_device_is_compatible(dev->of_node, "qcom,sm8750-vidc") ||
 		of_device_is_compatible(dev->of_node, "qcom,sm8750-vidc-v2") ||
+		of_device_is_compatible(dev->of_node, "qcom,sm8750-vidc-v3") ||
 		of_device_is_compatible(dev->of_node, "qcom,tuna-vidc") ||
-		of_device_is_compatible(dev->of_node, "qcom,kera-vidc"));
+		of_device_is_compatible(dev->of_node, "qcom,kera-vidc") ||
+		of_device_is_compatible(dev->of_node, "qcom,kera-vidc-v2"));
 }
 
 static inline bool is_video_context_bank_device_node(struct device_node *of_node)
@@ -118,10 +120,12 @@ static const struct of_device_id msm_vidc_dt_match[] = {
 	{.compatible = "qcom,sm8650-vidc-v2"},
 	{.compatible = "qcom,sm8750-vidc"},
 	{.compatible = "qcom,sm8750-vidc-v2"},
+	{.compatible = "qcom,sm8750-vidc-v3"},
 	{.compatible = "qcom,cliffs-vidc"},
 	{.compatible = "qcom,volcano-vidc"},
 	{.compatible = "qcom,tuna-vidc"},
 	{.compatible = "qcom,kera-vidc"},
+	{.compatible = "qcom,kera-vidc-v2"},
 	{.compatible = "qcom,vidc,cb-ns-pxl"},
 	{.compatible = "qcom,vidc,cb-ns"},
 	{.compatible = "qcom,vidc,cb-sec-non-pxl"},

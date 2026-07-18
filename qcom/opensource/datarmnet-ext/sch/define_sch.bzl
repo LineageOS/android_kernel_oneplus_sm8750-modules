@@ -3,7 +3,7 @@ load("//build/kernel/kleaf:kernel.bzl", "ddk_module")
 
 def define_sch(target, variant):
     kernel_build_variant = "{}_{}".format(target, variant)
-    include_base = "../../../{}".format(native.package_name())
+    include_base = "../../../../../{}".format(native.package_name())
 
     ddk_module(
         name = "{}_sch".format(kernel_build_variant),
@@ -11,9 +11,9 @@ def define_sch(target, variant):
         srcs = [
             "rmnet_sch_main.c",
         ],
-        deps = ["//msm-kernel:all_headers"],
+        deps = ["//vendor/qcom/kernel:all_headers"],
         copts = ["-Wno-misleading-indentation"],
-        kernel_build = "//msm-kernel:{}".format(kernel_build_variant),
+        kernel_build = "//vendor/qcom/kernel:{}".format(kernel_build_variant),
     )
 
     copy_to_dist_dir(

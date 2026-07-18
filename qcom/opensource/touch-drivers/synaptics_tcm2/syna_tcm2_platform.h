@@ -134,6 +134,11 @@ struct product_specific {
 	struct tcm_timings timings;
 };
 
+struct syna_tvm {
+	bool qts_en;
+	struct mutex tui_transition_lock;
+};
+
 /* Abstractions of hardware-specific interface */
 struct syna_hw_interface {
 	/* pointers to the target platform */
@@ -151,6 +156,9 @@ struct syna_hw_interface {
 
 	/* Product specific data */
 	struct product_specific product;
+
+	/* for trusted touch */
+	struct syna_tvm bdata_tvm;
 
 	/* Implementation of power on/off operation */
 	int (*ops_power_on)(bool on);

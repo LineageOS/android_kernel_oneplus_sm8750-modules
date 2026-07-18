@@ -243,6 +243,29 @@ static struct vreg_data bt_vregs_info_kiwi[] = {
 		{BT_VDD_ANT_LDO, BT_VDD_ANT_LDO_CURRENT}},
 };
 
+// Regulator structure for cologne BT SoC series
+static struct vreg_data bt_vregs_info_cologne[] = {
+	{NULL, "qcom,bt-vdd18-aon",      1800000, 1800000, 0, false, true,
+		{BT_VDD_LDO, BT_VDD_LDO_CURRENT}},
+	{NULL, "qcom,bt-vdd12-io",      1200000, 1200000, 0, false, true,
+		{BT_VDD_IO_LDO, BT_VDD_IO_LDO_CURRENT}},
+	{NULL, "qcom,bt-vdd-aon",     950000,  950000,  0, false, true,
+		 {BT_VDD_AON_LDO, BT_VDD_AON_LDO_CURRENT}},
+	{NULL, "qcom,bt-vdd-rfaOp8",  950000,  950000,  0, false, true,
+		{BT_VDD_RFACMN, BT_VDD_RFACMN_CURRENT}},
+	/* BT_CX_MX */
+	{NULL, "qcom,bt-vdd-dig",      950000,  950000,  0, false, true,
+		{BT_VDD_DIG_LDO, BT_VDD_DIG_LDO_CURRENT}},
+	{NULL, "qcom,bt-vdd-rfaOp8",  950000,  952000,  0, false, true,
+		{BT_VDD_RFA_0p8, BT_VDD_RFA_0p8_CURRENT}},
+	{NULL, "qcom,bt-vdd-rfa1",     1350000, 1350000, 0, false, true,
+		{BT_VDD_RFA1_LDO, BT_VDD_RFA1_LDO_CURRENT}},
+	{NULL, "qcom,bt-vdd-rfa2",     1900000, 1900000, 0, false, true,
+		{BT_VDD_RFA2_LDO, BT_VDD_RFA2_LDO_CURRENT}},
+	{NULL, "qcom,bt-ant-ldo",  1776000, 1776000, 0, false, true,
+		{BT_VDD_ANT_LDO, BT_VDD_ANT_LDO_CURRENT}},
+};
+
 static struct vreg_data platform_vregs_info_peach[] = {
 	/* VDD1P8_AON */
 	{NULL, "qcom,bt-vdd18-aon",      1620000, 1980000, 0, false, true,
@@ -314,6 +337,12 @@ static struct pwr_data vreg_info_kiwi = {
 	.bt_num_vregs = ARRAY_SIZE(bt_vregs_info_kiwi),
 };
 
+static struct pwr_data vreg_info_cologne = {
+	.compatible = "qcom,wcn7760-bt",
+	.bt_vregs = bt_vregs_info_cologne,
+	.bt_num_vregs = ARRAY_SIZE(bt_vregs_info_cologne),
+};
+
 static struct pwr_data vreg_info_kiwi_no_share_ant_power = {
 	.compatible = "qcom,kiwi-no-share-ant-power",
 	.bt_vregs = bt_vregs_info_kiwi,
@@ -373,6 +402,7 @@ static const struct of_device_id bt_power_match_table[] = {
 	{	.compatible = "qcom,peach-bt", .data = &vreg_info_peach},
 	{	.compatible = "qcom,wcn786x", .data = &vreg_info_wcn786x},
 	{	.compatible = "qcom,wcn7750-bt", .data = &bt_vreg_info_wcn7750},
+	{	.compatible = "qcom,wcn7760-bt", .data = &vreg_info_cologne},
 	{},
 };
 

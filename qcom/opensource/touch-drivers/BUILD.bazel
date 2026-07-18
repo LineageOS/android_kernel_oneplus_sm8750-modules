@@ -64,6 +64,15 @@ ddk_headers(
 )
 
 ddk_headers(
+    name = "uapi_headers",
+    hdrs = glob([
+            "include/uapi/linux/synaptics_tcm2/*.h"
+        ]
+    ),
+    includes = ["include/uapi"]
+)
+
+ddk_headers(
     name = "config_headers",
     hdrs = glob([
             "config/*.h"
@@ -100,7 +109,7 @@ ddk_headers(
 
 ddk_headers(
     name = "touch_drivers_headers",
-    hdrs = [":st_ts_headers", ":qts_headers", ":goodix_ts_headers", ":nt36xxx_headers", ":focaltech_headers", ":synaptics_tcm_headers", ":synaptics_tcm2_headers", ":pt_headers", ":raydium_headers", ":config_headers", ":glink_interface_ts_headers"]
+    hdrs = [":st_ts_headers", ":qts_headers", ":goodix_ts_headers", ":nt36xxx_headers", ":focaltech_headers", ":synaptics_tcm_headers", ":synaptics_tcm2_headers", ":uapi_headers", ":pt_headers", ":raydium_headers", ":config_headers", ":glink_interface_ts_headers"]
 )
 
 load(":target.bzl", "define_touch_target")

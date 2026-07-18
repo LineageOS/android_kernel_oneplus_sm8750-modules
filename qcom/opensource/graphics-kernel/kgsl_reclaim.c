@@ -52,11 +52,11 @@ static void kgsl_memdesc_clear_unevictable(struct kgsl_process_private *process,
 	folio_batch_init(&fbatch);
 	for (i = 0; i < memdesc->page_count; i++) {
 		set_page_dirty_lock(memdesc->pages[i]);
-		spin_lock(&memdesc->lock);
+		mutex_lock(&memdesc->lock);
 		folio_batch_add(&fbatch, page_folio(memdesc->pages[i]));
 		memdesc->pages[i] = NULL;
 		atomic_inc(&process->unpinned_page_count);
-		spin_unlock(&memdesc->lock);
+		mutex_unlock(&memdesc->lock);
 		if (folio_batch_count(&fbatch) == PAGEVEC_SIZE) {
 			check_move_unevictable_folios(&fbatch);
 			__folio_batch_release(&fbatch);
@@ -102,11 +102,11 @@ static void kgsl_memdesc_clear_unevictable(struct kgsl_process_private *process,
 	pagevec_init(&pvec);
 	for (i = 0; i < memdesc->page_count; i++) {
 		set_page_dirty_lock(memdesc->pages[i]);
-		spin_lock(&memdesc->lock);
+		mutex_lock(&memdesc->lock);
 		pagevec_add(&pvec, memdesc->pages[i]);
 		memdesc->pages[i] = NULL;
 		atomic_inc(&process->unpinned_page_count);
-		spin_unlock(&memdesc->lock);
+		mutex_unlock(&memdesc->lock);
 		if (pagevec_count(&pvec) == PAGEVEC_SIZE) {
 			check_move_unevictable_pages(&pvec);
 			__pagevec_release(&pvec);
@@ -133,10 +133,12 @@ static int kgsl_memdesc_get_reclaimed_pages(struct kgsl_mem_entry *entry)
 	int i, ret;
 	struct page *page = NULL;
 
+	mutex_lock(&memdesc->lock);
 	for (i = 0; i < memdesc->page_count; i++) {
 		if (memdesc->pages[i])
 			continue;
 
+		mutex_unlock(&memdesc->lock);
 		ret = kgsl_read_mapping(memdesc, &page, i);
 		if (ret)
 			return ret;
@@ -147,14 +149,14 @@ static int kgsl_memdesc_get_reclaimed_pages(struct kgsl_mem_entry *entry)
 		 * Update the pages array only if vmfault has not
 		 * updated it meanwhile
 		 */
-		spin_lock(&memdesc->lock);
+		mutex_lock(&memdesc->lock);
 		if (!memdesc->pages[i]) {
 			memdesc->pages[i] = page;
 			atomic_dec(&entry->priv->unpinned_page_count);
 		} else
 			put_page(page);
-		spin_unlock(&memdesc->lock);
 	}
+	mutex_unlock(&memdesc->lock);
 
 	ret = kgsl_mmu_map(memdesc->pagetable, memdesc);
 	if (ret)

@@ -543,13 +543,21 @@ static long cam_private_ioctl(struct file *file, void *fh,
 			return -ENOMEM;
 		}
 
+		/* Copy full struct (header + link_hdls[]) from userspace */
 		if (copy_from_user(sched_req, u64_to_user_ptr(k_ioctl->handle), sched_req_size)) {
 			CAM_MEM_FREE(sched_req);
 			sched_req = NULL;
 			return -EFAULT;
 		}
 
-		crm_sched_req.num_links = num_links;
+		/* Reject if header num_links mismatches validated value */
+		if (sched_req->num_links != num_links) {
+			CAM_ERR(CAM_CRM, "num_links mismatch: hdr:%d body:%d",
+				num_links, sched_req->num_links);
+			CAM_MEM_FREE(sched_req);
+			sched_req = NULL;
+			return -EINVAL;
+		}
 
 		rc = cam_req_mgr_schedule_request_v3(sched_req);
 		CAM_MEM_FREE(sched_req);

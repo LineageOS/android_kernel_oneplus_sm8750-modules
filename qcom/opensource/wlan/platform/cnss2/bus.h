@@ -86,4 +86,7 @@ void cnss_bus_start_xdump_timer(struct cnss_plat_data *plat_priv);
 int cnss_bus_get_msi_address(struct cnss_plat_data *plat_priv,
 			     u32 *msi_addr_low, u32 *msi_addr_high);
 void cnss_bus_notify_mhi_error(struct cnss_plat_data *plat_priv);
+u8 **cnss_bus_collect_rddm_seg_info(struct cnss_plat_data *plat_priv,
+				    u32 *rddm_entries,
+				    u32 *rddm_seg_len);
 #endif /* _CNSS_BUS_H */

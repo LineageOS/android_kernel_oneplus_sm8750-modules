@@ -44,10 +44,12 @@ void cnss_plat_ipc_unregister(enum cnss_plat_ipc_qmi_client_id_v01 client_id,
 			      void *cb_ctx);
 int cnss_plat_ipc_qmi_file_download(enum cnss_plat_ipc_qmi_client_id_v01
 				    client_id, char *file_name, char *buf,
-				    u32 *size);
+				    u32 *size, u8 **rddm_seg,
+				    u32 rddm_entries, u32 rddm_seg_len);
 int cnss_plat_ipc_qmi_file_upload(enum cnss_plat_ipc_qmi_client_id_v01
 				  client_id, char *file_name, u8 *file_buf,
-				  u32 file_size);
+				  u32 file_size, u8 **rddm_seg,
+				  u32 rddm_entries, u32 rddm_seg_len);
 struct cnss_plat_ipc_daemon_config *cnss_plat_ipc_qmi_daemon_config(void);
 #else
 static inline
@@ -67,7 +69,8 @@ void cnss_plat_ipc_unregister(enum cnss_plat_ipc_qmi_client_id_v01 client_id,
 static inline
 int cnss_plat_ipc_qmi_file_download(enum cnss_plat_ipc_qmi_client_id_v01
 				    client_id, char *file_name, char *buf,
-				    u32 *size)
+				    u32 *size, u8 **rddm_seg,
+				    u32 rddm_entries, u32 rddm_seg_len)
 {
 	return -EOPNOTSUPP;
 }
@@ -75,7 +78,8 @@ int cnss_plat_ipc_qmi_file_download(enum cnss_plat_ipc_qmi_client_id_v01
 static inline
 int cnss_plat_ipc_qmi_file_upload(enum cnss_plat_ipc_qmi_client_id_v01
 				  client_id, char *file_name, u8 *file_buf,
-				  u32 file_size)
+				  u32 file_size, u8 **rddm_seg,
+				  u32 rddm_entries, u32 rddm_seg_len)
 {
 	return -EOPNOTSUPP;
 }

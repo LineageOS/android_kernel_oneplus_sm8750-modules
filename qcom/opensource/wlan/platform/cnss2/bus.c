@@ -895,3 +895,22 @@ void cnss_bus_notify_mhi_error(struct cnss_plat_data *plat_priv)
 		cnss_pr_dbg("Unsupported bus type: %d\n", plat_priv->bus_type);
 	}
 }
+
+u8 **cnss_bus_collect_rddm_seg_info(struct cnss_plat_data *plat_priv,
+				    u32 *rddm_entries,
+				    u32 *rddm_seg_len)
+{
+	if (!plat_priv || !rddm_entries || !rddm_seg_len)
+		return NULL;
+
+	switch (plat_priv->bus_type) {
+	case CNSS_BUS_PCI:
+		return cnss_pci_collect_rddm_seg_info(plat_priv->bus_priv,
+						      rddm_entries,
+						      rddm_seg_len);
+	default:
+		cnss_pr_dbg("Unsupported bus type: %d\n", plat_priv->bus_type);
+	}
+
+	return NULL;
+}

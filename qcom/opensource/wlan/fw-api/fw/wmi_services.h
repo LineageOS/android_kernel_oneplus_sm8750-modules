@@ -764,6 +764,45 @@ typedef  enum  {
      * FW needs to disable the roam triggers except deauth roaming.
      */
     WMI_SERVICE_HANDLE_ROAMING_WITHOUT_RSO_STOP_FOR_4WAY_HS_OFFLOAD_DISABLE = 493,
+    /* Indicates FW support for populating vdev operating param stats */
+    WMI_SERVICE_VDEV_OPERATING_PARAMS_EVENT_SUPPORT = 494,
+    WMI_SERVICE_SUPPORT_WOW_OLE_DAL = 495,
+    /* Indicate FW support for PASSTHRU VDEV Channel Hopping Schedule */
+    WMI_SERVICE_PASSTHRU_VDEV_CHAN_HOP_SCHEDULE_SUPPORT = 496,
+    /*
+     * Indicates FW support for shared memory model to pass
+     * ongoing TBTT count downs to Host.
+     */
+    WMI_SERVICE_SHARED_MEM_MODEL_TBTT_COUNT_DOWN = 497,
+    /* Indicate FW support for IPI (Idle Power Indicate) stats collection */
+    WMI_SERVICE_IDLE_POWER_INDICATE_SUPPORT = 498,
+    /* Indicates FW support to add Radar type and domain in WMI radar event */
+    WMI_SERVICE_RADAR_FLAGS_TYPE_SUPPORT = 499,
+    /* Indicates FW support to perform Master migration when master peer gets deleted */
+    WMI_SERVICE_ML_PEER_MASTER_MIGRATION_SUPPORT = 500,
+    WMI_SERVICE_NAN_AP_ASSISTED_DFS_OPERATION_SUPPORT = 501, /* Indicates FW supports NAN DFS operation */
+    /*
+     * Indicates FW supports TDLS Stats command/event,
+     * used for sending TDLS connect info and TDLS data stats
+     */
+    WMI_SERVICE_TDLS_STATS_SUPPORT = 502,
+    WMI_SERVICE_L3_HEADER_PADDING_ENABLE = 503,
+
+    /* Indicates FW supports Extended OUI Action IDs */
+    WMI_SERVICE_SUPPORTED_EXT_OUI_ACTION_IDS = 504,
+
+    /*
+     * Indicates FW supports cloud based control for whitelist or blacklist
+     * AP configuration
+     */
+    WMI_SERVICE_SUPPORT_WHITELIST_BLACKLIST_AP_CONFIG = 505,
+    /*
+     * Indicate FW support for PASSTHRU VDEV AMPDU Aggregation
+     * and Rate Adaptation
+     */
+    WMI_SERVICE_PASSTHRU_VDEV_AMPDU_RA_SUPPORT = 506,
+    /* FW supports CalDB transmission over WMI */
+    WMI_SERVICE_CALDB_OVER_WMI = 507,
 
 
     WMI_MAX_EXT2_SERVICE

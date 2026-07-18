@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2002,2007-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 #ifndef __KGSL_MMU_H
 #define __KGSL_MMU_H
@@ -124,11 +124,11 @@ struct kgsl_mmu_pt_ops {
 	int (*mmu_map)(struct kgsl_pagetable *pt,
 			struct kgsl_memdesc *memdesc);
 	int (*mmu_map_child)(struct kgsl_pagetable *pt,
-		struct kgsl_memdesc *memdesc, u64 offset,
-		struct kgsl_memdesc *child, u64 child_offset,
-		u64 length);
+			struct kgsl_memdesc *memdesc, u64 offset,
+			struct kgsl_memdesc *child, u64 child_offset,
+			u64 length);
 	int (*mmu_map_zero_page_to_range)(struct kgsl_pagetable *pt,
-		struct kgsl_memdesc *memdesc, u64 start, u64 length);
+			struct kgsl_memdesc *memdesc, u64 start, u64 length);
 	int (*mmu_unmap)(struct kgsl_pagetable *pt,
 			struct kgsl_memdesc *memdesc);
 	int (*mmu_unmap_range)(struct kgsl_pagetable *pt,
@@ -137,13 +137,12 @@ struct kgsl_mmu_pt_ops {
 	u64 (*get_ttbr0)(struct kgsl_pagetable *pt);
 	int (*get_context_bank)(struct kgsl_pagetable *pt, struct kgsl_context *context);
 	int (*get_asid)(struct kgsl_pagetable *pt, struct kgsl_context *context);
-	int (*get_gpuaddr)(struct kgsl_pagetable *pt,
-				struct kgsl_memdesc *memdesc);
+	int (*get_gpuaddr)(struct kgsl_pagetable *pt, struct kgsl_memdesc *memdesc);
 	void (*put_gpuaddr)(struct kgsl_memdesc *memdesc);
 	uint64_t (*find_svm_region)(struct kgsl_pagetable *pt, uint64_t start,
-		uint64_t end, uint64_t size, uint64_t align);
+			uint64_t end, uint64_t size, uint64_t align);
 	int (*set_svm_region)(struct kgsl_pagetable *pt,
-				uint64_t gpuaddr, uint64_t size);
+			struct kgsl_memdesc *memdesc, uint64_t gpuaddr, uint64_t size);
 	int (*svm_range)(struct kgsl_pagetable *pt, uint64_t *lo, uint64_t *hi,
 			uint64_t memflags);
 	bool (*addr_in_range)(struct kgsl_pagetable *pagetable,
@@ -237,8 +236,8 @@ uint64_t kgsl_mmu_find_svm_region(struct kgsl_pagetable *pagetable,
 		uint64_t start, uint64_t end, uint64_t size,
 		uint64_t alignment);
 
-int kgsl_mmu_set_svm_region(struct kgsl_pagetable *pagetable, uint64_t gpuaddr,
-		uint64_t size);
+int kgsl_mmu_set_svm_region(struct kgsl_pagetable *pagetable,
+		struct kgsl_memdesc *memdesc, uint64_t gpuaddr, uint64_t size);
 
 void kgsl_mmu_detach_pagetable(struct kgsl_pagetable *pagetable);
 

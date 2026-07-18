@@ -3,7 +3,7 @@
  * Copyright (C) 2016-2019, STMicroelectronics Limited.
  * Authors: AMG(Analog Mems Group) <marco.cali@st.com>
  *
- * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 /*
@@ -503,7 +503,8 @@ int readSelfSenseCompensationData(struct fts_ts_info *info, u8 type, SelfSenseDa
   * initialization data
   * @return OK if success or an error code which specify the type of error
   */
-int readTotMutualSenseGlobalData(struct fts_ts_info *info, u64 *address, TotMutualSenseData *global)
+static int readTotMutualSenseGlobalData(struct fts_ts_info *info, u64 *address,
+	TotMutualSenseData *global)
 {
 	int ret;
 	u8 data[COMP_DATA_GLOBAL];
@@ -538,7 +539,8 @@ int readTotMutualSenseGlobalData(struct fts_ts_info *info, u64 *address, TotMutu
   * MS initialization data
   * @return OK if success or an error code which specify the type of error
   */
-int readTotMutualSenseNodeData(struct fts_ts_info *info, u64 address, TotMutualSenseData *node)
+static int readTotMutualSenseNodeData(struct fts_ts_info *info, u64 address,
+	TotMutualSenseData *node)
 {
 	int ret, i;
 	int size = node->header.force_node * node->header.sense_node;

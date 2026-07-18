@@ -39,7 +39,7 @@
 #include <linux/string.h>
 
 #include "syna_tcm2.h"
-#include "syna_tcm2_cdev.h"
+#include <linux/synaptics_tcm2/syna_tcm2_cdev.h>
 #include "tcm/synaptics_touchcom_core_dev.h"
 #include "tcm/synaptics_touchcom_func_base.h"
 
@@ -52,12 +52,6 @@
 #define USE_COMPAT_IOCTL
 #endif
 
-/* Structure specified for IOCTL interface */
-struct syna_ioctl_data {
-	unsigned int data_length;
-	unsigned int buf_size;
-	unsigned char __user *buf;
-};
 #ifdef USE_COMPAT_IOCTL
 struct syna_tcm_ioctl_data_compat {
 	unsigned int data_length;
@@ -83,6 +77,95 @@ struct fifo_queue {
 };
 #endif
 
+struct drv_param_dut {
+	union {
+		struct {
+			/* connection : 8 bytes */
+			unsigned char activate:1;
+			unsigned char reserve_b1__2:2;
+			unsigned char bare:1;
+			unsigned char reserve_b4__7:4;
+			unsigned char touchcomm_version;
+			unsigned short max_wr_size;
+			unsigned short max_rd_size;
+			unsigned char reserve_b48__55;
+			unsigned char reserve_b56__63;
+		} __packed;
+		unsigned char data[8];
+	};
+};
+
+struct drv_param_feature {
+	union {
+		struct {
+			/* features : 12 bytes */
+			unsigned char predict_reads:1;
+			unsigned char reserve_b1__7:7;
+			unsigned char extra_bytes_to_read:8;
+			unsigned char depth_of_fifo:8;
+			unsigned char reserve_b24__31;
+			unsigned char reserve_b32__39;
+			unsigned char reserve_b40__47;
+			unsigned char reserve_b48__55;
+			unsigned char reserve_b56__63;
+			unsigned char reserve_b64__71;
+			unsigned char reserve_b72__79;
+			unsigned char reserve_b80__87;
+			unsigned char reserve_b88__95;
+		} __packed;
+		unsigned char data[12];
+	};
+};
+
+struct drv_param_internal {
+	struct drv_param_dut dut;
+	struct drv_param_feature feature;
+} __packed;
+
+static inline char *syna_cdev_ioctl_get_name(unsigned int code)
+{
+	switch (code) {
+	case OLD_RESET_ID:
+		return "IOCTL_OLD_RESET";
+	case OLD_SET_IRQ_MODE_ID:
+		return "IOCTL_OLD_SET_IRQ_MODE";
+	case OLD_SET_RAW_MODE_ID:
+		return "IOCTL_OLD_SET_RAW_MODE";
+	case OLD_CONCURRENT_ID:
+		return "IOCTL_OLD_CONCURRENT";
+	case STD_IOCTL_BEGIN:
+		return "IOCTL_QUERY_STD_SUPPORT";
+	case STD_SET_PID_ID:
+		return "IOCTL_STD_SET_PID";
+	case STD_ENABLE_IRQ_ID:
+		return "IOCTL_STD_CONFIG_IRQ";
+	case STD_RAW_READ_ID:
+		return "IOCTL_STD_RAW_READ";
+	case STD_RAW_WRITE_ID:
+		return "IOCTL_STD_RAW_WRITE";
+	case STD_GET_FRAME_ID:
+		return "IOCTL_STD_WAIT_DATA_FROM_KERNEL_FIFO";
+	case STD_SEND_MESSAGE_ID:
+		return "IOCTL_STD_SEND_MESSAGE";
+	case STD_SET_REPORTS_ID:
+		return "IOCTL_STD_CONFIG_DATA_TYPE_TO_KERNEL_FIFO";
+	case STD_CHECK_FRAMES_ID:
+		return "IOCTL_STD_CHECK_DATA_IN_KERNEL_FIFO";
+	case STD_CLEAN_OUT_FRAMES_ID:
+		return "IOCTL_STD_CLEAN_KERNEL_FIFO";
+	case STD_APPLICATION_INFO_ID:
+		return "IOCTL_STD_APPLICATION_INFO";
+	case STD_DO_HW_RESET_ID:
+		return "IOCTL_STD_DO_HW_RESET";
+	case STD_DRIVER_CONFIG_ID:
+		return "IOCTL_STD_DRIVER_CONFIG";
+	case STD_DRIVER_GET_CONFIG_ID:
+		return "IOCTL_STD_DRIVER_GET_CONFIG";
+	default:
+		return " ";
+	}
+	return " ";
+}
 
 #ifdef ENABLE_EXTERNAL_FRAME_PROCESS
 /*
@@ -1279,10 +1362,13 @@ static int syna_cdev_ioctl_get_config_params(struct syna_tcm *tcm,
 {
 	int retval = 0;
 	struct drv_param *param;
+	struct drv_param_internal *internal_param;
 	struct tcm_buffer *caller;
 	struct tcm_dev *tcm_dev = tcm->tcm_dev;
 
-	if (buf_size < 0) {
+	BUILD_BUG_ON(sizeof(struct drv_param_internal) > sizeof(struct drv_param));
+
+	if (buf_size == 0) {
 		LOGE("Invalid sync data size, out of range\n");
 		return -EINVAL;
 	}
@@ -1303,23 +1389,24 @@ static int syna_cdev_ioctl_get_config_params(struct syna_tcm *tcm,
 		goto exit;
 	}
 
+	internal_param = (struct drv_param_internal *)caller->buf;
 	syna_pal_mem_set(&caller->buf[0], 0x00, sizeof(struct drv_param));
 
 	param = (struct drv_param *)&caller->buf[0];
 
-	param->dut.max_wr_size = (unsigned short)tcm_dev->max_wr_size;
-	param->dut.max_rd_size = (unsigned short)tcm_dev->max_rd_size;
+	internal_param->dut.max_wr_size = (unsigned short)tcm_dev->max_wr_size;
+	internal_param->dut.max_rd_size = (unsigned short)tcm_dev->max_rd_size;
 
-	param->dut.activate = (tcm->is_connected) ? 1 : 0;
-	param->dut.bare = (tcm->pwr_state == BARE_MODE) ? 1 : 0;
+	internal_param->dut.activate = (tcm->is_connected) ? 1 : 0;
+	internal_param->dut.bare = (tcm->pwr_state == BARE_MODE) ? 1 : 0;
 
 	if (tcm_dev->id_info.version > 0)
-		param->dut.touchcomm_version = (unsigned char)tcm_dev->id_info.version;
+		internal_param->dut.touchcomm_version = (unsigned char)tcm_dev->id_info.version;
 
-	param->feature.predict_reads = (tcm_dev->msg_data.predict_reads & 0x01);
-	param->feature.extra_bytes_to_read = (unsigned char)tcm->cdev_extra_bytes;
+	internal_param->feature.predict_reads = (tcm_dev->msg_data.predict_reads & 0x01);
+	internal_param->feature.extra_bytes_to_read = (unsigned char)tcm->cdev_extra_bytes;
 #ifdef ENABLE_EXTERNAL_FRAME_PROCESS
-	param->feature.depth_of_fifo = (tcm->fifo_depth >> 2);
+	internal_param->feature.depth_of_fifo = (tcm->fifo_depth >> 2);
 #endif
 
 	/* copy the info to user-space */
@@ -1357,12 +1444,15 @@ static int syna_cdev_ioctl_set_config(struct syna_tcm *tcm,
 	int retval = 0;
 	struct tcm_dev *tcm_dev = tcm->tcm_dev;
 	struct drv_param *param;
+	struct drv_param_internal *internal_param;
 	bool predict_read = false;
 	int extra_bytes = 0;
 	struct tcm_buffer *caller;
 	unsigned int max_wr, max_rd;
 
-	if (buf_size < 0) {
+	BUILD_BUG_ON(sizeof(struct drv_param_internal) > sizeof(struct drv_param));
+
+	if (buf_size == 0) {
 		LOGE("Invalid sync data size, out of range\n");
 		return -EINVAL;
 	}
@@ -1391,12 +1481,13 @@ static int syna_cdev_ioctl_set_config(struct syna_tcm *tcm,
 		goto exit;
 	}
 
+	internal_param = (struct drv_param_internal *)caller->buf;
 	param = (struct drv_param *)&caller->buf[0];
 
 	/* set up driver features */
 	if (tcm->is_connected) {
-		max_wr = param->dut.max_wr_size;
-		max_rd = param->dut.max_rd_size;
+		max_wr = internal_param->dut.max_wr_size;
+		max_rd = internal_param->dut.max_rd_size;
 
 		/* change the chunk size */
 		if ((max_rd > 0) && (tcm_dev->max_rd_size != max_rd))
@@ -1406,21 +1497,21 @@ static int syna_cdev_ioctl_set_config(struct syna_tcm *tcm,
 			syna_tcm_set_max_write_size(tcm_dev, max_wr, 0);
 
 		/* change the feature of predict reading */
-		predict_read = (param->feature.predict_reads == 1);
+		predict_read = (internal_param->feature.predict_reads == 1);
 		if (tcm_dev->msg_data.predict_reads != predict_read) {
 			LOGI("request to %s predict reading\n",
 				(predict_read) ? "enable":"disable");
 			syna_tcm_enable_predict_reading(tcm_dev, predict_read);
 		}
 		/* change the feature of extra bytes reading */
-		extra_bytes = param->feature.extra_bytes_to_read;
+		extra_bytes = internal_param->feature.extra_bytes_to_read;
 		if (tcm->cdev_extra_bytes != extra_bytes) {
 			tcm->cdev_extra_bytes = extra_bytes;
 			LOGI("request to read in %d extra bytes\n", tcm->cdev_extra_bytes);
 		}
 #ifdef ENABLE_EXTERNAL_FRAME_PROCESS
 		/* change the depth of kernel fifo */
-		tcm->fifo_depth = param->feature.depth_of_fifo << 2;
+		tcm->fifo_depth = internal_param->feature.depth_of_fifo << 2;
 		if (tcm->fifo_depth > FIFO_QUEUE_MAX_FRAMES)
 			tcm->fifo_depth = 0;
 		if (tcm->fifo_depth != 0)
@@ -1565,7 +1656,7 @@ static int syna_cdev_ioctls(struct inode *inp, struct file *filp,
 	int retval = 0;
 	struct syna_tcm *tcm = (struct syna_tcm *)filp->private_data;
 	struct syna_ioctl_data ioc_data;
-	unsigned char *ptr = NULL;
+	unsigned char __user *ptr = NULL;
 
 	if (!tcm) {
 		LOGE("Invalid tcm handle\n");
@@ -1602,7 +1693,7 @@ static int syna_cdev_ioctls(struct inode *inp, struct file *filp,
 		goto exit;
 	}
 
-	ptr = ioc_data.buf;
+	ptr = (unsigned char __user *)u64_to_user_ptr(ioc_data.buf);
 
 	retval = syna_cdev_ioctl_dispatch(tcm, (unsigned int)_IOC_NR(cmd),
 			(const unsigned char *)ptr, ioc_data.buf_size, &ioc_data.data_length);
