@@ -7,7 +7,6 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/of.h>
-#include <linux/gpio/consumer.h>
 #include <linux/of_gpio.h>
 #include <linux/pinctrl/consumer.h>
 #if IS_ENABLED(CONFIG_PINCTRL_MSM) && !IS_ENABLED(CONFIG_PINCTRL_MSM_NO_EXT)
@@ -72,9 +71,7 @@ static struct cnss_clk_cfg cnss_clk_list[] = {
 #define BT_EN_GPIO			"qcom,bt-en-gpio"
 #define XO_CLK_GPIO			"qcom,xo-clk-gpio"
 #define SW_CTRL_GPIO			"qcom,sw-ctrl-gpio"
-#define SW_CTRL_GPIO_CON_ID		"qcom,sw-ctrl"
 #define WLAN_SW_CTRL_GPIO		"qcom,wlan-sw-ctrl-gpio"
-#define WLAN_SW_CTRL_GPIO_CON_ID	"qcom,wlan-sw-ctrl"
 #define SW_CTRL_DATA_0_GPIO		"qcom,sw-ctrl-data-0-gpio"
 #define SW_CTRL_DATA_1_GPIO		"qcom,sw-ctrl-data-1-gpio"
 #define WLAN_EN_ACTIVE			"wlan_en_active"
@@ -960,16 +957,6 @@ int cnss_get_pinctrl(struct cnss_plat_data *plat_priv)
 		cnss_pr_dbg("Switch control GPIO: %d\n",
 			    pinctrl_info->sw_ctrl_gpio);
 
-		/* Hold reference while in use to ensure GPIO resource
-		 * is not freed by GPIO driver.
-		 */
-		if (IS_ERR_OR_NULL(devm_gpiod_get_optional(dev,
-							   SW_CTRL_GPIO_CON_ID,
-							   GPIOD_IN))) {
-			cnss_pr_dbg("Failed to get sw_ctrl GPIO reference\n");
-			pinctrl_info->sw_ctrl_gpio = -EINVAL;
-		}
-
 		pinctrl_info->sw_ctrl =
 			pinctrl_lookup_state(pinctrl_info->pinctrl,
 					     "sw_ctrl");
@@ -994,16 +981,6 @@ int cnss_get_pinctrl(struct cnss_plat_data *plat_priv)
 								    0);
 		cnss_pr_dbg("WLAN Switch control GPIO: %d\n",
 			    pinctrl_info->wlan_sw_ctrl_gpio);
-
-		/* Hold reference while in use to ensure GPIO resource
-		 * is not freed by GPIO driver.
-		 */
-		if (IS_ERR_OR_NULL(devm_gpiod_get_optional(dev,
-							   WLAN_SW_CTRL_GPIO_CON_ID,
-							   GPIOD_IN))) {
-			cnss_pr_dbg("Failed to get wlan_sw_ctrl GPIO reference\n");
-			pinctrl_info->wlan_sw_ctrl_gpio = -EINVAL;
-		}
 
 		pinctrl_info->sw_ctrl_wl_cx =
 			pinctrl_lookup_state(pinctrl_info->pinctrl,
