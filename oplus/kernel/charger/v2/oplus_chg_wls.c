@@ -2485,7 +2485,7 @@ static int oplus_chg_wls_force_bpp_mode_vote_callback(struct votable *votable, v
 	return 0;
 }
 
-static void  oplus_chg_wls_set_charging_disable(
+static void __oplus_chg_wls_set_charging_disable(
 		struct oplus_chg_wls *wls_dev, bool disable)
 {
 	int rc;
@@ -2510,13 +2510,22 @@ static void  oplus_chg_wls_set_charging_disable(
 	chg_info("charging_disable=0x%x\n", wls_dev->charging_disable);
 }
 
+void oplus_chg_wls_set_charging_disable(struct oplus_mms *mms, bool disable)
+{
+	if (!mms)
+		return;
+
+	__oplus_chg_wls_set_charging_disable(oplus_mms_get_drvdata(mms),
+					     disable);
+}
+
 static int oplus_chg_wls_nor_out_disable_vote_callback(struct votable *votable,
 			void *data, int disable, const char *client, bool step)
 {
 	struct oplus_chg_wls *wls_dev = data;
 	int rc;
 
-	oplus_chg_wls_set_charging_disable(wls_dev, disable);
+	__oplus_chg_wls_set_charging_disable(wls_dev, disable);
 
 	rc = oplus_chg_wls_nor_set_output_enable(wls_dev->wls_nor->nor_ic, !disable);
 	if (rc < 0)
