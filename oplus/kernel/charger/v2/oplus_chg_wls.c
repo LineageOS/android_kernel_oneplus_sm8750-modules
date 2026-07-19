@@ -5309,12 +5309,6 @@ static int oplus_chg_wls_get_max_wireless_power(struct oplus_chg_wls *wls_dev)
 }
 #endif /* OPLUS_CHG_DEBUG */
 
-#define CLIENT_STR_LEN		32
-#define RX_DISABLE_PARAM_NUM	2
-#define RX_DISABLE		1
-#define RX_ENABLE		0
-#define CALL_NAME_BATTERY	2
-#define CALL_NAME_TEST		5
 ssize_t oplus_chg_wls_rx_disable_show(struct oplus_mms *mms, char *buf)
 {
 	struct oplus_chg_wls *wls_dev = NULL;

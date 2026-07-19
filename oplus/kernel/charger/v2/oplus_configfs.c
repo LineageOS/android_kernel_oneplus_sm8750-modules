@@ -1332,6 +1332,16 @@ static ssize_t mmi_charging_enable_store(struct device *dev,
 	else
 		chg_info("mmi set charging %s\n", !val ? "disable" : "enable");
 
+	if (chip->wls_topic) {
+		char wls_buf[32];
+
+		snprintf(wls_buf, sizeof(wls_buf), "disable=%dcallname=%d",
+			 val ? RX_ENABLE : RX_DISABLE, CALL_NAME_BATTERY);
+
+		oplus_chg_wls_rx_disable_store(chip->wls_topic, wls_buf,
+				strlen(wls_buf));
+	}
+
 	return (rc < 0) ? rc : count;
 }
 static DEVICE_ATTR_RW(mmi_charging_enable);
