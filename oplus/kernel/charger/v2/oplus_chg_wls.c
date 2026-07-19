@@ -12027,6 +12027,26 @@ static const struct proc_ops oplus_chg_wls_proc_tx_ops = {
 };
 #endif
 
+static void __oplus_chg_wls_set_rx_enable(struct oplus_chg_wls *wls_dev, bool enable)
+{
+	if (!wls_dev)
+		return;
+
+	wls_dev->charge_enable = enable;
+	vote(wls_dev->rx_disable_votable, DEBUG_VOTER, !enable,
+	     1, false);
+
+	chg_info("%s wls rx\n", enable ? "enable" : "disable");
+}
+
+void oplus_chg_wls_set_rx_enable(struct oplus_mms *mms, bool enable)
+{
+	if (!mms)
+		return;
+
+	__oplus_chg_wls_set_rx_enable(oplus_mms_get_drvdata(mms), enable);
+}
+
 static ssize_t oplus_chg_wls_proc_rx_read(struct file *file, char __user *buf,
 					  size_t count, loff_t *ppos)
 {
@@ -12073,10 +12093,7 @@ static ssize_t oplus_chg_wls_proc_rx_write(struct file *file,
 		return -EINVAL;
 	chg_info("val = %d", val);
 
-	wls_dev->charge_enable = !!val;
-	vote(wls_dev->rx_disable_votable, DEBUG_VOTER, !wls_dev->charge_enable,
-	     1, false);
-	chg_info("%s wls rx\n", wls_dev->charge_enable ? "enable" : "disable");
+	__oplus_chg_wls_set_rx_enable(wls_dev, !!val);
 	return count;
 }
 
