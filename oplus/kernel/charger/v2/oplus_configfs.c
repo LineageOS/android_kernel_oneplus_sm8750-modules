@@ -1332,6 +1332,9 @@ static ssize_t mmi_charging_enable_store(struct device *dev,
 	else
 		chg_info("mmi set charging %s\n", !val ? "disable" : "enable");
 
+	if (chip->wls_topic)
+		oplus_chg_wls_set_mmi_charging_enable(chip->wls_topic, !!val);
+
 	return (rc < 0) ? rc : count;
 }
 static DEVICE_ATTR_RW(mmi_charging_enable);
