@@ -3240,20 +3240,51 @@ static struct proc_dir_entry *fpga_audio_pa_proc_dir = NULL;
 static int aw882xx_proc_init(struct aw882xx *aw882xx)
 {
 	const char *proc_path = "audio_pa_i2c_aging";
-	char pa_name[10] = {0};
+	char pa_name[24] = {0};
 
 	aw_pr_info("%s: enter", __func__);
 
+	mutex_lock(&g_aw882xx_lock);
 	if (fpga_audio_pa_proc_dir == NULL) {
 		fpga_audio_pa_proc_dir = proc_mkdir(proc_path, NULL);
+		if (fpga_audio_pa_proc_dir == NULL) {
+			mutex_unlock(&g_aw882xx_lock);
+			aw_pr_err("%s: create %s failed", __func__, proc_path);
+			return -ENOMEM;
+		}
+	}
+	mutex_unlock(&g_aw882xx_lock);
+
+	/* the same pa address can be used on several i2c buses,
+	 * so the bus number has to be part of the node name
+	 */
+	snprintf(pa_name, sizeof(pa_name), "pa_%d-0x%02x",
+			aw882xx->i2c->adapter->nr, aw882xx->i2c->addr);
+	aw_pr_info("%s: pa_name=%s", __func__, pa_name);
+	aw882xx->proc_entry = proc_create_data((const char *)pa_name, S_IRUGO,
+				fpga_audio_pa_proc_dir,
+				&aw882xx_i2c_test_fops, aw882xx->i2c);
+	if (aw882xx->proc_entry == NULL) {
+		aw_pr_err("%s: create %s failed", __func__, pa_name);
+		return -ENOMEM;
 	}
 
-	snprintf(pa_name, 10, "pa_0x%x", aw882xx->i2c->addr);
-	aw_pr_info("%s: pa_name=%s", __func__, pa_name);
-	proc_create_data((const char*)pa_name, S_IRUGO, fpga_audio_pa_proc_dir,
-				&aw882xx_i2c_test_fops, aw882xx->i2c);
-
 	return 0;
+}
+
+static void aw882xx_proc_deinit(struct aw882xx *aw882xx)
+{
+	if (aw882xx->proc_entry) {
+		proc_remove(aw882xx->proc_entry);
+		aw882xx->proc_entry = NULL;
+	}
+
+	mutex_lock(&g_aw882xx_lock);
+	if (fpga_audio_pa_proc_dir && g_aw882xx_dev_cnt == 0) {
+		proc_remove(fpga_audio_pa_proc_dir);
+		fpga_audio_pa_proc_dir = NULL;
+	}
+	mutex_unlock(&g_aw882xx_lock);
 }
 #endif
 
@@ -3521,6 +3552,10 @@ static int aw882xx_i2c_remove(struct i2c_client *i2c)
 		}
 	}
 	mutex_unlock(&g_aw882xx_lock);
+
+#ifdef OPLUS_ARCH_EXTENDS
+	aw882xx_proc_deinit(aw882xx);
+#endif
 
 #if IS_ENABLED(CONFIG_OPLUS_FPGA_NOTIFY)
 	if (aw882xx->fpga_check_enable && aw882xx->fpga_notify_reg_success == 0) {

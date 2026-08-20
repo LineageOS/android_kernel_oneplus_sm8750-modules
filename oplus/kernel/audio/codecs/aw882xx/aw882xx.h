@@ -196,6 +196,9 @@ struct aw882xx {
 
 	struct i2c_client *i2c;
 	struct device *dev;
+#ifdef OPLUS_ARCH_EXTENDS
+	struct proc_dir_entry *proc_entry;	/* fpga i2c aging test node */
+#endif /* OPLUS_ARCH_EXTENDS */
 	struct aw882xx_i2c_packet i2c_packet;
 	struct aw_device *aw_pa;
 
