@@ -48,6 +48,8 @@
 #define HBP_IOCTRL_PEN_STATUS              _IO(HBP_IOCTRL_GROUP, 0x21)
 /*fpGripStatus*/
 #define HBP_IOCTRL_FP_GRIP_STATUS          _IO(HBP_IOCTRL_GROUP, 0x22)
+#define KEY_GESTURE_START    246
+#define HBP_GESTURE_TYPE_MAX FP_GESTURE_RELEASE
 
 #define HBP_IOCTRL_IRQ_FREE                _IO(HBP_IOCTRL_GROUP, 0x23)
 
@@ -76,7 +78,7 @@ static void hbp_start_flow(struct hbp_core *hbp)
 
 static int init_input_device(struct hbp_device *hbp_dev, int id)
 {
-	int ret = 0;
+	int ret = 0, i = 0;
 
 	hbp_dev->i_dev = input_allocate_device();
 	if (!hbp_dev->i_dev) {
@@ -109,9 +111,12 @@ static int init_input_device(struct hbp_device *hbp_dev, int id)
 	set_bit(INPUT_PROP_DIRECT, hbp_dev->i_dev->propbit);
 	set_bit(BTN_TOUCH, hbp_dev->i_dev->keybit);
 	set_bit(BTN_TOOL_FINGER, hbp_dev->i_dev->keybit);
-	set_bit(KEY_F4, hbp_dev->i_dev->keybit);		/*for black gesture*/
+	set_bit(KEY_WAKEUP, hbp_dev->i_dev->keybit);		/*for black gesture*/	
+	for (i = 0; i <= HBP_GESTURE_TYPE_MAX; i++)
+		set_bit(KEY_GESTURE_START + i, hbp_dev->i_dev->keybit); 
 	set_bit(KEY_POWER, hbp_dev->i_dev->keybit);		/*for apk test*/
 	set_bit(KEY_SLEEP, hbp_dev->i_dev->keybit);
+	input_set_capability(hbp_dev->i_dev, EV_KEY, KEY_WAKEUP);		/*for double tap to wake*/
 
 	input_mt_init_slots(hbp_dev->i_dev, TOUCH_MAX_FINGERS, INPUT_MT_DIRECT);
 	input_set_abs_params(hbp_dev->i_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
@@ -636,10 +641,17 @@ static void hbp_gesture_report(struct hbp_device *hbp_dev, struct gesture_info *
 			hbp_core_set_gesture_coord(gesture);
 
 			//back up gesture info
-			input_report_key(hbp_dev->i_dev, KEY_F4, 1);
-			input_sync(hbp_dev->i_dev);
-			input_report_key(hbp_dev->i_dev, KEY_F4, 0);
-			input_sync(hbp_dev->i_dev);
+			if (gesture->type == DoubleTap) {
+				input_report_key(hbp_dev->i_dev, KEY_WAKEUP, 1);
+				input_sync(hbp_dev->i_dev);
+				input_report_key(hbp_dev->i_dev, KEY_WAKEUP, 0);
+				input_sync(hbp_dev->i_dev);
+			} else {
+				input_report_key(hbp_dev->i_dev, KEY_GESTURE_START + gesture->type, 1);
+				input_sync(hbp_dev->i_dev);
+				input_report_key(hbp_dev->i_dev, KEY_GESTURE_START + gesture->type, 0);
+				input_sync(hbp_dev->i_dev);
+			}
 		} else {
 			hbp_err("detect unkown gesture\n");
 		}
