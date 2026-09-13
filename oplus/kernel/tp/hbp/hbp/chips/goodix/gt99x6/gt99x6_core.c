@@ -16,6 +16,7 @@
 #include "../../../hbp_core.h"
 #include "../../../hbp_spi.h"
 #include "../../../utils/debug.h"
+#include "../../chips_healthinfo_report.h"
 
 #define PLATFORM_DRIVER_NAME "gt99x6"
 #define KO_VERSION            "v5.0.0.2"
@@ -160,20 +161,162 @@ static int gt_chip_enable_hbp_mode(void *priv, bool en)
 	return 0;
 }
 
+enum {
+	FRAME_FLAG_RESET = 1,
+	FRAME_FLAG_UPLINK
+};
+
+static int gt_read_frame_head(void *priv, u8 *flag)
+{
+	struct gt_core *ts_data = (struct gt_core *)priv;
+	u8 frame_head[FRAME_HEAD_LEN];
+
+	ts_data->frame_len = 0;
+	goodix_spi_read(ts_data, ts_data->board_data.frame_addr, frame_head, sizeof(frame_head));
+	if (frame_head[0] != 0x80) {
+		hbp_err("invalid frame_head[0]:0x%02x\n", frame_head[0]);
+		hbp_err("invalid frame_head, %*ph\n", 16, frame_head);
+		hbp_dev_healthinfo_report(ts_data, CHIPS_REPORT_GOODIX_FRAME_INVALID_HEAD);
+		return -1;
+	}
+
+	if (ts_data->protocol_type == 0) {
+		if (checksum16_cmp(frame_head, 14, GOODIX_LE_MODE) == 0) {
+			ts_data->protocol_type = FRAME_PROTOCOL_OLD;
+		} else if (checksum16_cmp(frame_head, FRAME_HEAD_LEN, GOODIX_LE_MODE) == 0) {
+			ts_data->protocol_type = FRAME_PROTOCOL_NEW;
+		} else {
+			hbp_err("frame head checksum error, %*ph\n", FRAME_HEAD_LEN, frame_head);
+			hbp_dev_healthinfo_report(ts_data, CHIPS_REPORT_GOODIX_FRAME_CHECKSUM_FAIL);
+			return -1;
+		}
+	}
+
+	if (ts_data->protocol_type == FRAME_PROTOCOL_OLD) {
+		if (checksum16_cmp(frame_head, 14, GOODIX_LE_MODE)) {
+			hbp_err("frame head checksum error, %*ph\n", 14, frame_head);
+			hbp_dev_healthinfo_report(ts_data, CHIPS_REPORT_GOODIX_FRAME_CHECKSUM_FAIL);
+			return -1;
+		}
+		ts_data->frame_len = (frame_head[7] << 8) | frame_head[6];
+		if (frame_head[9] & 0x10)
+			*flag = FRAME_FLAG_UPLINK;
+		else if (frame_head[9] & 0x80)
+			*flag = FRAME_FLAG_RESET;
+	} else if (ts_data->protocol_type == FRAME_PROTOCOL_NEW) {
+		if (checksum16_cmp(frame_head, FRAME_HEAD_LEN, GOODIX_LE_MODE)) {
+			hbp_err("frame head checksum error, %*ph\n", FRAME_HEAD_LEN, frame_head);
+			hbp_dev_healthinfo_report(ts_data, CHIPS_REPORT_GOODIX_FRAME_CHECKSUM_FAIL);
+			return -1;
+		}
+		ts_data->frame_len = (frame_head[4] << 8) | frame_head[3];
+		if (frame_head[7] & 0x01)
+			*flag = FRAME_FLAG_RESET;
+	} else {
+		hbp_err("unknown protocol type %d", ts_data->protocol_type);
+		hbp_dev_healthinfo_report(ts_data, CHIPS_REPORT_GOODIX_FRAME_INVALID_LEN);
+		return -1;
+	}
+
+	return 0;
+}
+
 static int gt_chip_get_irq_reason(void *priv, enum irq_reason *reason)
 {
+	struct gt_core *gt = (struct gt_core *)priv;
+	u32 ges_addr = gt->board_data.ges_addr;
+	u8 buf[sizeof(struct goodix_version_info)] = {0};
+	struct goodix_version_info *fw_ver = (struct goodix_version_info *)buf;
+	u8 flag = 0;
+	int ret;
+
+	*reason = IRQ_REASON_NORMAL;
+
+	goodix_spi_read(gt, 0x10014, buf, sizeof(buf));
+
+	if (memcmp(fw_ver->patch_pid, "GEST", 4) == 0) { // gesture mode
+		goodix_spi_read(gt, ges_addr, buf, 1);
+		if (buf[0] & 0x20) {
+			*reason = IRQ_REASON_NORMAL; // run get gesture flow
+		} else {
+			*reason = IRQ_REASON_GESTURE_DIFF; // run get frame flow
+			ret = gt_read_frame_head(gt, &flag);
+			if (ret < 0) {
+				return ret;
+			}
+			if (flag == FRAME_FLAG_UPLINK) {
+				*reason = IRQ_REASON_UPLINK_REPORT;
+				hbp_info("irq reason: uplink frame\n");
+			}
+		}
+	} else { // normal mode
+		ret = gt_read_frame_head(gt, &flag);
+		if (ret < 0) {
+			return ret;
+		}
+		if (flag == FRAME_FLAG_RESET) {
+			goodix_spi_read(gt, ges_addr, buf, 8);
+			if (buf[3] == 0x04) {
+				hbp_dev_healthinfo_report(gt, CHIPS_REPORT_GOODIX_RESET_ERROR_FAIL);
+			} else if (buf[3] == 0x08) {
+				hbp_dev_healthinfo_report(gt, CHIPS_REPORT_GOODIX_RESET_WATCHDOG_FAIL);
+			}
+			if ((buf[0] == 0x40) && (buf[2] == 0x06) && (buf[3] != 0x01)) {
+				hbp_err("tp reset occurred! type[%02x]", buf[3]);
+				*reason = IRQ_REASON_RESET_WDT;
+			}
+			buf[0] = 0;
+			goodix_spi_write(gt, ges_addr, buf, 1);
+		} else if (flag == FRAME_FLAG_UPLINK) {
+			*reason = IRQ_REASON_UPLINK_REPORT;
+			hbp_info("irq reason: uplink frame\n");
+		}
+	}
+
 	return 0;
 }
 
 #define GESTURE_DATA_HEAD_LEN				8
 #define GESTURE_KEY_DATA_LEN				42
+#define GESTURE_FP_ERROR_DATA_LEN			18
+static void fhp_read_fod_error_info(u8* gesture_data, u32 data_len)
+{
+	if (gesture_data == NULL) {
+		hbp_info("Error: null pointer input\n");
+		return;
+	}
+	if (data_len < GESTURE_FP_ERROR_DATA_LEN) {
+		hbp_info("Error: insufficient data length (%d), need at least GESTURE_FP_ERROR_DATA_LEN bytes\n", data_len);
+		return;
+	}
+	switch (gesture_data[8]) {
+	case FTS_FINGERPRINT_AREA_NOT_MATCH:
+		hbp_info("TP_FP_ERROR_REPORT:area size: 0x%x\n", gesture_data[9]);
+		hbp_info("TP_FP_ERROR_REPORT:FINGERPRINT_AREA_NOT_MATCH\n");
+		break;
+	case FTS_ANOTHER_FINGER_ON_NON_FP_ZONE:
+		hbp_info("TP_FP_ERROR_REPORT:x:0x%x,y:0x%x\n", (gesture_data[11] << 8) + gesture_data[10], (gesture_data[13] << 8) + gesture_data[12]);
+		hbp_info("TP_FP_ERROR_REPORT:ANOTHER_FINGER_ON_NON_FP_ZONE\n");
+		break;
+	case FTS_FINGERPRINT_X_Y_NOT_MATCH:
+		hbp_info("TP_FP_ERROR_REPORT:x:0x%x,y:0x%x\n", (gesture_data[15] << 8) + gesture_data[14], (gesture_data[17] << 8) + gesture_data[16]);
+		hbp_info("TP_FP_ERROR_REPORT:FINGERPRINT_X_Y_NOT_MATCH\n");
+		break;
+	case FTS_FINGERPRINT_OUT_MOVE_IN:
+		hbp_info("TP_FP_ERROR_REPORT:FINGERPRINT_OUT_MOVE_IN\n");
+		break;
+	default:
+		hbp_info("TP_FP_ERROR_REPORT:unknown fingerprint error type: 0x%02x\n",
+			gesture_data[8]);
+		break;
+	}
+}
+
 static int gt_chip_get_gesture(void *priv, struct gesture_info *gesture)
 {
 	struct gt_core *gt = (struct gt_core *)priv;
 	u32 ges_addr = gt->board_data.ges_addr;
-	u32 cmd_addr = gt->board_data.cmd_addr;
 	u8 temp_data[GESTURE_KEY_DATA_LEN] = {0};
-	u8 ges_cmd[] = {0x00, 0x00, 0x06, 0xA6, 0x00, 0x00, 0xAC, 0x00};
 	u8 clean_data = 0;
 	u8 *ges_coor = &temp_data[GESTURE_DATA_HEAD_LEN];
 
@@ -181,18 +324,26 @@ static int gt_chip_get_gesture(void *priv, struct gesture_info *gesture)
 	goodix_spi_read(gt, ges_addr, temp_data, sizeof(temp_data));
 	if (temp_data[0] == 0) {
 		hbp_err("invalid gesture head\n");
-		goto re_send_ges_cmd;
+		//goto re_send_ges_cmd;
+		return -1;
 	}
+
+	// clean sync flag
+	goodix_spi_write(gt, ges_addr, &clean_data, 1);
 
 	/* check gesture data */
 	if (checksum16_cmp(temp_data, GESTURE_DATA_HEAD_LEN, GOODIX_LE_MODE)) {
 		hbp_err("gesture data head check failed, %*ph\n", GESTURE_DATA_HEAD_LEN, temp_data);
-		goto re_send_ges_cmd;
+		hbp_dev_healthinfo_report(gt, CHIPS_REPORT_GOODIX_GESTURE_CHECKSUM_FAIL);
+		return -1;
 	} else if (checksum16_cmp(&temp_data[GESTURE_DATA_HEAD_LEN],
 			GESTURE_KEY_DATA_LEN - GESTURE_DATA_HEAD_LEN, GOODIX_LE_MODE)) {
 		hbp_err("Gesture data checksum error, %*ph\n", (int)sizeof(temp_data), temp_data);
-		goto re_send_ges_cmd;
+		hbp_dev_healthinfo_report(gt, CHIPS_REPORT_GOODIX_GESTURE_CHECKSUM_FAIL);
+		return -1;
 	}
+
+	hbp_info("get gesture type:0x%02x\n", temp_data[4]);
 
 	switch (temp_data[4]) {
 	case 0xCC: //double tap
@@ -201,7 +352,7 @@ static int gt_chip_get_gesture(void *priv, struct gesture_info *gesture)
 		break;
 	case 0x63: // <
 		hbp_info("get gesture event: <\n");
-		gesture->type = LeftVee;
+		gesture->type = RightVee;
 		break;
 	case 0x65: // E
 		hbp_info("get gesture event: E\n");
@@ -220,7 +371,7 @@ static int gt_chip_get_gesture(void *priv, struct gesture_info *gesture)
 		break;
 	case 0x3E: // >
 		hbp_info("get gesture event: >\n");
-		gesture->type = RightVee;
+		gesture->type = LeftVee;
 		break;
 	case 0x77: // W
 		hbp_info("get gesture event: W\n");
@@ -268,6 +419,34 @@ static int gt_chip_get_gesture(void *priv, struct gesture_info *gesture)
 		hbp_info("get gesture event: single tap\n");
 		gesture->type = DoubleSwip;
 		break;
+	case GOODIX_COMPLEX_SMALL_AREA:
+		hbp_info("get gesture event: fp_grip_small_area_cnt\n");
+		hbp_dev_healthinfo_report(gt, "fp_grip_small_area_cnt");
+		gesture->type = FP_GESTURE_HOLD;
+		break;
+	case GOODIX_SIMPLE_AREA:
+		hbp_info("get gesture event: fp_grip_big_area_cnt\n");
+		hbp_dev_healthinfo_report(gt, "fp_grip_big_area_cnt");
+		gesture->type = FP_GESTURE_HOLD;
+		break;
+	case GOODIX_RELEASE_HOLD:
+		hbp_info("get gesture event: fp_grip_release_cnt\n");
+		hbp_dev_healthinfo_report(gt, "fp_grip_release_cnt");
+		gesture->type = FP_GESTURE_RELEASE;
+		break;
+	case GOODIX_TOUCH_HOLD_EARLY_DOWN:
+		hbp_info("get gesture event: fp_grip_early_down\n");
+		hbp_dev_healthinfo_report(gt, "fp_grip_early_down");
+		gesture->type = FingerprintEarlyDown;
+		break;
+	case GOODIX_FINGERPRINT_ERR_REPORT:
+		fhp_read_fod_error_info(temp_data, sizeof(temp_data));
+		gesture->type = UnknownGesture;
+		break;
+	case GOODIX_PENDETECT:
+		hbp_info("get gesture event: pendetect\n");
+		gesture->type = PenDetect;
+		break;
 	default:
 		hbp_err("not support gesture type 0x%02x\n", temp_data[4]);
 		break;
@@ -286,13 +465,6 @@ static int gt_chip_get_gesture(void *priv, struct gesture_info *gesture)
 	gesture->Point_4th.x = le16_to_cpup((__le16 *)(ges_coor + 28));
 	gesture->Point_4th.y = le16_to_cpup((__le16 *)(ges_coor + 30));
 
-	goto exit;
-
-re_send_ges_cmd:
-	/* resend gesture cmd */
-	goodix_spi_write(gt, cmd_addr, ges_cmd, sizeof(ges_cmd));
-exit:
-	goodix_spi_write(gt, ges_addr, &clean_data, 1);
 	return 0;
 }
 static int gt_chip_get_touch_points(void *priv, struct point_info *points)
@@ -345,11 +517,12 @@ static int goodix_spi_read(struct gt_core *ts_data, unsigned int addr, unsigned 
 	ret = ts_data->bus_ops->spi_sync(ts_data->bus_ops, tx_buf, rx_buf, SPI_READ_PREFIX_LEN + len);
 	if (ret < 0) {
 		hbp_err("spi transfer error:%d",ret);
+		hbp_dev_healthinfo_report(ts_data, CHIPS_REPORT_GOODIX_SPI_READ_FAIL);
 		goto exit;
 	}
 	memcpy(data, &rx_buf[SPI_READ_PREFIX_LEN - 1], len);
-	mutex_unlock(&ts_data->bus_mutex);
 exit:
+	mutex_unlock(&ts_data->bus_mutex);
 	return ret;
 }
 
@@ -383,10 +556,11 @@ static int goodix_spi_write(struct gt_core *ts_data, unsigned int addr, unsigned
 
 	if (ret < 0) {
 		hbp_err("spi transfer error:%d",ret);
+		hbp_dev_healthinfo_report(ts_data, CHIPS_REPORT_GOODIX_SPI_WRITE_FAIL);
 		goto exit;
 	}
-	mutex_unlock(&ts_data->bus_mutex);
 exit:
+	mutex_unlock(&ts_data->bus_mutex);
 	return ret;
 }
 
@@ -397,65 +571,26 @@ static int gt_spi_sync(void *priv, char *tx, char *rx, int32_t len)
 	return gt->bus_ops->spi_sync(gt->bus_ops, tx, rx, len);
 }
 
-#define FRAME_HEAD_LEN				16
-#define FRAME_PROTOCOL_OLD			1
-#define FRAME_PROTOCOL_NEW			2
 static int gt_chip_get_frame(void *priv, u8 *raw, u32 rawsize)
 {
-	int ret = -EINVAL;
-	struct gt_core *ts_data;
-	u8 frame_head[FRAME_HEAD_LEN];
-	u16 frame_len;
-	static u8 protocol_type;
-
-	ts_data = (struct gt_core *)priv;
+	struct gt_core *ts_data = (struct gt_core *)priv;
 
 	if (!raw) {
 		hbp_err("get frame is error");
-		return ret;
-	}
-
-	goodix_spi_read(ts_data, ts_data->board_data.frame_addr, frame_head, sizeof(frame_head));
-	if (frame_head[0] != 0x80) {
-		hbp_err("invalid frame_head[0]:0x%02x\n", frame_head[0]);
-		hbp_err("invalid frame_head, %*ph\n", 16, frame_head);
 		return -1;
 	}
 
-	if (protocol_type == 0) {
-		if (checksum16_cmp(frame_head, 14, GOODIX_LE_MODE) == 0) {
-			protocol_type = FRAME_PROTOCOL_OLD;
-		} else if (checksum16_cmp(frame_head, FRAME_HEAD_LEN, GOODIX_LE_MODE) == 0) {
-			protocol_type = FRAME_PROTOCOL_NEW;
-		} else {
-			hbp_err("frame head checksum error, %*ph\n", FRAME_HEAD_LEN, frame_head);
-			return -1;
-		}
-	}
-
-	if (protocol_type == FRAME_PROTOCOL_OLD) {
-		if (checksum16_cmp(frame_head, 14, GOODIX_LE_MODE)) {
-			hbp_err("frame head checksum error, %*ph\n", 14, frame_head);
-			return -1;
-		}
-		frame_len = (frame_head[7] << 8) | frame_head[6];
-	} else if (protocol_type == FRAME_PROTOCOL_NEW) {
-		if (checksum16_cmp(frame_head, FRAME_HEAD_LEN, GOODIX_LE_MODE)) {
-			hbp_err("frame head checksum error, %*ph\n", FRAME_HEAD_LEN, frame_head);
-			return -1;
-		}
-		frame_len = (frame_head[4] << 8) | frame_head[3];
-	} else {
-		hbp_err("unknown protocol type %d", protocol_type);
+	if (ts_data->protocol_type == 0) {
+		hbp_err("protocol type is unknown");
 		return -1;
 	}
 
-	if (frame_len == 0 || frame_len > rawsize) {
-		hbp_err("invalid frame len:%d", frame_len);
+	if (ts_data->frame_len == 0 || ts_data->frame_len > rawsize) {
+		hbp_err("invalid frame len:%d", ts_data->frame_len);
 		return -1;
 	}
 
-	goodix_spi_read(ts_data, ts_data->board_data.frame_addr, raw, frame_len);
+	goodix_spi_read(ts_data, ts_data->board_data.frame_addr, raw, ts_data->frame_len);
 	return 0;
 }
 
@@ -482,23 +617,38 @@ static void gt_board_init(struct gt_core *gt, const char *ic_name)
 	}
 
 	if (strcmp(ic_name, "gt9966") == 0) {
+		hbp_info("Initializing board for GT9966");
 		gt->board_data.chip_type = GT9966;
 		gt->board_data.frame_addr = GOODIX_FRAME_ADDR_GT9966;
 		gt->board_data.ges_addr = 0x10274;
 		gt->board_data.cmd_addr = 0x10174;
 	} else if (strcmp(ic_name, "gt9916") == 0) {
+		hbp_info("Initializing board for GT9916");
 		gt->board_data.chip_type = GT9916;
 		gt->board_data.frame_addr = GOODIX_FRAME_ADDR_GT9916;
 		gt->board_data.ges_addr = 0x10308;
 		gt->board_data.cmd_addr = 0x10174;
 	} else if (strcmp(ic_name, "gt9926") == 0) {
+		hbp_info("Initializing board for GT9926");
 		gt->board_data.chip_type = GT9926;
 		gt->board_data.frame_addr = 0x10400;
 		gt->board_data.ges_addr = 0x10308;
 		gt->board_data.cmd_addr = 0x10174;
+	} else if (strcmp(ic_name, "gt9976") == 0) {
+		hbp_info("Initializing board for GT9976");
+		gt->board_data.chip_type = GT9976;
+		gt->board_data.frame_addr = 0x10474;
+		gt->board_data.ges_addr = 0x10374;
+		gt->board_data.cmd_addr = 0x10274;
 	} else {
 		hbp_err("unknown ic_name %s", ic_name);
 	}
+
+	hbp_info("board_data: chip_type=%d, frame_addr=0x%X, ges_addr=0x%X, cmd_addr=0x%X\n",
+		gt->board_data.chip_type,
+		gt->board_data.frame_addr,
+		gt->board_data.ges_addr,
+		gt->board_data.cmd_addr);
 }
 
 static int gt_dev_probe(struct platform_device *pdev)
@@ -567,6 +717,7 @@ static const struct of_device_id gt_dt_match[] = {
 	{.compatible = "goodix,gt9916", },
 	{.compatible = "goodix,gt9966", },
 	{.compatible = "goodix,gt9926", },
+	{.compatible = "goodix,gt9976", },
 	{},
 };
 
