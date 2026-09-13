@@ -29,10 +29,15 @@
 #include <linux/miscdevice.h>
 #include <linux/poll.h>
 
+#define FRAME_HEAD_LEN				16
+#define FRAME_PROTOCOL_OLD			1
+#define FRAME_PROTOCOL_NEW			2
+
 enum gt_chip_type {
 	GT9966 = 0,
 	GT9916,
-	GT9926
+	GT9926,
+	GT9976
 };
 
 
@@ -52,6 +57,8 @@ struct gt_core {
 	struct gt_board_data board_data;
 	struct miscdevice tool_misc_dev;
 	char tool_misc_dev_name[32];
+	u8 protocol_type;
+	u32 frame_len;
 };
 
 enum gesture_id {
@@ -95,11 +102,25 @@ enum gesture_id {
 #define GOODIX_M_GESTRUE                 0x6D
 #define GOODIX_W_GESTURE                 0x77
 
+/* gesture type for fingerprint start */
+#define GOODIX_COMPLEX_SMALL_AREA        0x41
+#define GOODIX_SIMPLE_AREA               0x42
+#define GOODIX_RELEASE_HOLD              0x44
+#define GOODIX_FINGERPRINT_ERR_REPORT   0x80
+#define GOODIX_TOUCH_HOLD_EARLY_DOWN 0x81
+
+/* gesture type for fingerprint end */
+
 #define GTP_SENSOR_ID_DEFAULT            255
 #define GTP_SENSOR_ID_ERR                0
 
-
-
+enum _FTS_FP_ERROR_TYPE {
+	FTS_FINGERPRINT_DOWN_BEFORE_FP_ENABLE = 0,
+	FTS_FINGERPRINT_X_Y_NOT_MATCH = 0x08,
+	FTS_FINGERPRINT_OUT_MOVE_IN = 0x04,
+	FTS_ANOTHER_FINGER_ON_NON_FP_ZONE = 0x02,
+	FTS_FINGERPRINT_AREA_NOT_MATCH = 0x01,
+};
 struct goodix_thp_hw_ops {
 	int (*read)(struct gt_core *ts_data, unsigned int addr, unsigned char *data, unsigned int len);
 	int (*write)(struct gt_core *ts_data, unsigned int addr, unsigned char *data, unsigned int len);
