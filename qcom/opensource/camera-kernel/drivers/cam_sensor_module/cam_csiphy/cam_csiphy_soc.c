@@ -26,6 +26,7 @@
 #include "include/cam_csiphy_2_3_0_hwreg_piloti_ultrawide.h"
 #include "include/cam_csiphy_2_3_0_hwreg_piloti_main.h"
 #include "include/cam_csiphy_2_3_0_hwreg_ktm_main.h"
+#include "include/cam_csiphy_2_2_1_hwreg_vwMain.h"
 #endif
 
 /* Clock divide factor for CPHY spec v1.0 */
@@ -417,6 +418,11 @@ int32_t cam_csiphy_parse_dt_info(struct platform_device *pdev,
         } else if (of_device_is_compatible(soc_info->dev->of_node, "qcom,csiphy-pilotimain")) {
 		csiphy_dev->ctrl_reg = &ctrl_reg_2_3_0_piloti_main;
 		csiphy_dev->hw_version = CSIPHY_VERSION_V230_PILOTI_MAIN;
+		csiphy_dev->is_divisor_32_comp = true;
+		csiphy_dev->clk_lane = 0;
+	} else if (of_device_is_compatible(soc_info->dev->of_node, "qcom,csiphy-vwMain")) {
+		csiphy_dev->ctrl_reg = &ctrl_reg_2_2_1_vwMain;
+		csiphy_dev->hw_version = CSIPHY_VERSION_V221_VW_MAIN;
 		csiphy_dev->is_divisor_32_comp = true;
 		csiphy_dev->clk_lane = 0;
 	} else if (of_device_is_compatible(soc_info->dev->of_node, "qcom,csiphy-ktm")) {
