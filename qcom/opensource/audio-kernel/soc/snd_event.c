@@ -395,7 +395,11 @@ int snd_event_master_register(struct device *dev,
 
 	ret = snd_event_find_clients(master);
 	if (ret) {
+#ifdef OPLUS_ARCH_EXTENDS
+		dev_err(dev, "%s: Failed to find all clients\n", __func__);
+#else
 		dev_dbg(dev, "%s: Failed to find all clients\n", __func__);
+#endif
 		ret = 0;
 		goto exit;
 	}
