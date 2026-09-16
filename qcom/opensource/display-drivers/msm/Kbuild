@@ -44,6 +44,9 @@ ifeq ($(CONFIG_ARCH_QTI_VM), y)
 else
 	include $(DISPLAY_ROOT)/config/gki_sundisp.conf
 	LINUX_INC += -include $(DISPLAY_ROOT)/config/gki_sundispconf.h
+ifeq ($(CONFIG_HUMMER_DTB), y)
+	ccflags-y += -DOPLUS_FEATURE_DISPLAY_ROI_ALIGN
+endif
 endif
 endif
 
