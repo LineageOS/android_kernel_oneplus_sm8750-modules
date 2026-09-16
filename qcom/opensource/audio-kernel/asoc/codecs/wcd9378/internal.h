@@ -11,6 +11,7 @@
 #include <asoc/wcd-irq.h>
 #include <asoc/wcd-clsh.h>
 #include <soc/soundwire.h>
+#include <asoc/sdca-registers-api.h>
 #include "wcd9378-mbhc.h"
 #include "wcd9378.h"
 
@@ -97,6 +98,8 @@ struct wcd9378_priv {
 	struct wcd_clsh_cdc_info clsh_info;
 	/* mbhc module */
 	struct wcd9378_mbhc *mbhc;
+	struct sdca_debugfs_info *debugfs_info;
+	struct sdca_regdump_info *regdump_info;
 
 	u32 hph_mode;
 	u16 hph_gain;
@@ -214,6 +217,10 @@ enum {
 	WCD9378_IRQ_SAPU_PROT_MODE_CHG,
 	WCD9378_NUM_IRQS,
 };
+
+extern void sdca_devices_debugfs_dentry_create(struct sdca_debugfs_info *debugfs_info,
+				struct sdca_regdump_info *regdump_info);
+extern void sdca_devices_debugfs_dentry_remove(struct sdca_debugfs_info *debugfs_info);
 
 extern struct wcd9378_mbhc *wcd9378_soc_get_mbhc(
 				struct snd_soc_component *component);
