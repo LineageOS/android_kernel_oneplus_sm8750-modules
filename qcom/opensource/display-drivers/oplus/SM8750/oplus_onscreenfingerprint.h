@@ -116,6 +116,7 @@ enum oplus_ofp_longrui_aod_config {					/* hardware capability */
 	OPLUS_OFP_NORMAL_TO_AOD_CONFIG = BIT(0),
 	OPLUS_OFP_A_MIRROR_TO_THE_END_AOD_CONFIG = BIT(1),
 	OPLUS_OFP_FULL_SCREEN_AOD_CONFIG = BIT(2),
+	OPLUS_OFP_FULL_SCREEN_ALL_DAY_AOD_CONFIG = BIT(3),
 };
 
 enum oplus_ofp_longrui_aod_mode {					/* system setting */
@@ -198,6 +199,7 @@ struct oplus_ofp_params {
 	struct work_struct aod_off_set_work;			/* a work struct used to send aod off cmds to speed up aod unlocking */
 	struct notifier_block touchpanel_event_notifier;/* add for touchpanel event notifier */
 	bool aod_layer_disappeard_bl_ready;
+	bool ilitek_write_cmd_before_refresh_rate30hz;	/* ILITEK ramless IC aod on reg needs to be issued before 30hz frame rate */
 	/* add for enter aod change brightness by light sensor*/
 	bool video_mode_aod_brightness_change_enable;
 	u32 video_mode_aod_brightness_value_count;

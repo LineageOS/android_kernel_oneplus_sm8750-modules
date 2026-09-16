@@ -64,6 +64,14 @@ int oplus_panel_cmd_print(struct dsi_panel *panel, enum dsi_cmd_set_type type);
 int oplus_panel_cmd_switch(struct dsi_panel *panel, enum dsi_cmd_set_type *type);
 
 /**
+ * oplus_panel_video_mode_aod_off_cmd_switch() - oplus panel command switch
+ * @panel: Display panel
+ * @type:  Pointer of command type
+ * Return: Zero on Success
+ */
+int oplus_panel_video_mode_aod_off_cmd_switch(struct dsi_panel *panel, enum dsi_cmd_set_type *type);
+
+/**
  * oplus_ctrl_print_cmd_desc() - oplus command desc printf
  * @dsi_ctrl: Dsi ctrl
  * @cmd: Dsi command set

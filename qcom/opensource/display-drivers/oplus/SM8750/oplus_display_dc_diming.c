@@ -408,7 +408,6 @@ oplus_panel_update_seed_backlight(struct dsi_panel *panel, int brightness,
 			type != DSI_CMD_SEED_MODE1 &&
 			type != DSI_CMD_SEED_MODE2 &&
 			type != DSI_CMD_SEED_MODE3 &&
-			type != DSI_CMD_SEED_MODE4 &&
 			type != DSI_CMD_SEED_OFF) {
 		return NULL;
 	}

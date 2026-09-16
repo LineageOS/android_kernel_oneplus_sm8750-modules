@@ -699,7 +699,9 @@ int oplus_panel_pwm_dbv_threshold_switch_tx_cmd(struct dsi_panel *panel)
 	case PWM_STATE_L1:
 		switch(cur_state) {
 		case PWM_STATE_L2:
+#ifdef OPLUS_FEATURE_DISPLAY_PWM_EXTEND
 			pwm_switch_cmd  = DSI_CMD_PWM_STATE_L1TOL2;
+#endif /* #ifdef OPLUS_FEATURE_DISPLAY_PWM_EXTEND */
 			break;
 		case PWM_STATE_L3:
 			pwm_switch_cmd	= DSI_CMD_PWM_STATE_L1TOL3;
@@ -709,7 +711,9 @@ int oplus_panel_pwm_dbv_threshold_switch_tx_cmd(struct dsi_panel *panel)
 	case PWM_STATE_L2:
 		switch(cur_state) {
 		case PWM_STATE_L1:
+#ifdef OPLUS_FEATURE_DISPLAY_PWM_EXTEND
 			pwm_switch_cmd  = DSI_CMD_PWM_STATE_L2TOL1;
+#endif /* #ifdef OPLUS_FEATURE_DISPLAY_PWM_EXTEND */
 			break;
 		case PWM_STATE_L3:
 			pwm_switch_cmd	= DSI_CMD_PWM_STATE_L2TOL3;
