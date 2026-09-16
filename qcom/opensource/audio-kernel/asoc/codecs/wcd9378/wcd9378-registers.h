@@ -899,4 +899,7 @@ enum {
 #define SWRS_SCP_SDCA_INTRTYPE_2               (0x000000f8)
 #define SWRS_SCP_SDCA_INTRTYPE_3               (0x000000fc)
 
+extern bool wcd9378_sdca_readable_register(unsigned int reg);
+extern bool wcd9378_sdca_writeable_register(unsigned int reg);
+
 #endif /* WCD9378_REGISTERS_H */
