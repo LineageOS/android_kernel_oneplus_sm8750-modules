@@ -237,6 +237,9 @@ audio_modules.register(
             ":%b_oplus_audio_netlink",
 # Add for oplus_set_sound_card_init_done dependency
             ":%b_adsp_loader_dlkm",
+# Add for sipa driver dependency
+            ":sipa_headers",
+            ":%b_oplus_audio_sipa",
 	],
 )
 # >>>> ASOC/CODEC MODULES <<<<

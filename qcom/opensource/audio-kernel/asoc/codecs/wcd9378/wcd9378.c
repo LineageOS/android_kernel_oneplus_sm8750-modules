@@ -4072,7 +4072,10 @@ static const struct snd_soc_dapm_route wcd9378_audio_map[] = {
 	{"AUX_RDAC", NULL, "DAC2"},
 	{"SA SEQUENCER", NULL, "AUX_RDAC"},
 	{"AUX_MIXER", "Switch", "SA SEQUENCER",},
+#ifndef CONFIG_SND_SOC_OPLUS_PA_MANAGER
+	/* 2024/11/28, modify for wcd9378 use damp avoid noise issues */
 	{"AUX PGA", NULL, "AUX_MIXER"},
+	#endif /* CONFIG_SND_SOC_OPLUS_PA_MANAGER */
 	{"AUX", NULL, "AUX PGA"},
 };
 
