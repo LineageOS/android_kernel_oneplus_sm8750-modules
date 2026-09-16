@@ -1694,10 +1694,10 @@ static void sde_encoder_phys_cmd_tearcheck_config(struct sde_encoder_phys *phys_
 #ifdef OPLUS_FEATURE_DISPLAY_ADFR
 	if (!oplus_adfr_is_oa_use_fixed_te(phys_enc)) {
 #endif /* OPLUS_FEATURE_DISPLAY_ADFR */
-	if (qsync_mode && cmd_enc->base.hw_intf->ops.enable_te_level_trigger &&
-			!sde_enc->disp_info.is_te_using_watchdog_timer)
-		cmd_enc->base.hw_intf->ops.enable_te_level_trigger(cmd_enc->base.hw_intf,
-			qsync_mode && !panel_dead);
+		if (qsync_mode && cmd_enc->base.hw_intf->ops.enable_te_level_trigger &&
+				!sde_enc->disp_info.is_te_using_watchdog_timer)
+			cmd_enc->base.hw_intf->ops.enable_te_level_trigger(cmd_enc->base.hw_intf,
+				qsync_mode && !panel_dead);
 #ifdef OPLUS_FEATURE_DISPLAY_ADFR
 	}
 #endif /* OPLUS_FEATURE_DISPLAY_ADFR */

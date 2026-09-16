@@ -101,6 +101,11 @@ static int oplus_panel_parse_common_config(struct dsi_panel *panel)
 		OPLUS_DSI_INFO("oplus,pcd-lvd-check-time-gap is not config, default 0\n");
 	}
 
+	panel->oplus_panel.all_timing_switch_frame_delay = utils->read_bool(utils->data,
+			"oplus,panel-all-timing-switch-frame-delay");
+	OPLUS_DSI_INFO("oplus,panel-all-timing-switch-frame-delay: %s\n",
+			panel->oplus_panel.all_timing_switch_frame_delay ? "true" : "false");
+
 	return 0;
 }
 
@@ -341,10 +346,6 @@ int oplus_panel_parse_features_config(struct dsi_panel *panel)
 	OPLUS_DSI_INFO("oplus,bl-use-ktz8868-ic-ctrl: %s\n",
 		panel->oplus_panel.bl_ic_ktz8868_used ? "true" : "false");
 
-	panel->oplus_panel.white_point_compensation_enabled = utils->read_bool(utils->data,
-			"oplus,dsi-white-point-compensation-enabled");
-	OPLUS_DSI_INFO("oplus,dsi-white-point-compensation-enabled: %s\n", panel->oplus_panel.white_point_compensation_enabled ? "true" : "false");
-
 	panel->oplus_panel.mipi_reset_enable = utils->read_bool(utils->data,
 		"oplus,mipi-reset-enable");
 	OPLUS_DSI_INFO("oplus,mipi-reset-enable: %s\n",
@@ -359,6 +360,29 @@ int oplus_panel_parse_features_config(struct dsi_panel *panel)
 		"oplus,video-mode-fps-switch-compenstate-enable");
 	OPLUS_DSI_INFO("oplus,video-mode-fps-switch-compenstate-enable: %s\n",
 		panel->oplus_panel.vid_fps_switch_compenstate_enable ? "true" : "false");
+
+	panel->oplus_panel.ofp_configuration_enable_for_ili7838e = utils->read_bool(utils->data,
+		"oplus,ofp-configuration-enable-for-ili7838E");
+	OPLUS_DSI_INFO("ofp-configuration-enable-for-ili7838E: %s\n",
+		panel->oplus_panel.ofp_configuration_enable_for_ili7838e ? "true" : "false");
+
+	panel->oplus_panel.doze_disable_esdcheck = utils->read_bool(utils->data,
+		"oplus,doze_disable_esdcheck");
+	OPLUS_DSI_INFO("oplus,doze_disable_esdcheck: %s\n",
+		panel->oplus_panel.doze_disable_esdcheck ? "true" : "false");
+
+	panel->oplus_panel.ramless_aod_mode_cmd_switch_support = utils->read_bool(utils->data,
+			"oplus,ramless_aod_mode_cmd_switch_support");
+	OPLUS_DSI_INFO("oplus,ramless_aod_mode_cmd_switch_support: %s\n",
+			panel->oplus_panel.ramless_aod_mode_cmd_switch_support ? "true" : "false");
+
+	panel->oplus_panel.disalbe_aod_recovery = utils->read_bool(utils->data,
+		"oplus,disalbe-aod-recovery");
+
+	panel->oplus_panel.interval_time_fps_to_esd_flag = utils->read_bool(utils->data,
+			"oplus,interval-time-switch-fps-to-esd");
+	OPLUS_DSI_INFO("oplus,interval-time-switch-fps-to-esd: %s\n",
+			panel->oplus_panel.interval_time_fps_to_esd_flag ? "true" : "false");
 
 	return 0;
 }

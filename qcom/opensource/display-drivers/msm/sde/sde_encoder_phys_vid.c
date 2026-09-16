@@ -1646,7 +1646,8 @@ static int sde_encoder_phys_vid_control_vblank_irq(
 		}
 	} else if (!enable &&
 			atomic_dec_return(&phys_enc->vblank_refcount) == 0) {
-                ret = sde_encoder_helper_unregister_irq(phys_enc, INTR_IDX_VSYNC);
+		ret = sde_encoder_helper_unregister_irq(phys_enc,
+				INTR_IDX_VSYNC);
 		g_vbif_counters_enabled = 0;
 		if (ret)
 			atomic_inc_return(&phys_enc->vblank_refcount);
@@ -2381,7 +2382,11 @@ static int sde_encoder_phys_vid_prepare_for_kickoff(
 				sde_encoder_helper_unregister_irq(
 					phys_enc, INTR_IDX_VSYNC);
 
-			SDE_DBG_DUMP(SDE_DBG_BUILT_IN_ALL);
+			if (get_eng_version() == FACTORY || get_eng_version() == AGING || get_eng_version() == HIGH_TEMP_AGING) {
+				SDE_DBG_DUMP(SDE_DBG_BUILT_IN_ALL, "panic");
+			} else {
+				SDE_DBG_DUMP(SDE_DBG_BUILT_IN_ALL);
+			}
 
 			if (irq_enable)
 				sde_encoder_helper_register_irq(
@@ -2942,8 +2947,8 @@ void sde_encoder_phys_vid_cesta_ctrl_cfg(struct sde_encoder_phys *phys_enc,
 	cfg->intf = phys_enc->intf_idx - INTF_0;
 	cfg->auto_active_on_panic = true;
 	cfg->req_mode = qsync_en ? SDE_CESTA_CTRL_REQ_IMMEDIATE : SDE_CESTA_CTRL_REQ_PANIC_REGION;
-	cfg->hw_sleep_enable = !(phys_enc->sde_kms->splash_data.num_splash_displays
-			|| disable_hw_sleep);
+	cfg->hw_sleep_enable = !(phys_enc->sde_kms->splash_data.num_splash_displays ||
+			disable_hw_sleep);
 
 	if ((phys_enc->split_role == DPU_MASTER_ENC_ROLE_MASTER)
 			|| (phys_enc->split_role == DPU_SLAVE_ENC_ROLE_MASTER))

@@ -15,7 +15,7 @@
 #include "oplus_display_device_ioctl.h"
 
 void oplus_panel_switch_vid_mode(struct dsi_display *display, struct dsi_display_mode *mode);
-void oplus_panel_switch_vid_mode_post(struct dsi_display *display, struct dsi_display_mode *mode);
+void oplus_panel_switch_vid_mode_post(struct dsi_display *display, struct dsi_display_mode *mode, bool flag);
 
 /**
  * oplus_panel_init() - oplus panel init

@@ -1460,9 +1460,9 @@ static struct iris_scl_conf {
 
 static uint32_t iris_expected_ioinc_tap[SCL_DATA_PATH_CNT] = {IOINC_TAG5, IOINC_TAG5};
 static uint32_t iris_expected_strategy[SCL_DATA_PATH_CNT] = {SCL_2D_ONLY, SCL_2D_ONLY};
-static uint32_t iris_cnn_using_model = CNN_NORMAL_MODEL1; /* Default model */
-static uint32_t iris_cnn_loaded_models[CNN_DMA_BUF_CNT] = {CNN_NORMAL_MODEL2, CNN_NORMAL_MODEL1};
-static uint32_t iris_cnn_models[SCL_DATA_PATH_CNT] = {CNN_NORMAL_MODEL1, CNN_NORMAL_MODEL1};
+static uint32_t iris_cnn_using_model = CNN_NORMAL_MODEL3; /* Default model */
+static uint32_t iris_cnn_loaded_models[CNN_DMA_BUF_CNT] = {CNN_NORMAL_MODEL4, CNN_NORMAL_MODEL3};
+static uint32_t iris_cnn_models[SCL_DATA_PATH_CNT] = {CNN_NORMAL_MODEL3, CNN_NORMAL_MODEL3};
 static uint32_t iris_sr2d_using_level[SCL_2D_PQ_CNT] = {0, 0, 0, 0};
 static uint32_t iris_sr2d_level[SCL_DATA_PATH_CNT][SCL_2D_PQ_CNT] = {{0, 0, 0, 0}, {0, 0, 0, 0}};
 static bool iris_ptsr_1to1;
@@ -1471,7 +1471,7 @@ static uint8_t *iris_dynamic_model;
 static uint32_t iris_expect_model_size;
 static uint32_t iris_loaded_model_size;
 static uint32_t iris_ioinc_filter[FILTER_GROUP_CNT] = {16, 16};
-static uint32_t iris_dynamic_model_index = CNN_NORMAL_MODEL1;
+static uint32_t iris_dynamic_model_index = CNN_NORMAL_MODEL3;
 static bool iris_need_trig_dynamic_model;
 static int32_t iris_aux_h;
 static int32_t iris_aux_v;
@@ -1584,15 +1584,14 @@ static void _iris_scl_reset_param(void)
 	_iris_scl_conf[SCL_DATA_PATH1].sr_out_v = pcfg->frc_setting.disp_vres;
 	_iris_scl_conf[SCL_DATA_PATH1].sr_sel_mode = PATH_SEL_META;
 
-	memset(iris_sr2d_using_level, 0, sizeof(uint32_t) * SCL_2D_PQ_CNT);
 	memset(iris_sr2d_level, 0, sizeof(uint32_t) * SCL_DATA_PATH_CNT * SCL_2D_PQ_CNT);
 	iris_expected_strategy[SCL_DATA_PATH0] = SCL_2D_ONLY;
 	iris_force_memc_strategy = false;
-	iris_cnn_using_model = CNN_NORMAL_MODEL1;
-	iris_cnn_loaded_models[CNN_DMA_BUF_LEFT] = CNN_NORMAL_MODEL2;
-	iris_cnn_loaded_models[CNN_DMA_BUF_RIGHT] = CNN_NORMAL_MODEL1;
-	iris_cnn_models[SCL_DATA_PATH0] = CNN_NORMAL_MODEL1;
-	iris_cnn_models[SCL_DATA_PATH1] = CNN_NORMAL_MODEL1;
+	iris_cnn_using_model = CNN_NORMAL_MODEL3;
+	iris_cnn_loaded_models[CNN_DMA_BUF_LEFT] = CNN_NORMAL_MODEL4;
+	iris_cnn_loaded_models[CNN_DMA_BUF_RIGHT] = CNN_NORMAL_MODEL3;
+	iris_cnn_models[SCL_DATA_PATH0] = CNN_NORMAL_MODEL3;
+	iris_cnn_models[SCL_DATA_PATH1] = CNN_NORMAL_MODEL3;
 	iris_ptsr_1to1 = false;
 
 	payload = iris_get_ipopt_payload_data(IRIS_IP_IOINC1D, 0x00, 2);
@@ -1686,7 +1685,7 @@ static void _iris_scl_setting_off(void)
 {
 	IRIS_LOGI("%s()", __func__);
 
-	iris_dynamic_model_index = CNN_NORMAL_MODEL1;
+	iris_dynamic_model_index = CNN_NORMAL_MODEL3;
 	iris_need_trig_dynamic_model = false;
 }
 
@@ -3280,7 +3279,7 @@ static bool _iris_trig_dynamic_model(void)
 
 	_iris_scl_change_model_proc(iris_dynamic_model_index);
 	iris_need_trig_dynamic_model = false;
-	iris_dynamic_model_index = CNN_NORMAL_MODEL1;
+	iris_dynamic_model_index = CNN_NORMAL_MODEL3;
 
 	return true;
 }
