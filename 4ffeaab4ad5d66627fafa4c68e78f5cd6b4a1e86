@@ -16,6 +16,29 @@
       "message": "Stock kernel doesn\u0027t do that. from where you took it?\n\nhttps://github.com/OnePlusOSS/android_kernel_modules_and_devicetree_oneplus_sm8750/blob/48d6e0ff154ed2c63ec35d6b1d807df69e73c636/vendor/qcom/opensource/display-drivers/msm/sde/sde_connector.c#L2232",
       "revId": "4ffeaab4ad5d66627fafa4c68e78f5cd6b4a1e86",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "23c46759_2d85ed7d",
+        "filename": "qcom/opensource/display-drivers/msm/Kbuild",
+        "patchSetId": 1
+      },
+      "lineNbr": 47,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2026-09-16T20:48:40Z",
+      "side": 1,
+      "message": "I really dislike re-using this here.",
+      "range": {
+        "startLine": 47,
+        "startChar": 8,
+        "endLine": 47,
+        "endChar": 25
+      },
+      "revId": "4ffeaab4ad5d66627fafa4c68e78f5cd6b4a1e86",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
