@@ -237,6 +237,9 @@ audio_modules.register(
             ":%b_oplus_audio_netlink",
 # Add for oplus_set_sound_card_init_done dependency
             ":%b_adsp_loader_dlkm",
+# Add for sipa driver dependency
+            ":sipa_headers",
+            ":%b_oplus_audio_sipa",
 	],
 )
 # >>>> ASOC/CODEC MODULES <<<<
@@ -284,6 +287,12 @@ audio_modules.register(
 # Add for oplus_daemon_adsp_ssr dependency
     deps = [":%b_adsp_loader_dlkm",
     ],
+)
+audio_modules.register(
+    name = "sdca_registers_dlkm",
+    path = ASOC_CODECS_PATH,
+    config_option = "CONFIG_SND_SOC_SDCA_REGISTERS",
+    srcs = ["sdca-registers-api.c"]
 )
 audio_modules.register(
     name = "swr_dmic_dlkm",
@@ -588,6 +597,7 @@ audio_modules.register(
             ":%b_wcd_core_dlkm",
             ":%b_wcd9xxx_dlkm",
             ":%b_swr_dlkm",
+            ":%b_sdca_registers_dlkm",
 # Add for oplus_daemon_adsp_ssr dependency
             ":%b_oplus_audio_daemon",
 	],

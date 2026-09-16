@@ -86,7 +86,8 @@ ddk_headers(
     name = "sipa_headers",
     hdrs = glob([
         "oplus/codecs/sipa/*.h"
-    ])
+    ]),
+    includes = ["oplus/codecs/sipa"]
 )
 ddk_headers(
     name = "oplus_speaker_headers",
