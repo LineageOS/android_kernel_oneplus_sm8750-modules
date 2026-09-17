@@ -20,6 +20,24 @@
     {
       "unresolved": true,
       "key": {
+        "uuid": "4fea09b4_2c0da928",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 37504
+      },
+      "writtenOn": "2026-09-17T00:49:53Z",
+      "side": 1,
+      "message": "But Hummer has limitations. I should have made it very clear in the instructions. Without bypassing this check, the log will repeatedly report errors: E: [drm:sde_connector_roi_v1_check_roi:2249] [sde error] conn68 invalid conn ROI height 260 min 60 align 60",
+      "parentUuid": "e81ba440_15b049d6",
+      "revId": "4ffeaab4ad5d66627fafa4c68e78f5cd6b4a1e86",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
         "uuid": "23c46759_2d85ed7d",
         "filename": "qcom/opensource/display-drivers/msm/Kbuild",
         "patchSetId": 1
