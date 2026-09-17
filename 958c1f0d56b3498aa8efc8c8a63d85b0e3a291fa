@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "df206297_62b6780c",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 3
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2026-09-17T20:32:22Z",
+      "side": 1,
+      "message": "This should go to qcom_sm8750-modules",
+      "revId": "958c1f0d56b3498aa8efc8c8a63d85b0e3a291fa",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
