@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "2919accf_545a3e75",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 35436
+      },
+      "writtenOn": "2026-09-17T19:47:24Z",
+      "side": 1,
+      "message": "needs sdca_registers_dlkm.ko not to be merge until added in modules list device side",
+      "revId": "d3f9655411903a12816e93136a28e836e7fdb8b4",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
