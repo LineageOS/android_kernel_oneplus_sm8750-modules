@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "9bda7034_e1a36d63",
+        "filename": "qcom/opensource/camera-kernel/drivers/cam_sensor_module/cam_csiphy/cam_csiphy_soc.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 4,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2026-09-17T20:10:20Z",
+      "side": 1,
+      "message": "Please check what is being reverted here.",
+      "revId": "f5818841295d126b574e9d8d416d2c81ab017fe5",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
