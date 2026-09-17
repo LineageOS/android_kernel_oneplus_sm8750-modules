@@ -38,6 +38,24 @@
     {
       "unresolved": true,
       "key": {
+        "uuid": "5f356c02_52632bcf",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 37504
+      },
+      "writtenOn": "2026-09-17T00:52:33Z",
+      "side": 1,
+      "message": "I don\u0027t have a better solution either. If there was a better fix, I would be happy to use it.",
+      "parentUuid": "4fea09b4_2c0da928",
+      "revId": "4ffeaab4ad5d66627fafa4c68e78f5cd6b4a1e86",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
         "uuid": "23c46759_2d85ed7d",
         "filename": "qcom/opensource/display-drivers/msm/Kbuild",
         "patchSetId": 1
