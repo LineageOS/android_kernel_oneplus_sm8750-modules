@@ -56,6 +56,24 @@
       },
       "revId": "04d0c9e23dbde082236b3cc6ae2f2ee891dd6eef",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "dbe8673d_18750b8b",
+        "filename": "qcom/opensource/wlan/platform/icnss2/qmi.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 1155,
+      "author": {
+        "id": 35436
+      },
+      "writtenOn": "2026-09-17T19:53:15Z",
+      "side": 1,
+      "message": "my bad",
+      "parentUuid": "89085527_c0e6bc91",
+      "revId": "04d0c9e23dbde082236b3cc6ae2f2ee891dd6eef",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
