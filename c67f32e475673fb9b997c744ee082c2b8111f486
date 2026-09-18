@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "7703e83d_3bfd6f66",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 38074
+      },
+      "writtenOn": "2026-09-18T15:34:38Z",
+      "side": 1,
+      "message": "This patch is needed on pagani (OnePlus 13T) to properly trigger LHBM with the related HWC changes.",
+      "revId": "c67f32e475673fb9b997c744ee082c2b8111f486",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
