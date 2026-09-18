@@ -671,7 +671,7 @@ int oplus_ofp_property_update(void *sde_connector, void *sde_connector_state, in
 	OPLUS_OFP_TRACE_BEGIN("oplus_ofp_property_update");
 
 	switch (prop_id) {
-	case CONNECTOR_PROP_HBM_ENABLE:
+	case CONNECTOR_PROP_HBM_ENABLE: {
 		if (prop_val != p_oplus_ofp_params->hbm_enable) {
 			OFP_INFO("HBM_ENABLE:%llu,dim:%llu,fingerpress:%llu,icon:%llu,aod:%llu\n", prop_val, (prop_val & OPLUS_OFP_PROPERTY_DIM_LAYER),
 				(prop_val & OPLUS_OFP_PROPERTY_FINGERPRESS_LAYER), (prop_val & OPLUS_OFP_PROPERTY_ICON_LAYER),
@@ -688,7 +688,12 @@ int oplus_ofp_property_update(void *sde_connector, void *sde_connector_state, in
 		OPLUS_OFP_TRACE_INT("oplus_ofp_hbm_enable", p_oplus_ofp_params->hbm_enable);
 
 		msm_property_set_dirty(&c_conn->property_info, &c_state->property_state, CONNECTOR_PROP_HBM_ENABLE);
+
+		int value = !!prop_val;
+		oplus_ofp_notify_fp_press(&value);
+
 		break;
+	}
 
 	default:
 		break;
