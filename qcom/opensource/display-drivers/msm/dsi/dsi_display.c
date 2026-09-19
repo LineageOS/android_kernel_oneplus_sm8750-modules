@@ -4672,6 +4672,14 @@ static int dsi_display_res_init(struct dsi_display *display)
 
 	return 0;
 error_panel_put:
+#if defined(OPLUS_FEATURE_DISPLAY_ONSCREENFINGERPRINT) && \
+	defined(OPLUS_OFP_HAS_UIREADY_COMPAT) && \
+	defined(OPLUS_OFP_UIREADY_COMPAT) && OPLUS_OFP_UIREADY_COMPAT == 1
+	/* Activation follows successful device init. This session has never
+	 * published OFP work, so partial cleanup keeps display_lock held.
+	 */
+	oplus_ofp_cleanup_partial(display->panel);
+#endif
 	dsi_panel_put(display->panel);
 error_ctrl_put:
 	for (i = i - 1; i >= 0; i--) {
@@ -5776,6 +5784,13 @@ static int _dsi_display_dev_init(struct dsi_display *display)
 		oplus_adfr_register_test_te_irq(display);
 #endif /* OPLUS_FEATURE_DISPLAY_ADFR */
 
+#if defined(OPLUS_FEATURE_DISPLAY_ONSCREENFINGERPRINT) && \
+	defined(OPLUS_OFP_HAS_UIREADY_COMPAT) && \
+	defined(OPLUS_OFP_UIREADY_COMPAT) && OPLUS_OFP_UIREADY_COMPAT == 1
+	/* All device-init failure paths precede OFP publication. */
+	oplus_ofp_activate(display->panel);
+#endif
+
 error:
 	mutex_unlock(&display->display_lock);
 	return rc;
@@ -5796,6 +5811,12 @@ static int _dsi_display_dev_deinit(struct dsi_display *display)
 		return -EINVAL;
 	}
 
+#if defined(OPLUS_FEATURE_DISPLAY_ONSCREENFINGERPRINT) && \
+	defined(OPLUS_OFP_HAS_UIREADY_COMPAT) && \
+	defined(OPLUS_OFP_UIREADY_COMPAT) && OPLUS_OFP_UIREADY_COMPAT == 1
+	/* OFP workers may need display_lock: stop before taking it. */
+	oplus_ofp_stop(display->panel);
+#endif
 	mutex_lock(&display->display_lock);
 
 	rc = dsi_display_res_deinit(display);

@@ -68,6 +68,225 @@ unsigned int oplus_ofp_display_id = OPLUS_OFP_PRIMARY_DISPLAY;
 EXPORT_SYMBOL(oplus_ofp_display_id);
 /* ofp global structure */
 static struct oplus_ofp_params g_oplus_ofp_params[2] = {0};
+/* These slots outlive panels. Existing IRQ/display lifetime and old-callback
+ * current-slot contamination remain display-subsystem responsibilities.
+ * Locks are initialized statically, never reinitialized on panel reprobe.
+ */
+static struct ofp_uiready_owner g_ofp_uiready_owners[ARRAY_SIZE(g_oplus_ofp_params)] = {
+	[OPLUS_OFP_PRIMARY_DISPLAY] = {
+		.state_lock = __SPIN_LOCK_UNLOCKED(g_ofp_uiready_owners[0].state_lock),
+	},
+	[OPLUS_OFP_SECONDARY_DISPLAY] = {
+		.state_lock = __SPIN_LOCK_UNLOCKED(g_ofp_uiready_owners[1].state_lock),
+	},
+};
+
+static void ofp_owned_uiready_work_handler(struct work_struct *work_item);
+
+static unsigned int ofp_owner_id(struct ofp_uiready_owner *owner)
+{
+	return owner - g_ofp_uiready_owners;
+}
+
+static struct ofp_uiready_owner *ofp_owner_for_params(struct oplus_ofp_params *params)
+{
+	if (!params || !READ_ONCE(params->uiready_compat))
+		return NULL;
+	return &g_ofp_uiready_owners[params - g_oplus_ofp_params];
+}
+
+static struct ofp_uiready_owner *ofp_owner_for_panel(struct dsi_panel *panel)
+{
+	unsigned int i;
+
+	if (!panel)
+		return NULL;
+	/* A partial dsi_panel_get() failure may precede OFP construction. */
+	for (i = 0; i < ARRAY_SIZE(g_ofp_uiready_owners); i++) {
+		if (READ_ONCE(g_ofp_uiready_owners[i].panel) == panel)
+			return &g_ofp_uiready_owners[i];
+	}
+	return NULL;
+}
+
+/* All request transitions and their sequence numbers are under state_lock. */
+static void ofp_request_terminal(struct ofp_uiready_request *request)
+{
+	request->state = OFP_REQUEST_EMPTY;
+}
+
+static void ofp_request_cancel(struct ofp_uiready_owner *owner,
+		struct ofp_uiready_request *request)
+{
+	if (request->state != OFP_REQUEST_PENDING)
+		return;
+	if (oplus_ofp_log_now_level >= OPLUS_OFP_LOG_LEVEL_INFO)
+		++owner->transition_seq;
+	ofp_request_terminal(request);
+}
+
+/* IRQ-safe; caller owns state_lock. No allocation and no acceptance failure. */
+static void ofp_submit_uiready_locked(struct ofp_uiready_owner *owner,
+		unsigned int value, bool level_change, bool rearm)
+{
+	struct ofp_uiready_request request = {
+		.request_id = ++owner->next_request_id,
+		.touch_id = value == OPLUS_OFP_UI_READY && rearm && !level_change ?
+			owner->touch_id : 0,
+		.value = value,
+		.reason = (level_change ? OFP_REASON_LEVEL : 0) |
+			(rearm ? OFP_REASON_REARM : 0) |
+			(value == OPLUS_OFP_UI_DISAPPEAR ? OFP_REASON_OFF : 0),
+		.state = OFP_REQUEST_PENDING,
+	};
+	struct ofp_uiready_request *pending;
+
+	if (value == OPLUS_OFP_UI_DISAPPEAR) {
+		ofp_request_cancel(owner, &owner->pending_ready);
+		pending = &owner->pending_off;
+	} else {
+		pending = &owner->pending_ready;
+	}
+	if (pending->state == OFP_REQUEST_PENDING) {
+		pending->reason |= request.reason;
+		if (!request.touch_id)
+			pending->touch_id = 0;
+		ofp_request_terminal(&request);
+	} else {
+		*pending = request;
+	}
+	/* Publication must finish before STOPPING can acquire this lock. */
+	queue_work(owner->uiready_wq, &owner->uiready_work);
+}
+
+void oplus_ofp_activate(struct dsi_panel *panel)
+{
+	struct ofp_uiready_owner *owner = ofp_owner_for_panel(panel);
+	unsigned long flags;
+
+	if (!owner)
+		return;
+	spin_lock_irqsave(&owner->state_lock, flags);
+	if (owner->panel == panel && owner->initialized &&
+			owner->lifecycle == OFP_OWNER_UNINITIALIZED) {
+		owner->lifecycle = OFP_OWNER_ACCEPTING;
+	}
+	spin_unlock_irqrestore(&owner->state_lock, flags);
+}
+
+/* No publication is possible in STOPPING. Caller serializes session teardown. */
+static void ofp_quiesce_uiready_resources(struct ofp_uiready_owner *owner)
+{
+	struct oplus_ofp_params *params = &g_oplus_ofp_params[ofp_owner_id(owner)];
+
+	if (owner->touch_registered) {
+		touchpanel_event_unregister_notifier(&params->touchpanel_event_notifier);
+		owner->touch_registered = false;
+	}
+	if (owner->timer_initialized) {
+		hrtimer_cancel(&params->timer);
+		owner->timer_initialized = false;
+	}
+	if (owner->uiready_wq) {
+		flush_work(&owner->uiready_work);
+		destroy_workqueue(owner->uiready_wq);
+		owner->uiready_wq = NULL;
+	}
+	if (params->aod_off_set_wq) {
+		destroy_workqueue(params->aod_off_set_wq);
+		params->aod_off_set_wq = NULL;
+	}
+	if (params->aod_display_on_set_wq) {
+		destroy_workqueue(params->aod_display_on_set_wq);
+		params->aod_display_on_set_wq = NULL;
+	}
+}
+
+/* Panel construction/destruction is serialized by its lifecycle caller.
+ * Never call with display_lock or state_lock held. STOPPING is not completion.
+ */
+void oplus_ofp_stop(struct dsi_panel *panel)
+{
+	struct ofp_uiready_owner *owner = ofp_owner_for_panel(panel);
+	struct oplus_ofp_params *params;
+	unsigned long flags;
+
+	if (!owner)
+		return;
+	params = &g_oplus_ofp_params[ofp_owner_id(owner)];
+	spin_lock_irqsave(&owner->state_lock, flags);
+	if (owner->panel != panel) {
+		spin_unlock_irqrestore(&owner->state_lock, flags);
+		return;
+	}
+	owner->lifecycle = OFP_OWNER_STOPPING;
+	if (oplus_ofp_log_now_level >= OPLUS_OFP_LOG_LEVEL_INFO)
+		++owner->transition_seq;
+	ofp_request_cancel(owner, &owner->pending_ready);
+	ofp_request_cancel(owner, &owner->pending_off);
+	atomic_set(&params->uiready_rearm_pending, 0);
+	owner->touch_id = 0;
+	spin_unlock_irqrestore(&owner->state_lock, flags);
+
+	ofp_quiesce_uiready_resources(owner);
+}
+
+/* Lightweight final unbind only; the caller must already have stopped work. */
+void oplus_ofp_deinit_final(struct dsi_panel *panel)
+{
+	struct ofp_uiready_owner *owner = ofp_owner_for_panel(panel);
+	struct oplus_ofp_params *params;
+	unsigned long flags;
+
+	if (!owner)
+		return;
+	params = &g_oplus_ofp_params[ofp_owner_id(owner)];
+	spin_lock_irqsave(&owner->state_lock, flags);
+	if (owner->panel == panel) {
+		if (WARN_ON(owner->lifecycle == OFP_OWNER_ACCEPTING ||
+				owner->in_flight.state != OFP_REQUEST_EMPTY ||
+				owner->pending_off.state != OFP_REQUEST_EMPTY ||
+				owner->pending_ready.state != OFP_REQUEST_EMPTY || owner->uiready_wq ||
+				params->aod_off_set_wq || params->aod_display_on_set_wq ||
+				owner->touch_registered || owner->timer_initialized)) {
+			spin_unlock_irqrestore(&owner->state_lock, flags);
+			return;
+		}
+		owner->panel = NULL;
+		owner->initialized = false;
+		owner->lifecycle = OFP_OWNER_UNINITIALIZED;
+	}
+	spin_unlock_irqrestore(&owner->state_lock, flags);
+}
+
+/* Construction error only. A callback must reject this never-active session
+ * before acquiring any display/panel lock. No work or timer was published.
+ * Unlike active stop, this is safe under the constructor's display_lock.
+ */
+void oplus_ofp_cleanup_partial(struct dsi_panel *panel)
+{
+	struct ofp_uiready_owner *owner = ofp_owner_for_panel(panel);
+	unsigned long flags;
+
+	if (!owner)
+		return;
+	spin_lock_irqsave(&owner->state_lock, flags);
+	if (owner->panel != panel) {
+		spin_unlock_irqrestore(&owner->state_lock, flags);
+		return;
+	}
+	if (WARN_ON(owner->lifecycle == OFP_OWNER_ACCEPTING)) {
+		spin_unlock_irqrestore(&owner->state_lock, flags);
+		return;
+	}
+	owner->lifecycle = OFP_OWNER_STOPPING;
+	if (oplus_ofp_log_now_level >= OPLUS_OFP_LOG_LEVEL_INFO)
+		++owner->transition_seq;
+	spin_unlock_irqrestore(&owner->state_lock, flags);
+	ofp_quiesce_uiready_resources(owner);
+	oplus_ofp_deinit_final(panel);
+}
+
 struct LCM_setting_table {
 	unsigned int count;
 	u8 *para_list;
@@ -201,6 +420,10 @@ static bool ofp_uiready_compat_requested(struct dsi_panel *panel,
 int oplus_ofp_init(void *dsi_panel)
 {
 	int rc = 0;
+	int init_rc = 0;
+	struct ofp_uiready_owner *owner = NULL;
+	unsigned long flags;
+	bool resources_ok = true;
 	unsigned int value = 0;
 	struct dsi_panel *panel = dsi_panel;
 	struct dsi_parser_utils *utils = NULL;
@@ -229,6 +452,20 @@ int oplus_ofp_init(void *dsi_panel)
 		oplus_ofp_set_display_id(OPLUS_OFP_SECONDARY_DISPLAY);
 	}
 
+	/* Do not relatch the path or reinitialize locks for a bound session. */
+	owner = ofp_owner_for_params(p_oplus_ofp_params);
+	if (owner) {
+		spin_lock_irqsave(&owner->state_lock, flags);
+		if (owner->panel) {
+			bool same_panel = owner->panel == panel;
+
+			spin_unlock_irqrestore(&owner->state_lock, flags);
+			return same_panel ? 0 : -EBUSY;
+		}
+		spin_unlock_irqrestore(&owner->state_lock, flags);
+	}
+	owner = NULL;
+
 	OPLUS_OFP_TRACE_BEGIN("oplus_ofp_init");
 
 	mutex_init(&oplus_ofp_lock);
@@ -253,6 +490,32 @@ int oplus_ofp_init(void *dsi_panel)
 	/* Latch once before publishing callbacks; do not change this at runtime. */
 	p_oplus_ofp_params->uiready_compat =
 		ofp_uiready_compat_requested(panel, p_oplus_ofp_params);
+
+	if (p_oplus_ofp_params->uiready_compat) {
+		owner = ofp_owner_for_params(p_oplus_ofp_params);
+		p_oplus_ofp_params = &g_oplus_ofp_params[ofp_owner_id(owner)];
+		spin_lock_irqsave(&owner->state_lock, flags);
+		if (owner->panel) {
+			bool same_panel = owner->panel == panel;
+
+			spin_unlock_irqrestore(&owner->state_lock, flags);
+			return same_panel ? 0 : -EBUSY;
+		}
+		if (WARN_ON(owner->lifecycle != OFP_OWNER_UNINITIALIZED ||
+				owner->pending_off.state != OFP_REQUEST_EMPTY ||
+				owner->pending_ready.state != OFP_REQUEST_EMPTY ||
+				owner->in_flight.state != OFP_REQUEST_EMPTY || owner->uiready_wq ||
+				p_oplus_ofp_params->aod_off_set_wq || p_oplus_ofp_params->aod_display_on_set_wq)) {
+			spin_unlock_irqrestore(&owner->state_lock, flags);
+			return -EBUSY;
+		}
+		owner->panel = panel;
+		owner->last_calculated = OPLUS_OFP_UI_DISAPPEAR;
+		owner->touch_id = 0;
+		atomic_set(&p_oplus_ofp_params->uiready_rearm_pending, 0);
+		spin_unlock_irqrestore(&owner->state_lock, flags);
+		INIT_WORK(&owner->uiready_work, ofp_owned_uiready_work_handler);
+	}
 
 	if (oplus_ofp_is_supported()) {
 		/* indicates whether gamut needs to be bypassed in aod/fod scenarios or not */
@@ -292,6 +555,8 @@ int oplus_ofp_init(void *dsi_panel)
 				}
 
 				INIT_WORK(&p_oplus_ofp_params->aod_display_on_set_work, oplus_ofp_aod_display_on_set_work_handler);
+				if (owner)
+					resources_ok &= p_oplus_ofp_params->aod_display_on_set_wq != NULL;
 			}
 
 			/* indicates whether need to do some frames delay in aod on or not  */
@@ -301,16 +566,24 @@ int oplus_ofp_init(void *dsi_panel)
 		}
 
 		if (!oplus_ofp_oled_capacitive_is_enabled()) {
-			if (p_oplus_ofp_params->uiready_compat)
-				atomic_set(&p_oplus_ofp_params->uiready_rearm_pending, 0);
 
-			/* add workqueue to send ui ready */
-			if (!strcmp(panel->type, "primary")) {
-				p_oplus_ofp_params->uiready_event_wq = create_singlethread_workqueue("uiready_event_0");
-			} else if (!strcmp(panel->type, "secondary")) {
-				p_oplus_ofp_params->uiready_event_wq = create_singlethread_workqueue("uiready_event_1");
+			if (owner) {
+				/* add workqueue to send ui ready */
+				if (!strcmp(panel->type, "primary")) {
+					owner->uiready_wq = create_singlethread_workqueue("uiready_event_0");
+				} else if (!strcmp(panel->type, "secondary")) {
+					owner->uiready_wq = create_singlethread_workqueue("uiready_event_1");
+				}
+				resources_ok &= owner->uiready_wq != NULL;
+			} else {
+				/* add workqueue to send ui ready */
+				if (!strcmp(panel->type, "primary")) {
+					p_oplus_ofp_params->uiready_event_wq = create_singlethread_workqueue("uiready_event_0");
+				} else if (!strcmp(panel->type, "secondary")) {
+					p_oplus_ofp_params->uiready_event_wq = create_singlethread_workqueue("uiready_event_1");
+				}
+				INIT_WORK(&p_oplus_ofp_params->uiready_event_work, oplus_ofp_uiready_event_work_handler);
 			}
-			INIT_WORK(&p_oplus_ofp_params->uiready_event_work, oplus_ofp_uiready_event_work_handler);
 
 			if (!oplus_ofp_video_mode_aod_fod_is_enabled()) {
 				/* add workqueue to send aod off cmds */
@@ -320,13 +593,17 @@ int oplus_ofp_init(void *dsi_panel)
 					p_oplus_ofp_params->aod_off_set_wq = create_singlethread_workqueue("aod_off_set_1");
 				}
 				INIT_WORK(&p_oplus_ofp_params->aod_off_set_work, oplus_ofp_aod_off_set_work_handler);
+				if (owner)
+					resources_ok &= p_oplus_ofp_params->aod_off_set_wq != NULL;
 			}
 
-			/* add for touchpanel event notifier */
-			p_oplus_ofp_params->touchpanel_event_notifier.notifier_call = oplus_ofp_touchpanel_event_notifier_call;
-			rc = touchpanel_event_register_notifier(&p_oplus_ofp_params->touchpanel_event_notifier);
-			if (rc) {
-				OFP_ERR("failed to register touchpanel event notifier, rc=%d\n", rc);
+			/* Keep the original notifier publication point for legacy panels. */
+			if (!owner) {
+				p_oplus_ofp_params->touchpanel_event_notifier.notifier_call = oplus_ofp_touchpanel_event_notifier_call;
+				rc = touchpanel_event_register_notifier(&p_oplus_ofp_params->touchpanel_event_notifier);
+				if (rc) {
+					OFP_ERR("failed to register touchpanel event notifier, rc=%d\n", rc);
+				}
 			}
 		}
 
@@ -343,6 +620,8 @@ int oplus_ofp_init(void *dsi_panel)
 				/* add for uiready notifier call chain */
 				hrtimer_init(&p_oplus_ofp_params->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 				p_oplus_ofp_params->timer.function = oplus_ofp_notify_uiready_timer_handler;
+				if (owner)
+					owner->timer_initialized = true;
 			}
 		}
 		p_oplus_ofp_params->aod_layer_disappeard_bl_ready = 1;
@@ -365,6 +644,26 @@ int oplus_ofp_init(void *dsi_panel)
 		OFP_ERR("failed to parse video mode aod brightness config, rc=%d\n", rc);
 	}
 
+	if (owner) {
+		/* Publish the notifier only after all callback-visible resources exist. */
+		if (resources_ok && oplus_ofp_is_supported() && !oplus_ofp_oled_capacitive_is_enabled()) {
+			p_oplus_ofp_params->touchpanel_event_notifier.notifier_call = oplus_ofp_touchpanel_event_notifier_call;
+			if (touchpanel_event_register_notifier(&p_oplus_ofp_params->touchpanel_event_notifier))
+				resources_ok = false;
+			else
+				owner->touch_registered = true;
+		}
+		spin_lock_irqsave(&owner->state_lock, flags);
+		owner->initialized = resources_ok;
+		spin_unlock_irqrestore(&owner->state_lock, flags);
+		if (!resources_ok) {
+			/* Not activated: no work/timer can have been published. */
+			oplus_ofp_cleanup_partial(panel);
+			init_rc = -ENOMEM;
+		}
+
+	}
+
 	if (!strcmp(panel->type, "secondary")) {
 		/* set default display id to primary display */
 		oplus_ofp_set_display_id(OPLUS_OFP_PRIMARY_DISPLAY);
@@ -374,7 +673,8 @@ int oplus_ofp_init(void *dsi_panel)
 
 	OFP_DEBUG("end\n");
 
-	return rc;
+	/* Optional parsing remains best effort; only construction errors are fatal. */
+	return init_rc;
 }
 
 bool oplus_ofp_is_supported(void)
@@ -2611,6 +2911,31 @@ static int oplus_ofp_send_uiready_event(unsigned int ui_status)
 	return 0;
 }
 
+static int ofp_send_owned_uiready_event(struct ofp_uiready_owner *owner, unsigned int ui_status)
+{
+	enum panel_event_notification_type notify_type = DRM_PANEL_EVENT_ONSCREENFINGERPRINT_UI_DISAPPEAR;
+
+	OFP_DEBUG("start\n");
+
+	OPLUS_OFP_TRACE_BEGIN("oplus_ofp_send_uiready_event");
+
+	/* oplus notifier trigger */
+	if (ui_status == OPLUS_OFP_UI_READY) {
+		notify_type = DRM_PANEL_EVENT_ONSCREENFINGERPRINT_UI_READY;
+	} else {
+		notify_type = DRM_PANEL_EVENT_ONSCREENFINGERPRINT_UI_DISAPPEAR;
+	}
+
+	oplus_panel_event_data_notifier_trigger(owner->panel, notify_type, 0, true);
+	OFP_DEBUG("oplus_panel_event_data_notifier_trigger:%u\n", notify_type);
+
+	OPLUS_OFP_TRACE_END("oplus_ofp_send_uiready_event");
+
+	OFP_DEBUG("end\n");
+
+	return 0;
+}
+
 void oplus_ofp_uiready_event_work_handler(struct work_struct *work_item)
 {
 	struct oplus_ofp_params *p_oplus_ofp_params = oplus_ofp_get_params(oplus_ofp_display_id);
@@ -2641,10 +2966,43 @@ void oplus_ofp_uiready_event_work_handler(struct work_struct *work_item)
 	return;
 }
 
-/* notify uiready */
-int oplus_ofp_notify_uiready(void *sde_encoder_phys)
+static void ofp_owned_uiready_work_handler(struct work_struct *work_item)
 {
-	bool rearm_uiready = false;
+	struct ofp_uiready_owner *owner = container_of(work_item,
+		struct ofp_uiready_owner, uiready_work);
+	struct ofp_uiready_request request, *pending;
+	unsigned long flags;
+
+	for (;;) {
+		spin_lock_irqsave(&owner->state_lock, flags);
+		pending = owner->pending_off.state == OFP_REQUEST_PENDING ?
+			&owner->pending_off : &owner->pending_ready;
+		if (pending->state != OFP_REQUEST_PENDING) {
+			spin_unlock_irqrestore(&owner->state_lock, flags);
+			return;
+		}
+		/* These are invariants, not a new readiness predicate. */
+		WARN_ON_ONCE(!owner->panel || owner->in_flight.state != OFP_REQUEST_EMPTY);
+		/* STOPPING cancels pending slots; an existing claim is never rolled back. */
+		owner->in_flight = *pending;
+		owner->in_flight.state = OFP_REQUEST_IN_FLIGHT;
+		pending->state = OFP_REQUEST_EMPTY; /* transfer, not a terminal/drop */
+		request = owner->in_flight;
+		if (oplus_ofp_log_now_level >= OPLUS_OFP_LOG_LEVEL_INFO)
+			++owner->transition_seq;
+		spin_unlock_irqrestore(&owner->state_lock, flags);
+
+		ofp_send_owned_uiready_event(owner, request.value);
+
+		spin_lock_irqsave(&owner->state_lock, flags);
+		ofp_request_terminal(&owner->in_flight);
+		spin_unlock_irqrestore(&owner->state_lock, flags);
+	}
+}
+
+/* notify uiready */
+static int ofp_notify_uiready_legacy(void *sde_encoder_phys)
+{
 	uint64_t hbm_enable = 0;
 	static unsigned int last_notifier_chain_value = OPLUS_OFP_UI_DISAPPEAR;
 	struct sde_encoder_phys *phys_enc = sde_encoder_phys;
@@ -2714,15 +3072,7 @@ int oplus_ofp_notify_uiready(void *sde_encoder_phys)
 		}
 	}
 
-	/* Keep the request armed until the existing panel checks report READY. */
-	if (p_oplus_ofp_params->uiready_compat
-			&& oplus_ofp_local_hbm_is_enabled()
-			&& oplus_ofp_local_hbm_unlocking_acceleration_is_enabled()
-			&& p_oplus_ofp_params->notifier_chain_value == OPLUS_OFP_UI_READY)
-		rearm_uiready = atomic_xchg(&p_oplus_ofp_params->uiready_rearm_pending, 0);
-
-	if (last_notifier_chain_value != p_oplus_ofp_params->notifier_chain_value
-			|| rearm_uiready) {
+	if (last_notifier_chain_value != p_oplus_ofp_params->notifier_chain_value) {
 		OFP_INFO("queue uiready event work\n");
 		queue_work(p_oplus_ofp_params->uiready_event_wq, &p_oplus_ofp_params->uiready_event_work);
 	}
@@ -2736,11 +3086,131 @@ int oplus_ofp_notify_uiready(void *sde_encoder_phys)
 	return 0;
 }
 
+int oplus_ofp_notify_uiready(void *sde_encoder_phys)
+{
+	bool rearm_uiready = false;
+	uint64_t hbm_enable = 0;
+	unsigned int last_notifier_chain_value;
+	struct ofp_uiready_owner *owner;
+	unsigned long flags;
+	struct sde_encoder_phys *phys_enc = sde_encoder_phys;
+	struct sde_connector *c_conn = NULL;
+	struct oplus_ofp_params *p_oplus_ofp_params = oplus_ofp_get_params(oplus_ofp_display_id);
+
+
+
+	owner = ofp_owner_for_params(p_oplus_ofp_params);
+	if (!owner)
+		return ofp_notify_uiready_legacy(sde_encoder_phys);
+
+	OFP_DEBUG("start\n");
+
+	if (oplus_ofp_oled_capacitive_is_enabled()) {
+		OFP_DEBUG("no need to notify uiready\n");
+		return 0;
+	}
+
+	if (!phys_enc || !phys_enc->connector || !p_oplus_ofp_params) {
+		OFP_ERR("Invalid phys_enc params\n");
+		return -EINVAL;
+	}
+
+	c_conn = to_sde_connector(phys_enc->connector);
+	if (!c_conn) {
+		OFP_ERR("Invalid c_conn params\n");
+		return -EINVAL;
+	}
+
+	if (c_conn->connector_type != DRM_MODE_CONNECTOR_DSI) {
+		OFP_DEBUG("not in dsi mode, should not notify uiready\n");
+		return 0;
+	}
+
+
+	OPLUS_OFP_TRACE_BEGIN("oplus_ofp_notify_uiready");
+
+	hbm_enable = sde_connector_get_property(c_conn->base.state, CONNECTOR_PROP_HBM_ENABLE);
+	spin_lock_irqsave(&owner->state_lock, flags);
+	if (owner->lifecycle != OFP_OWNER_ACCEPTING || !owner->uiready_wq) {
+		spin_unlock_irqrestore(&owner->state_lock, flags);
+		OPLUS_OFP_TRACE_END("oplus_ofp_notify_uiready");
+		return 0;
+	}
+	last_notifier_chain_value = owner->last_calculated;
+
+	if (oplus_ofp_local_hbm_is_enabled() && oplus_ofp_local_hbm_unlocking_acceleration_is_enabled()) {
+		if (p_oplus_ofp_params->panel_hbm_status) {
+			/* ddic pressed icon scanning has started */
+			p_oplus_ofp_params->notifier_chain_value = OPLUS_OFP_UI_READY;
+		} else if (!p_oplus_ofp_params->panel_hbm_status) {
+			/* the data scanning without pressed icon has started */
+			p_oplus_ofp_params->notifier_chain_value = OPLUS_OFP_UI_DISAPPEAR;
+		}
+	} else if (!oplus_ofp_video_mode_aod_fod_is_enabled()) {
+		if (((p_oplus_ofp_params->pressed_icon_status == OPLUS_OFP_PRESSED_ICON_ON_WR_PTR)
+				|| (p_oplus_ofp_params->pressed_icon_status == OPLUS_OFP_PRESSED_ICON_ON))
+					&& p_oplus_ofp_params->panel_hbm_status) {
+			/* pressed icon scanning has started and hbm on cmds are also taking effect */
+			p_oplus_ofp_params->notifier_chain_value = OPLUS_OFP_UI_READY;
+		} else if (((p_oplus_ofp_params->pressed_icon_status == OPLUS_OFP_PRESSED_ICON_OFF_WR_PTR)
+					|| (p_oplus_ofp_params->pressed_icon_status == OPLUS_OFP_PRESSED_ICON_OFF))
+						|| !p_oplus_ofp_params->panel_hbm_status) {
+			/* the data scanning without pressed icon has started or hbm off cmds are taking effect */
+			p_oplus_ofp_params->notifier_chain_value = OPLUS_OFP_UI_DISAPPEAR;
+		}
+	} else {
+		if ((hbm_enable & OPLUS_OFP_PROPERTY_FINGERPRESS_LAYER) && oplus_ofp_get_hbm_state()) {
+			/* pressed icon scanning has started and hbm on cmds are also taking effect */
+			p_oplus_ofp_params->notifier_chain_value = OPLUS_OFP_UI_READY;
+		} else if (!(hbm_enable & OPLUS_OFP_PROPERTY_FINGERPRESS_LAYER) || !oplus_ofp_get_hbm_state()) {
+			/* the data scanning without pressed icon has started or hbm off cmds are taking effect */
+			p_oplus_ofp_params->notifier_chain_value = OPLUS_OFP_UI_DISAPPEAR;
+		}
+	}
+
+	/* Keep the request armed until the existing panel checks report READY. */
+	if (oplus_ofp_local_hbm_is_enabled()
+			&& oplus_ofp_local_hbm_unlocking_acceleration_is_enabled()
+			&& p_oplus_ofp_params->notifier_chain_value == OPLUS_OFP_UI_READY)
+		rearm_uiready = atomic_xchg(&p_oplus_ofp_params->uiready_rearm_pending, 0);
+
+	if (last_notifier_chain_value != p_oplus_ofp_params->notifier_chain_value || rearm_uiready)
+		ofp_submit_uiready_locked(owner, p_oplus_ofp_params->notifier_chain_value,
+			last_notifier_chain_value != p_oplus_ofp_params->notifier_chain_value,
+			rearm_uiready);
+
+	owner->last_calculated = p_oplus_ofp_params->notifier_chain_value;
+	spin_unlock_irqrestore(&owner->state_lock, flags);
+
+	OPLUS_OFP_TRACE_END("oplus_ofp_notify_uiready");
+
+	OFP_DEBUG("end\n");
+
+	return 0;
+}
+
 /*
  because te irq is turned off during mipi idle or doze suspend, sending uiready is delayed.
  so check the time relationship between the current lhbm on cmd and aod off cmd,
  and then delay the corresponding time to resend uiready
 */
+static void ofp_start_resend_timer(struct oplus_ofp_params *params, ktime_t expires)
+{
+	struct ofp_uiready_owner *owner = ofp_owner_for_params(params);
+	unsigned long flags;
+
+	if (!owner) {
+		hrtimer_start(&params->timer, expires, HRTIMER_MODE_REL);
+		return;
+	}
+
+	spin_lock_irqsave(&owner->state_lock, flags);
+	if (owner->lifecycle == OFP_OWNER_ACCEPTING && owner->timer_initialized) {
+		hrtimer_start(&params->timer, expires, HRTIMER_MODE_REL);
+	}
+	spin_unlock_irqrestore(&owner->state_lock, flags);
+}
+
 int oplus_ofp_lhbm_resend_uiready(void *dsi_display)
 {
 	ktime_t delta_time = 0;
@@ -2781,14 +3251,14 @@ int oplus_ofp_lhbm_resend_uiready(void *dsi_display)
 
 		if (ktime_sub(ms_to_ktime(34), delta_time) > ms_to_ktime(delay_ms)) {
 			/* just in case, you need to wait until AOD is fully executed before sending uiready */
-			hrtimer_start(&p_oplus_ofp_params->timer, ktime_sub(ms_to_ktime(34), delta_time), HRTIMER_MODE_REL);
+			ofp_start_resend_timer(p_oplus_ofp_params, ktime_sub(ms_to_ktime(34), delta_time));
 			OFP_INFO("resend uiready after %llums\n", ktime_to_ms(ktime_sub(ms_to_ktime(34), delta_time)));
 		} else {
-			hrtimer_start(&p_oplus_ofp_params->timer, ms_to_ktime(delay_ms), HRTIMER_MODE_REL);
+			ofp_start_resend_timer(p_oplus_ofp_params, ms_to_ktime(delay_ms));
 			OFP_INFO("resend uiready after %ums\n", delay_ms);
 		}
 	} else {
-		hrtimer_start(&p_oplus_ofp_params->timer, ms_to_ktime(delay_ms), HRTIMER_MODE_REL);
+		ofp_start_resend_timer(p_oplus_ofp_params, ms_to_ktime(delay_ms));
 		OFP_INFO("resend uiready after %ums\n", delay_ms);
 	}
 
@@ -3271,6 +3741,8 @@ int oplus_ofp_aod_display_on_set(void *sde_encoder_phys)
 	struct sde_encoder_phys *phys_enc = sde_encoder_phys;
 	struct sde_connector *c_conn = NULL;
 	struct oplus_ofp_params *p_oplus_ofp_params = oplus_ofp_get_params(oplus_ofp_display_id);
+	struct ofp_uiready_owner *owner = ofp_owner_for_params(p_oplus_ofp_params);
+	unsigned long flags;
 
 	OFP_DEBUG("start\n");
 
@@ -3296,6 +3768,14 @@ int oplus_ofp_aod_display_on_set(void *sde_encoder_phys)
 	}
 
 	OPLUS_OFP_TRACE_BEGIN("oplus_ofp_aod_display_on_set");
+	if (owner) {
+		spin_lock_irqsave(&owner->state_lock, flags);
+		if (owner->lifecycle != OFP_OWNER_ACCEPTING || !p_oplus_ofp_params->aod_display_on_set_wq) {
+			spin_unlock_irqrestore(&owner->state_lock, flags);
+			OPLUS_OFP_TRACE_END("oplus_ofp_aod_display_on_set");
+			return 0;
+		}
+	}
 
 	if (oplus_ofp_get_aod_state() && p_oplus_ofp_params->wait_data_before_aod_on) {
 		p_oplus_ofp_params->wait_data_before_aod_on = false;
@@ -3305,6 +3785,8 @@ int oplus_ofp_aod_display_on_set(void *sde_encoder_phys)
 		queue_work(p_oplus_ofp_params->aod_display_on_set_wq, &p_oplus_ofp_params->aod_display_on_set_work);
 	}
 
+	if (owner)
+		spin_unlock_irqrestore(&owner->state_lock, flags);
 	OPLUS_OFP_TRACE_END("oplus_ofp_aod_display_on_set");
 
 	OFP_DEBUG("end\n");
@@ -3917,6 +4399,8 @@ void oplus_ofp_aod_off_set_work_handler(struct work_struct *work_item)
 static int oplus_ofp_aod_off_set(void)
 {
 	struct oplus_ofp_params *p_oplus_ofp_params = oplus_ofp_get_params(oplus_ofp_display_id);
+	struct ofp_uiready_owner *owner = ofp_owner_for_params(p_oplus_ofp_params);
+	unsigned long flags;
 
 	OFP_DEBUG("start\n");
 
@@ -3935,13 +4419,21 @@ static int oplus_ofp_aod_off_set(void)
 		return 0;
 	}
 
-	if (IS_ERR_OR_NULL(p_oplus_ofp_params->aod_off_set_wq)
-			|| IS_ERR_OR_NULL(&p_oplus_ofp_params->aod_off_set_work)) {
+	if (!owner && (IS_ERR_OR_NULL(p_oplus_ofp_params->aod_off_set_wq)
+			|| IS_ERR_OR_NULL(&p_oplus_ofp_params->aod_off_set_work))) {
 		OFP_ERR("aod off work queue or work handler is NULL");
 		return 0;
 	}
 
 	OPLUS_OFP_TRACE_BEGIN("oplus_ofp_aod_off_set");
+	if (owner) {
+		spin_lock_irqsave(&owner->state_lock, flags);
+		if (owner->lifecycle != OFP_OWNER_ACCEPTING || !p_oplus_ofp_params->aod_off_set_wq) {
+			spin_unlock_irqrestore(&owner->state_lock, flags);
+			OPLUS_OFP_TRACE_END("oplus_ofp_aod_off_set");
+			return 0;
+		}
+	}
 
 	if (oplus_ofp_get_aod_state() && p_oplus_ofp_params->doze_active) {
 		OFP_INFO("queue aod off set work\n");
@@ -3949,6 +4441,8 @@ static int oplus_ofp_aod_off_set(void)
 		oplus_ofp_set_aod_state(false);
 	}
 
+	if (owner)
+		spin_unlock_irqrestore(&owner->state_lock, flags);
 	OPLUS_OFP_TRACE_END("oplus_ofp_aod_off_set");
 
 	OFP_DEBUG("end\n");
@@ -3969,6 +4463,17 @@ int oplus_ofp_touchpanel_event_notifier_call(struct notifier_block *nb, unsigned
 	struct dsi_display *display = get_main_display();
 	struct sde_connector *sde_conn;
 	struct drm_event event;
+	struct ofp_uiready_owner *owner = ofp_owner_for_params(p_oplus_ofp_params);
+	unsigned long flags;
+
+	if (owner) {
+		spin_lock_irqsave(&owner->state_lock, flags);
+		if (owner->lifecycle != OFP_OWNER_ACCEPTING) {
+			spin_unlock_irqrestore(&owner->state_lock, flags);
+			return NOTIFY_OK;
+		}
+		spin_unlock_irqrestore(&owner->state_lock, flags);
+	}
 
 	if (!display || !display->panel) {
 		OPLUS_DSI_ERR("display is null\n");
@@ -3990,11 +4495,36 @@ int oplus_ofp_touchpanel_event_notifier_call(struct notifier_block *nb, unsigned
 			OFP_DEBUG("EVENT_ACTION_FOR_FINGPRINT\n");
 
 			/* Touch-up cancels a request not yet consumed by notify_uiready. */
-			if (p_oplus_ofp_params->uiready_compat
-					&& oplus_ofp_local_hbm_is_enabled()
+			if (owner && oplus_ofp_local_hbm_is_enabled()
 					&& oplus_ofp_local_hbm_unlocking_acceleration_is_enabled())
+			{
+				spin_lock_irqsave(&owner->state_lock, flags);
+				if (owner->lifecycle != OFP_OWNER_ACCEPTING) {
+					spin_unlock_irqrestore(&owner->state_lock, flags);
+					OPLUS_OFP_TRACE_END("oplus_ofp_touchpanel_event_notifier_call");
+					return NOTIFY_OK;
+				}
+				if (tp_event->touch_state == 1) {
+					if (owner->pending_ready.touch_id)
+						ofp_request_cancel(owner, &owner->pending_ready);
+					owner->touch_id = ++owner->next_touch_id;
+					if (oplus_ofp_log_now_level >= OPLUS_OFP_LOG_LEVEL_INFO)
+						++owner->transition_seq;
+				} else {
+					if (oplus_ofp_log_now_level >= OPLUS_OFP_LOG_LEVEL_INFO)
+						++owner->transition_seq;
+					if (owner->touch_id && owner->pending_ready.touch_id == owner->touch_id)
+						ofp_request_cancel(owner, &owner->pending_ready);
+					if (owner->touch_id && owner->in_flight.state == OFP_REQUEST_IN_FLIGHT &&
+							owner->in_flight.touch_id == owner->touch_id)
+						if (oplus_ofp_log_now_level >= OPLUS_OFP_LOG_LEVEL_INFO)
+							++owner->transition_seq;
+					owner->touch_id = 0;
+				}
 				atomic_set(&p_oplus_ofp_params->uiready_rearm_pending,
 						tp_event->touch_state == 1);
+				spin_unlock_irqrestore(&owner->state_lock, flags);
+			}
 
 			if (tp_event->touch_state == 1) {
 				OFP_INFO("tp touchdown\n");

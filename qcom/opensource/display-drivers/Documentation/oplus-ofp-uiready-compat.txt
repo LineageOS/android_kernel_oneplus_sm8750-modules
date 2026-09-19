@@ -46,3 +46,10 @@ HBM timing, calibration or biometric algorithm thresholds. Existing
 IRQ/display object lifetime and session teardown serialization remain
 caller responsibilities. No new claim of multi-panel lifetime safety is
 made by this compatibility series.
+
+DSI lifecycle hooks and fatal OFP-init error propagation require both the
+SM8750 API marker and OPLUS_OFP_UIREADY_COMPAT=1. Other builds retain the
+legacy unchecked init call. OFP init keeps optional parsing best effort;
+owned-session construction failure is cleaned up before returning an
+error. The panel error path may repeat partial cleanup after that unbind,
+which is a no-op. Pass the define consistently to all display objects.

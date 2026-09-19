@@ -13,6 +13,8 @@
 
 /* please just only include linux common head file to keep me pure */
 #include <linux/atomic.h>
+#include <linux/spinlock.h>
+#include <linux/workqueue.h>
 #include "oplus_display_sysfs_attrs.h"
 #include "../include/oplus_debug.h"
 
@@ -82,6 +84,54 @@ enum oplus_ofp_log_level {
 enum oplus_ofp_display_id {
 	OPLUS_OFP_PRIMARY_DISPLAY = 0,
 	OPLUS_OFP_SECONDARY_DISPLAY = 1,
+};
+
+/* Request identity is local to delivery, not an encoder/session epoch. */
+struct dsi_panel;
+
+enum ofp_uiready_state {
+	OFP_REQUEST_EMPTY,
+	OFP_REQUEST_PENDING,
+	OFP_REQUEST_IN_FLIGHT,
+};
+
+enum ofp_uiready_lifecycle {
+	OFP_OWNER_UNINITIALIZED,
+	OFP_OWNER_ACCEPTING,
+	OFP_OWNER_STOPPING,
+};
+
+enum ofp_uiready_reason {
+	OFP_REASON_LEVEL = BIT(0),
+	OFP_REASON_REARM = BIT(1),
+	OFP_REASON_OFF = BIT(2),
+};
+
+struct ofp_uiready_request {
+	u64 request_id;
+	u64 touch_id; /* zero means panel-level, never cancelled by TP_UP */
+	unsigned int value;
+	unsigned int reason;
+	enum ofp_uiready_state state;
+};
+
+struct ofp_uiready_owner {
+	spinlock_t state_lock;
+	enum ofp_uiready_lifecycle lifecycle;
+	bool initialized;
+	bool touch_registered;
+	bool timer_initialized;
+	struct dsi_panel *panel; /* cleared only after all session work has stopped */
+	struct work_struct uiready_work;
+	struct workqueue_struct *uiready_wq;
+	struct ofp_uiready_request pending_off;
+	struct ofp_uiready_request pending_ready;
+	struct ofp_uiready_request in_flight;
+	u64 next_request_id;
+	u64 next_touch_id;
+	u64 touch_id;
+	u64 transition_seq;
+	unsigned int last_calculated;
 };
 
 enum oplus_ofp_property_value {
@@ -250,6 +300,12 @@ extern int oplus_ofp_refresh_flag;
 /* -------------------- oplus_ofp_params -------------------- */
 int oplus_ofp_update_display_id(void);
 int oplus_ofp_init(void *dsi_panel);
+/* Shared DSI code must not require these hooks from older OFP headers. */
+#define OPLUS_OFP_HAS_UIREADY_COMPAT 1
+void oplus_ofp_activate(struct dsi_panel *panel);
+void oplus_ofp_stop(struct dsi_panel *panel);
+void oplus_ofp_deinit_final(struct dsi_panel *panel);
+void oplus_ofp_cleanup_partial(struct dsi_panel *panel);
 bool oplus_ofp_is_supported(void);
 bool oplus_ofp_oled_capacitive_is_enabled(void);
 bool oplus_ofp_optical_new_solution_is_enabled(void);
