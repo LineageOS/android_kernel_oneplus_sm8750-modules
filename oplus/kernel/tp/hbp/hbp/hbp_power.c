@@ -212,7 +212,7 @@ void hbp_power_ctrl(struct hbp_device *hbp_dev, struct power_sequeue sq[])
 	int i = 0;
 
 	for (i = 0; i < MAX_POWER_SEQ; i++) {
-		hbp_debug("power type:0x%x en:%d delay:%dms\n", sq[i].type, sq[i].en, sq[i].msleep);
+		hbp_info("power type:0x%x en:%d delay:%dms\n", sq[i].type, sq[i].en, sq[i].msleep);
 		switch (sq[i].type) {
 		case POWER_AVDD:
 			hbp_power_ctrl_avdd(hbp_dev, sq[i].en);
@@ -233,6 +233,27 @@ void hbp_power_ctrl(struct hbp_device *hbp_dev, struct power_sequeue sq[])
 		if (sq[i].msleep) {
 			msleep(sq[i].msleep);
 		}
+	}
+}
+
+void hbp_power_type_ctrl(struct hbp_device *hbp_dev, enum power_type type, bool en)
+{
+	hbp_info("power type:0x%x en:%d\n", type, en);
+	switch (type) {
+	case POWER_AVDD:
+		hbp_power_ctrl_avdd(hbp_dev, en);
+		break;
+	case POWER_VDDI:
+		hbp_power_ctrl_vddi(hbp_dev, en);
+		break;
+	case POWER_RESET:
+		hbp_power_ctrl_reset(hbp_dev, en);
+		break;
+	case POWER_BUS:
+		hbp_power_ctrl_bus(hbp_dev, en);
+		break;
+	default:
+		return;
 	}
 }
 

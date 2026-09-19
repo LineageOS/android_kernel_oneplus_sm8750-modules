@@ -3,6 +3,9 @@
 
 #include <linux/irqreturn.h>
 #include <linux/firmware.h>
+#include <linux/hrtimer.h>
+#include <linux/workqueue.h>
+#include <linux/atomic.h>
 
 #include "hbp_report.h"
 #include "hbp_notify.h"
@@ -13,6 +16,7 @@
 #include "hbp_frame.h"
 #include "hbp_power.h"
 #include "hbp_exception.h"
+#include "hbp_healthinfo.h"
 
 #if IS_ENABLED(CONFIG_DRM_PANEL_NOTIFY)
 #include <linux/soc/qcom/panel_event_notifier.h>
@@ -53,6 +57,10 @@
 
 #define SMART_GESTURE_THRESHOLD 0x0A
 #define SMART_GESTURE_LOW_VALUE 0x05
+
+#define FP_GRIP_ENABLE           1
+#define FP_GRIP_DISABLE_TIMEOUT  2
+#define FP_GRIP_DISABLE          0
 
 /* bit operation */
 #define SET_BIT(data, flag) ((data) |= (flag))
@@ -132,6 +140,11 @@ union usr_data {
 		int level;
 		bool trusty;
 	} film;
+
+	struct {
+		void __user *info;
+		size_t info_size;
+	} health_info;
 };
 
 struct chip_info {
@@ -198,6 +211,8 @@ enum gesture_type {
 	PenDetect,
 	SGesture,
 	FingerprintEarlyDown,
+	FP_GESTURE_HOLD,
+	FP_GESTURE_RELEASE,
 };
 
 struct point_info {
@@ -300,6 +315,7 @@ struct hbp_device {
 #endif
 
 	struct debug_cfg debug;
+	struct monitor_data monitor_data;
 
 	bool up_status;
 	int touch_report_num;
@@ -315,6 +331,10 @@ struct hbp_device {
 	bool create_with_power_on_support;
 	char clk_name[16];
 	struct clk *pen_ck;
+	/* edge grip for fingerprint */
+	bool fp_grip_support;
+	atomic_t fp_grip_hold; /* shared by IRQ writer and resume reader, use atomic to avoid TOCTOU */
+	int fp_grip_enable;
 };
 
 struct device_state {
@@ -362,6 +382,13 @@ struct hbp_core {
 
 	bool in_hbp_mode;
 	struct exception_data    exception_data; /*exception_data monitor data*/
+
+	/* workqueue for state notify */
+	struct workqueue_struct *state_notify_wq;
+	struct work_struct state_notify_work;
+	struct mutex state_notify_mtx;  /* protect state_notify_id, state_notify_event and states[] */
+	int state_notify_id;
+	hbp_panel_event state_notify_event;
 };
 
 extern int hbp_exception_report(hbp_excep_type excep_tpye,
@@ -374,8 +401,8 @@ extern int hbp_register_devices(void *priv,
 extern int hbp_unregister_devices(void *priv);
 extern bool match_from_cmdline(struct device *dev, struct chip_info *info);
 extern void hbp_set_irq_wake(struct hbp_device *hbp_dev, bool wake);
-extern void hbp_dev_ctrl_power_reconfig(void);
-extern void hbp_dev_ctrl_hw_reset(void);
+extern void hbp_dev_power_type_ctrl(void *priv, enum power_type type, bool en);
+extern void hbp_dev_healthinfo_report(void *priv, char *report);
 /*
 #if 1
 request_firmware_select()
