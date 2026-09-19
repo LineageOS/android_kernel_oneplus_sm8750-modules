@@ -3086,56 +3086,22 @@ static int ofp_notify_uiready_legacy(void *sde_encoder_phys)
 	return 0;
 }
 
-int oplus_ofp_notify_uiready(void *sde_encoder_phys)
+/* Called only for the opted-in owner, with state_lock held. Readiness and
+ * READY-only rearm consumption are the same as the existing notify path.
+ */
+static void ofp_evaluate_uiready_locked(struct ofp_uiready_owner *owner,
+		struct oplus_ofp_params *p_oplus_ofp_params,
+		u64 hbm_enable, bool hbm_enable_valid)
 {
 	bool rearm_uiready = false;
-	uint64_t hbm_enable = 0;
 	unsigned int last_notifier_chain_value;
-	struct ofp_uiready_owner *owner;
-	unsigned long flags;
-	struct sde_encoder_phys *phys_enc = sde_encoder_phys;
-	struct sde_connector *c_conn = NULL;
-	struct oplus_ofp_params *p_oplus_ofp_params = oplus_ofp_get_params(oplus_ofp_display_id);
 
+	if (owner->lifecycle != OFP_OWNER_ACCEPTING || !owner->uiready_wq)
+		return;
+	if (!hbm_enable_valid && !(oplus_ofp_local_hbm_is_enabled() &&
+			oplus_ofp_local_hbm_unlocking_acceleration_is_enabled()))
+		return;
 
-
-	owner = ofp_owner_for_params(p_oplus_ofp_params);
-	if (!owner)
-		return ofp_notify_uiready_legacy(sde_encoder_phys);
-
-	OFP_DEBUG("start\n");
-
-	if (oplus_ofp_oled_capacitive_is_enabled()) {
-		OFP_DEBUG("no need to notify uiready\n");
-		return 0;
-	}
-
-	if (!phys_enc || !phys_enc->connector || !p_oplus_ofp_params) {
-		OFP_ERR("Invalid phys_enc params\n");
-		return -EINVAL;
-	}
-
-	c_conn = to_sde_connector(phys_enc->connector);
-	if (!c_conn) {
-		OFP_ERR("Invalid c_conn params\n");
-		return -EINVAL;
-	}
-
-	if (c_conn->connector_type != DRM_MODE_CONNECTOR_DSI) {
-		OFP_DEBUG("not in dsi mode, should not notify uiready\n");
-		return 0;
-	}
-
-
-	OPLUS_OFP_TRACE_BEGIN("oplus_ofp_notify_uiready");
-
-	hbm_enable = sde_connector_get_property(c_conn->base.state, CONNECTOR_PROP_HBM_ENABLE);
-	spin_lock_irqsave(&owner->state_lock, flags);
-	if (owner->lifecycle != OFP_OWNER_ACCEPTING || !owner->uiready_wq) {
-		spin_unlock_irqrestore(&owner->state_lock, flags);
-		OPLUS_OFP_TRACE_END("oplus_ofp_notify_uiready");
-		return 0;
-	}
 	last_notifier_chain_value = owner->last_calculated;
 
 	if (oplus_ofp_local_hbm_is_enabled() && oplus_ofp_local_hbm_unlocking_acceleration_is_enabled()) {
@@ -3180,6 +3146,55 @@ int oplus_ofp_notify_uiready(void *sde_encoder_phys)
 			rearm_uiready);
 
 	owner->last_calculated = p_oplus_ofp_params->notifier_chain_value;
+}
+
+int oplus_ofp_notify_uiready(void *sde_encoder_phys)
+{
+	uint64_t hbm_enable = 0;
+	struct ofp_uiready_owner *owner;
+	unsigned long flags;
+	struct sde_encoder_phys *phys_enc = sde_encoder_phys;
+	struct sde_connector *c_conn = NULL;
+	struct oplus_ofp_params *p_oplus_ofp_params = oplus_ofp_get_params(oplus_ofp_display_id);
+
+	owner = ofp_owner_for_params(p_oplus_ofp_params);
+	if (!owner)
+		return ofp_notify_uiready_legacy(sde_encoder_phys);
+
+	OFP_DEBUG("start\n");
+
+	if (oplus_ofp_oled_capacitive_is_enabled()) {
+		OFP_DEBUG("no need to notify uiready\n");
+		return 0;
+	}
+
+	if (!phys_enc || !phys_enc->connector || !p_oplus_ofp_params) {
+		OFP_ERR("Invalid phys_enc params\n");
+		return -EINVAL;
+	}
+
+	c_conn = to_sde_connector(phys_enc->connector);
+	if (!c_conn) {
+		OFP_ERR("Invalid c_conn params\n");
+		return -EINVAL;
+	}
+
+	if (c_conn->connector_type != DRM_MODE_CONNECTOR_DSI) {
+		OFP_DEBUG("not in dsi mode, should not notify uiready\n");
+		return 0;
+	}
+
+
+	OPLUS_OFP_TRACE_BEGIN("oplus_ofp_notify_uiready");
+
+	hbm_enable = sde_connector_get_property(c_conn->base.state, CONNECTOR_PROP_HBM_ENABLE);
+	spin_lock_irqsave(&owner->state_lock, flags);
+	if (owner->lifecycle != OFP_OWNER_ACCEPTING || !owner->uiready_wq) {
+		spin_unlock_irqrestore(&owner->state_lock, flags);
+		OPLUS_OFP_TRACE_END("oplus_ofp_notify_uiready");
+		return 0;
+	}
+	ofp_evaluate_uiready_locked(owner, p_oplus_ofp_params, hbm_enable, true);
 	spin_unlock_irqrestore(&owner->state_lock, flags);
 
 	OPLUS_OFP_TRACE_END("oplus_ofp_notify_uiready");
@@ -4523,6 +4538,8 @@ int oplus_ofp_touchpanel_event_notifier_call(struct notifier_block *nb, unsigned
 				}
 				atomic_set(&p_oplus_ofp_params->uiready_rearm_pending,
 						tp_event->touch_state == 1);
+				if (tp_event->touch_state == 1)
+					ofp_evaluate_uiready_locked(owner, p_oplus_ofp_params, 0, false);
 				spin_unlock_irqrestore(&owner->state_lock, flags);
 			}
 
