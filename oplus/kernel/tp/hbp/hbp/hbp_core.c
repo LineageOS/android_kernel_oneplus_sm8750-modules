@@ -17,6 +17,7 @@
 #include <uapi/linux/sched/types.h>
 #include <linux/input.h>
 #include <linux/input/mt.h>
+#include <linux/workqueue.h>
 
 #include "hbp_core.h"
 #include "utils/debug.h"
@@ -25,6 +26,8 @@
 
 #include "hbp_power.h"
 extern void hbp_power_ctrl(struct hbp_device *hbp_dev, struct power_sequeue sq[]);
+extern void hbp_power_type_ctrl(struct hbp_device *hbp_dev, enum power_type type, bool en);
+extern void touch_call_fp_grip(struct hbp_device *hbp_dev, int state);
 
 struct hbp_core *g_hbp;
 struct task_struct *suspend_task = NULL;
@@ -156,8 +159,6 @@ int hbp_register_devices(void *priv,
 		return -ENODEV;
 	}
 
-	hbp->active_id = id;
-
 	if (hbp->devices[id]) {
 		hbp_info("device already registered\n");
 		return 0;
@@ -224,36 +225,76 @@ bool hbp_power_on_in_suspend(int index)
 }
 EXPORT_SYMBOL(hbp_power_on_in_suspend);
 
-void hbp_dev_ctrl_power_reconfig(void)
+void hbp_dev_power_type_ctrl(void *priv, enum power_type type, bool en)
 {
-	hbp_info("%s is called.\n", __func__);
+	struct hbp_device *hbp_dev = __hbp_find_device(priv);
 
-	if (!g_hbp) {
-		hbp_err("%s: g_hbp is null.\n", __func__);
+	if (hbp_dev) {
+		hbp_power_type_ctrl(hbp_dev, type, en);
 	} else {
-		hbp_info("%s active_id is %d.\n", __func__, g_hbp->active_id);
-		hbp_power_ctrl(g_hbp->devices[g_hbp->active_id], power_reconfig);
+		hbp_err("%s: hbp_dev is null.\n", __func__);
 	}
 }
-EXPORT_SYMBOL(hbp_dev_ctrl_power_reconfig);
+EXPORT_SYMBOL(hbp_dev_power_type_ctrl);
 
-void hbp_dev_ctrl_hw_reset(void)
+void hbp_dev_healthinfo_report(void *priv, char *report)
 {
-	hbp_info("%s is called.\n", __func__);
+	struct hbp_device *hbp_dev = __hbp_find_device(priv);
 
-	if (!g_hbp) {
-		hbp_err("%s: g_hbp is null.\n", __func__);
+	if (hbp_dev) {
+		hbp_healthinfo_report(&hbp_dev->monitor_data, report);
 	} else {
-		hbp_info("%s active_id is %d.\n", __func__, g_hbp->active_id);
-		hbp_power_ctrl(g_hbp->devices[g_hbp->active_id], hw_reset_config);
+		hbp_err("%s: hbp_dev is null.\n", __func__);
 	}
 }
-EXPORT_SYMBOL(hbp_dev_ctrl_hw_reset);
+EXPORT_SYMBOL(hbp_dev_healthinfo_report);
+
+static void hbp_sync_with_daemon_timeout(struct monitor_data *data, hbp_panel_event event)
+{
+	switch (event) {
+	case HBP_PANEL_EVENT_EARLY_SUSPEND:
+		hbp_healthinfo_report(data, SIG_SCREEN_OFF_NO_ACK_TIMEOUT_CNT);
+		break;
+	case HBP_PANEL_EVENT_EARLY_RESUME:
+		hbp_healthinfo_report(data, SIG_SCREEN_ON_NO_ACK_TIMEOUT_CNT);
+		break;
+	default:
+		break;
+	}
+}
+
+static void hbp_sync_with_daemon_error(struct monitor_data *data, hbp_panel_event event)
+{
+	switch (event) {
+	case HBP_PANEL_EVENT_EARLY_SUSPEND:
+		data->notify.screen_off_no_ack_cnt++;
+		if (data->notify.screen_off_no_ack_cnt > MAX_NO_ACK_CNT) {
+			hbp_exception_report(EXCEP_SUSPEND, SIG_SCREEN_OFF_NO_ACK, sizeof(SIG_SCREEN_OFF_NO_ACK));
+			hbp_err("screen_off_no_ack_cnt %ld, beyond:%d\n", data->notify.screen_off_no_ack_cnt, MAX_NO_ACK_CNT);
+			data->notify.screen_off_no_ack_cnt = 0;
+			hbp_healthinfo_report(data, SIG_SCREEN_OFF_NO_ACK_CNT);
+		}
+		break;
+	case HBP_PANEL_EVENT_EARLY_RESUME:
+		data->notify.screen_on_no_ack_cnt++;
+		if (data->notify.screen_on_no_ack_cnt > MAX_NO_ACK_CNT) {
+			hbp_exception_report(EXCEP_RESUME, SIG_SCREEN_ON_NO_ACK, sizeof(SIG_SCREEN_ON_NO_ACK));
+			hbp_err("screen_on_no_ack_cnt %ld, beyond:%d\n", data->notify.screen_on_no_ack_cnt, MAX_NO_ACK_CNT);
+			data->notify.screen_on_no_ack_cnt = 0;
+			hbp_healthinfo_report(data, SIG_SCREEN_ON_NO_ACK_CNT);
+		}
+		break;
+	default:
+		break;
+	}
+}
 
 static int hbp_sync_with_daemon(struct hbp_core *hbp, int id, hbp_panel_event event)
 {
 	int ret = 0;
 
+	/* Protect concurrent access to states[] */
+	mutex_lock(&hbp->state_notify_mtx);
 	hbp->states[id].id = id;
 	hbp->states[id].state = event;
 	if (hbp->devices[id]->screenoff_ifp) {
@@ -261,18 +302,44 @@ static int hbp_sync_with_daemon(struct hbp_core *hbp, int id, hbp_panel_event ev
 	} else {
 		hbp->states[id].value &= ~STATE_BIT_IFP_DOWN;
 	}
+	mutex_unlock(&hbp->state_notify_mtx);
 
 	hbp_debug("states[%d].value = %d\n", id, hbp->states[id].value);
 
+	hbp_sync_with_daemon_error(&hbp->devices[id]->monitor_data, event);
+
+	/* Protect state_st and state_ack access */
+	mutex_lock(&hbp->state_notify_mtx);
 	hbp->state_st = STATE_WAKEUP;
+	WRITE_ONCE(hbp->state_ack, ACK_WAITQ);
+	mutex_unlock(&hbp->state_notify_mtx);
+
 	wake_up_interruptible(&hbp->state_event);
 
-	hbp->state_ack = ACK_WAITQ;
-	ret = wait_event_timeout(hbp->ack_event,
-				 (hbp->state_ack == ACK_WAKEUP),
-				 msecs_to_jiffies(DAEMON_ACK_TIMEOUT));
-	if (!ret) {
-		hbp_err("failed to wait manager ack %d\n", hbp->state_ack);
+	/*
+	 * Check condition first to avoid race condition:
+	 * If upper layer responds very fast (before wait_event_timeout enters
+	 * wait queue), the wakeup signal may be missed. By checking condition
+	 * first, we can avoid this race.
+	 * wait_event_timeout will check condition again before entering wait.
+	 */
+	if (READ_ONCE(hbp->state_ack) != ACK_WAKEUP) {
+		ret = wait_event_timeout(hbp->ack_event,
+					 (READ_ONCE(hbp->state_ack) == ACK_WAKEUP),
+					 msecs_to_jiffies(DAEMON_ACK_TIMEOUT));
+		if (!ret) {
+			/* Timeout: check final state with lock protection */
+			mutex_lock(&hbp->state_notify_mtx);
+			hbp_err("failed to wait manager ack %d (expected %d)\n",
+				hbp->state_ack, ACK_WAKEUP);
+			mutex_unlock(&hbp->state_notify_mtx);
+			hbp_sync_with_daemon_timeout(&hbp->devices[id]->monitor_data, event);
+		} else {
+			/* Success: got ack from upper layer */
+		}
+	} else {
+		/* Upper layer already responded before we entered wait */
+		hbp_err("upper layer already acked before wait\n");
 	}
 
 	hbp->devices[id]->state = event;
@@ -282,44 +349,66 @@ static int hbp_sync_with_daemon(struct hbp_core *hbp, int id, hbp_panel_event ev
 
 void hbp_state_notify(struct hbp_core *hbp, int id, hbp_panel_event event)
 {
+	struct hbp_device *hbp_dev;
+
+	/* Multi-level pointer guard (LOGIC-IF-PTR-CHAIN) */
+	if (!hbp) {
+		hbp_err("hbp is NULL\n");
+		return;
+	}
+	if (id < 0 || id >= MAX_DEVICES) {
+		hbp_err("invalid id %d (MAX_DEVICES=%d)\n", id, MAX_DEVICES);
+		return;
+	}
+	hbp_dev = hbp->devices[id];
+	if (!hbp_dev) {
+		hbp_err("hbp->devices[%d] is NULL\n", id);
+		return;
+	}
+
 	hbp_debug("notify id %d event %d\n", id, event);
-
-	if (!hbp || id >= MAX_DEVICES || !hbp->devices[id]) {
-		hbp_err("invalid device id = %d \n", id);
-		return;
-	}
-
-	//TODO:
-	//(1) if oncell panel, ignore suspend event, only use early suspend event
-	//to avoid repeat early suspend or suspend event
-	//(2) if tddi ic, need update
-	if (event == HBP_PANEL_EVENT_SUSPEND) {
-		event = HBP_PANEL_EVENT_EARLY_SUSPEND;
-	}
-
-	if (event == HBP_PANEL_EVENT_RESUME) {
-		event = HBP_PANEL_EVENT_EARLY_RESUME;
-	}
-
-	if (hbp->states[id].id == id &&
-		hbp->states[id].state == event) {
-		hbp_info("same screen notify event %d, ignore\n", event);
-		return;
-	}
 
 	switch (event) {
 	case HBP_PANEL_EVENT_EARLY_SUSPEND:
-		hbp->devices[id]->screenoff_ifp = false;
+		hbp_dev->screenoff_ifp = false;
 		hbp_info("tp_suspend start\n");
 		break;
 	case HBP_PANEL_EVENT_EARLY_RESUME:
 		hbp_info("tp_resume start\n");
+		/* atomic test-and-clear: inject one RELEASE if last fp-grip was HOLD */
+		if (hbp_dev->fp_grip_support &&
+		    atomic_xchg(&hbp_dev->fp_grip_hold, 0)) {
+			hbp_info("last fp grip was HOLD at screen-on, inject RELEASE once\n");
+			touch_call_fp_grip(hbp_dev, 0);
+			hbp_healthinfo_report(&hbp_dev->monitor_data, "finger_hold_in_resume");
+		}
 		break;
 	default:
 		break;
 	}
 
 	hbp_sync_with_daemon(hbp, id, event);
+}
+
+static void hbp_state_notify_work_handler(struct work_struct *work)
+{
+	struct hbp_core *hbp = container_of(work, struct hbp_core, state_notify_work);
+	int notify_id;
+	hbp_panel_event notify_event;
+
+	if (!hbp) {
+		hbp_err("hbp is NULL in work handler\n");
+		return;
+	}
+
+        hbp_info("state notify id %d state event %d\n", hbp->state_notify_id, hbp->state_notify_event);
+	/* Protect concurrent access to state_notify fields */
+	mutex_lock(&hbp->state_notify_mtx);
+	notify_id = hbp->state_notify_id;
+	notify_event = hbp->state_notify_event;
+	mutex_unlock(&hbp->state_notify_mtx);
+
+	hbp_state_notify(hbp, notify_id, notify_event);
 }
 
 static int hbp_core_open(struct inode *inode, struct file *file)
@@ -364,6 +453,8 @@ static long hbp_core_unlocked_ioctl(struct file *filp, unsigned int cmd, unsigne
 {
 	int ret = 0;
 	struct hbp_core *hbp = (struct hbp_core *)filp->private_data;
+	struct hbp_device *hbp_dev = NULL;
+	int i = 0;
 
 	if (!hbp) {
 		hbp_err("hbp is NULL\n");
@@ -381,14 +472,26 @@ static long hbp_core_unlocked_ioctl(struct file *filp, unsigned int cmd, unsigne
 		hbp->power_in_sleep = !!arg;
 		break;
 	case HBP_CORE_GET_STATE:
+		mutex_lock(&hbp->state_notify_mtx);
 		if (copy_to_user((void __user *)arg, &hbp->states[0], sizeof(struct device_state)*MAX_DEVICES)) {
+			mutex_unlock(&hbp->state_notify_mtx);
 			hbp_err("failed to copy state to user\n");
 			return -EFAULT;
 		}
+		mutex_unlock(&hbp->state_notify_mtx);
 		break;
 	case HBP_CORE_STATE_ACK:
-		hbp->state_ack = ACK_WAKEUP;
+		mutex_lock(&hbp->state_notify_mtx);
+		WRITE_ONCE(hbp->state_ack, ACK_WAKEUP);
+		mutex_unlock(&hbp->state_notify_mtx);
 		wake_up_all(&hbp->ack_event);
+		for (i = 0; i < MAX_DEVICES; i++) {
+			hbp_dev = g_hbp->devices[i];
+			if (hbp_dev) {
+				hbp_dev->monitor_data.notify.screen_on_no_ack_cnt = 0;
+				hbp_dev->monitor_data.notify.screen_off_no_ack_cnt = 0;
+			}
+		}
 		break;
 	case HBP_CORE_GET_GESTURE_COORD:
 		mutex_lock(&hbp->gesture_mtx);
@@ -422,10 +525,12 @@ static __poll_t hbp_core_poll(struct file *file, poll_table *wait)
 	__poll_t mask = 0;
 
 	poll_wait(file, &hbp->state_event, wait);
+	mutex_lock(&hbp->state_notify_mtx);
 	if (hbp->state_st == STATE_WAKEUP) {
 		hbp->state_st = STATE_WAITQ;
 		mask = EPOLLIN | EPOLLRDNORM;
 	}
+	mutex_unlock(&hbp->state_notify_mtx);
 	return mask;
 }
 
@@ -539,21 +644,42 @@ static int hbp_core_probe(struct platform_device *pdev)
 	init_waitqueue_head(&hbp->ack_event);
 
 	mutex_init(&hbp->gesture_mtx);
+	mutex_init(&hbp->state_notify_mtx);
+
+	/* Initialize workqueue for state notify */
+	hbp->state_notify_wq = create_singlethread_workqueue("hbp_state_notify");
+	if (!hbp->state_notify_wq) {
+		hbp_err("failed to create state notify workqueue\n");
+		ret = -ENOMEM;
+		goto exit;
+	}
+	INIT_WORK(&hbp->state_notify_work, hbp_state_notify_work_handler);
+	hbp->state_notify_id = 0;
+	hbp->state_notify_event = HBP_PANEL_EVENT_UNKNOWN;
 
 	ret = core_register_dev(hbp);
 	if (ret < 0) {
 		hbp_err("failed to register hbp device\n");
-		goto exit;
+		goto exit_wq;
 	}
 
 	hbp_register_sysfs(hbp);
 
 	g_hbp = hbp;
 
+exit_wq:
+	if (ret < 0 && hbp && hbp->state_notify_wq) {
+		flush_workqueue(hbp->state_notify_wq);
+		destroy_workqueue(hbp->state_notify_wq);
+		hbp->state_notify_wq = NULL;
+	}
 exit:
 	hbp_info("exit %d.\n", ret);
 	return ret;
 }
+
+/*Notify thread and ioctl thread and remove thread is concurrency*/
+/*Do not free device resource in remove thread function*/
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
 static void hbp_core_remove(struct platform_device *pdev)
 #else

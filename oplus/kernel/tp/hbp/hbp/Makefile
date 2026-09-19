@@ -10,8 +10,9 @@ oplus_hbp_core-y += hbp_power.o
 oplus_hbp_core-y += hbp_spi.o
 oplus_hbp_core-y += hbp_sysfs.o
 oplus_hbp_core-y += hbp_exception.o
+oplus_hbp_core-y += hbp_healthinfo.o
 
-ccflags-y += -I$(srctree)/$(src)
+ccflags-y += -I$(srctree)/$(src)/
 
 obj-m += oplus_hbp_core.o
 

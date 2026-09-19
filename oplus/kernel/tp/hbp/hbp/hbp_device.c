@@ -42,8 +42,14 @@
 #define HBP_IOCTRL_SPI_GET_PARA            _IO(HBP_IOCTRL_GROUP, 0x17)
 #define HBP_IOCTRL_SYNC_INPUT_TIME         _IO(HBP_IOCTRL_GROUP, 0x18)
 #define HBP_IOCTRL_UPDATE_FILM_INFO        _IO(HBP_IOCTRL_GROUP, 0x19)
+#define HBP_IOCTRL_GET_HEALTH_INFO         _IO(HBP_IOCTRL_GROUP, 0x1A)
+#define HBP_IOCTRL_SET_HEALTH_INFO         _IO(HBP_IOCTRL_GROUP, 0x1B)
 
 #define HBP_IOCTRL_PEN_STATUS              _IO(HBP_IOCTRL_GROUP, 0x21)
+/*fpGripStatus*/
+#define HBP_IOCTRL_FP_GRIP_STATUS          _IO(HBP_IOCTRL_GROUP, 0x22)
+
+#define HBP_IOCTRL_IRQ_FREE                _IO(HBP_IOCTRL_GROUP, 0x23)
 
 extern void hbp_state_notify(struct hbp_core *hbp, int id, hbp_panel_event event);
 extern int hbp_register_notify_cb(struct hbp_device *hbp_dev, struct device *dev);
@@ -207,6 +213,9 @@ static int hbp_device_dt_parse(struct hbp_core *hbp, struct hbp_device *hbp_dev)
 	hbp_dev->pen_support = of_property_read_bool(np, "pen_support");
 	hbp_info("pen_support:%d\n", hbp_dev->pen_support);
 
+	hbp_dev->fp_grip_support = of_property_read_bool(np, "fp_grip_support");
+	hbp_info("fp_grip_support:%d\n", hbp_dev->fp_grip_support);
+
 	hbp_dev->create_with_power_on_support = of_property_read_bool(np, "create_with_power_on_support");
 	hbp_info("create_with_power_on_support:%d\n", hbp_dev->create_with_power_on_support);
 	memset(hbp_dev->clk_name, 0, 16);
@@ -300,10 +309,60 @@ static void hbp_queue_init(struct frame_queue *queue)
 	queue->waitq_flag = QUEUE_WAIT;
 }
 
+static hbp_panel_event hbp_panel_event_convert(hbp_panel_event event)
+{
+	//TODO:
+	//(1) if oncell panel, ignore suspend event, only use early suspend event
+	//to avoid repeat early suspend or suspend event
+	//(2) if tddi ic, need update
+	if (event == HBP_PANEL_EVENT_SUSPEND) {
+		return HBP_PANEL_EVENT_EARLY_SUSPEND;
+	}
+
+	if (event == HBP_PANEL_EVENT_RESUME) {
+		return HBP_PANEL_EVENT_EARLY_RESUME;
+	}
+
+	return event;
+}
+
 static void hbp_panel_notify_callback(hbp_panel_event event, struct hbp_device *hbp_dev)
 {
+	if (!g_hbp) {
+		hbp_err("g_hbp is null\n");
+		return;
+	}
+	if (!hbp_dev) {
+		hbp_err("hbp_dev is null\n");
+		return;
+	}
 	if (event != HBP_PANEL_EVENT_UNKNOWN) {
-		hbp_state_notify(g_hbp, hbp_dev->id, event);
+		if (hbp_dev->id >= MAX_DEVICES || !g_hbp->devices[hbp_dev->id]) {
+		    hbp_err("invalid device id = %d \n", hbp_dev->id);
+		    return;
+		}
+		hbp_debug("notify id %d event %d\n", hbp_dev->id, event);
+
+		event = hbp_panel_event_convert(event);
+
+		/* Protect concurrent access to states[] and state_notify fields */
+		mutex_lock(&g_hbp->state_notify_mtx);
+		/* Check if same event is already processed or being processed */
+		if ((g_hbp->state_notify_id == hbp_dev->id &&
+		     g_hbp->state_notify_event == event)) {
+			mutex_unlock(&g_hbp->state_notify_mtx);
+			hbp_info("same screen notify event %d, ignore\n", event);
+			return;
+		}
+		g_hbp->state_notify_id = hbp_dev->id;
+		g_hbp->state_notify_event = event;
+		mutex_unlock(&g_hbp->state_notify_mtx);
+
+		if (g_hbp->state_notify_wq) {
+			queue_work(g_hbp->state_notify_wq, &g_hbp->state_notify_work);
+		} else {
+			hbp_err("state_notify_wq is null\n");
+		}
 	}
 }
 
@@ -324,7 +383,10 @@ struct hbp_device *hbp_device_create(void *priv,
 		goto exit;
 	}
 
-	hbp_dev->state = HBP_PANEL_EVENT_RESUME;
+	hbp_dev->state = HBP_PANEL_EVENT_EARLY_RESUME;
+	mutex_lock(&hbp->state_notify_mtx);
+	hbp->states[id].state = hbp_dev->state;
+	mutex_unlock(&hbp->state_notify_mtx);
 	hbp_dev->priv = priv;
 	hbp_dev->dev_ops = dev_ops;
 	hbp_dev->dev = dev;
@@ -354,6 +416,8 @@ struct hbp_device *hbp_device_create(void *priv,
 	init_waitqueue_head(&hbp_dev->drv_event);
 
 	hbp_queue_init(&hbp_dev->frame_queue);
+
+	hbp_healthinfo_init(&hbp_dev->monitor_data);
 
 	ret = hbp_device_dt_parse(hbp, hbp_dev);
 	if (ret < 0) {
@@ -522,6 +586,18 @@ static void hbp_fingerprint_report(struct hbp_device *hbp_dev, struct gesture_in
 	mutex_unlock(&hbp_dev->mifp);
 }
 
+void touch_call_fp_grip(struct hbp_device *hbp_dev, int state)
+{
+	struct touch_fp_grip_info event_data;
+	memset(&event_data, 0, sizeof(event_data));
+	if (!hbp_dev) {
+		return;
+	}
+	event_data.value = state;
+	hbp_event_call_notifier(EVENT_ACTION_FOR_FP_GIRP, (void *)&event_data);
+	hbp_info("transfer girp of fp pass state:%d\n", event_data.value);
+}
+
 static void hbp_gesture_report(struct hbp_device *hbp_dev, struct gesture_info *gesture)
 {
 
@@ -551,6 +627,8 @@ static void hbp_gesture_report(struct hbp_device *hbp_dev, struct gesture_info *
 			gesture->type == SingleTap? "single tap" :
 			gesture->type == Heart? "heart" :
 			gesture->type == PenDetect? "(pen detect)" :
+			gesture->type == FP_GESTURE_HOLD ? "fp_gesture_hold" :
+			gesture->type == FP_GESTURE_RELEASE ? "fp_gesture_release" :
 			gesture->type == SGesture? "(S)" : "unknown");
 
 		if (gesture->type != UnknownGesture) {
@@ -564,6 +642,19 @@ static void hbp_gesture_report(struct hbp_device *hbp_dev, struct gesture_info *
 			input_sync(hbp_dev->i_dev);
 		} else {
 			hbp_err("detect unkown gesture\n");
+		}
+
+		if (hbp_dev->fp_grip_support) {
+			/* fp_grip_hold shared with resume-side atomic_xchg, must use atomic ops */
+			if (gesture->type == FP_GESTURE_HOLD) {
+				atomic_set(&hbp_dev->fp_grip_hold, 1);
+				hbp_info("FP_GESTURE_HOLD:%d\n", atomic_read(&hbp_dev->fp_grip_hold));
+				touch_call_fp_grip(hbp_dev, 1);
+			} else if (gesture->type == FP_GESTURE_RELEASE) {
+				atomic_set(&hbp_dev->fp_grip_hold, 0);
+				hbp_info("FP_GESTURE_RELEASE:%d\n", atomic_read(&hbp_dev->fp_grip_hold));
+				touch_call_fp_grip(hbp_dev, 0);
+			}
 		}
 	}
 }
@@ -689,10 +780,6 @@ static irqreturn_t hbp_irq_handler(int irq, void *dev_id)
 
 	hbp_dev->top_irq_frame_tv.value[0] = ktime_get();
 
-	if (!hbp_dev->frame_insert_support && hbp_dev->i_dev) {
-		input_set_timestamp(hbp_dev->i_dev, hbp_dev->top_irq_frame_tv.value[0]);
-	}
-
 	return IRQ_WAKE_THREAD;
 }
 
@@ -720,7 +807,8 @@ static irqreturn_t hbp_irq_threaded_fn(int irq, void *dev_id)
 				|| reason == IRQ_REASON_RESET_PWR
 				|| reason == IRQ_REASON_RESET_FWUPDATE
 				|| reason == IRQ_REASON_RESPONSE
-				|| reason == IRQ_REASON_RESET_IDENTIFY) {
+				|| reason == IRQ_REASON_RESET_IDENTIFY
+				|| reason == IRQ_REASON_UPLINK_REPORT) {
 			goto report_frame;
 		}
 	}
@@ -816,7 +904,7 @@ static int hbp_register_irq_func(struct hbp_device *hbp_dev)
 		ret = request_threaded_irq(hbp_dev->irq,
 					   hbp_irq_handler,
 					   hbp_irq_threaded_fn,
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0)) || !defined(CONFIG_TOUCHPANEL_MTK_PLATFORM)
 					   hbp_dev->irq_flags | IRQF_ONESHOT,
 #else
 					   hbp_dev->irq_flags | IRQF_ONESHOT | IRQF_NO_SUSPEND,
@@ -962,6 +1050,12 @@ static int hbp_queue_config(unsigned int buf_size, struct frame_queue *queue)
 
 void hbp_set_irq_status(struct hbp_device *hbp_dev, bool en)
 {
+	if (hbp_dev->irq_freed == true) {
+	    disable_irq(hbp_dev->irq);
+	    hbp_dev->irq_enabled = false;
+	    return;
+	}
+
 	if (hbp_dev->irq_enabled != (!!en)) {
 		en ? enable_irq(hbp_dev->irq): disable_irq(hbp_dev->irq);
 		hbp_dev->irq_enabled = (!!en);
@@ -1020,7 +1114,12 @@ static long hbp_ctrl_unlocked_ioctl(struct file *filp, unsigned int cmd, unsigne
 		hbp_dev->drv_ack = usr.val;
 		break;
 	case HBP_IOCTRL_IRQ_ENABLE:
+		hbp_info("HBP_IOCTRL_IRQ_ENABLE:%lld\n", usr.val);
 		hbp_set_irq_status(hbp_dev, usr.val);
+		break;
+	case HBP_IOCTRL_IRQ_FREE:
+		hbp_info("HBP_IOCTRL_IRQ_FREE!");
+		hbp_unregister_irq(hbp_dev);
 		break;
 	case HBP_IOCTRL_START:
 		hbp_start_flow(NULL);
@@ -1105,11 +1204,37 @@ static long hbp_ctrl_unlocked_ioctl(struct file *filp, unsigned int cmd, unsigne
 			return ret;
 		}
 		break;
+	case HBP_IOCTRL_GET_HEALTH_INFO:
+		ret = hbp_healthinfo_read(usr.health_info.info, usr.health_info.info_size, &hbp_dev->monitor_data);
+		if (ret < 0) {
+			hbp_err("failed to get health info");
+			return -EFAULT;
+		}
+		break;
+	case HBP_IOCTRL_SET_HEALTH_INFO:
+		if (!usr.val) {
+			ret = hbp_healthinfo_clear(&hbp_dev->monitor_data);
+			if (ret < 0) {
+				hbp_err("failed to clear health info");
+				return -EFAULT;
+			}
+		}
+		break;
 	case HBP_IOCTRL_PEN_STATUS:
 		if (usr.val > 0) {
 			pen_resume(hbp_dev);
 		} else {
 			pen_suspend(hbp_dev);
+		}
+		break;
+	case HBP_IOCTRL_FP_GRIP_STATUS:
+		if (hbp_dev->fp_grip_support) {
+			if (usr.val == FP_GRIP_DISABLE_TIMEOUT || usr.val == FP_GRIP_DISABLE) {
+				hbp_dev->fp_grip_enable = FP_GRIP_DISABLE;
+			} else {
+				hbp_dev->fp_grip_enable = FP_GRIP_ENABLE;
+			}
+			hbp_info("transfer girp of fp pass state %s\n", hbp_dev->fp_grip_enable > 0 ? "enable" : "disable");
 		}
 		break;
 	default:
@@ -1166,10 +1291,10 @@ static struct file_operations hbp_ctrl_fops = {
 
 void hbp_set_irq_wake(struct hbp_device *hbp_dev, bool wake)
 {
-	if (wake) {
+	if (wake && hbp_dev->irq_freed == false) {
 		enable_irq_wake(hbp_dev->irq);
 	} else {
 		disable_irq_wake(hbp_dev->irq);
 	}
-	hbp_info("%s irq wake\n", wake?"enable":"disable");
+	hbp_info("%s irq wake; irq_freed %d\n", wake?"enable":"disable", hbp_dev->irq_freed);
 }

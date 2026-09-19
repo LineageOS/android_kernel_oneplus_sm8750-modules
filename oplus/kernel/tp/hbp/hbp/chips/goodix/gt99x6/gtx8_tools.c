@@ -30,10 +30,6 @@
 
 
 #define GOODIX_TOOLS_NAME "gtp_tools"
-#define GOODIX_TOOLS_VER_MAJOR 1
-#define GOODIX_TOOLS_VER_MINOR 0
-static const u16 goodix_tools_ver =
-	((GOODIX_TOOLS_VER_MAJOR << 8) + (GOODIX_TOOLS_VER_MINOR));
 
 #define GOODIX_TS_IOC_MAGIC 'G'
 #define NEGLECT_SIZE_MASK (~(_IOC_SIZEMASK << _IOC_SIZESHIFT))
@@ -218,9 +214,6 @@ static long goodix_tools_ioctl(struct file *filp, unsigned int cmd,
 			hbp_err("Async data write failed\n");
 		break;
 	case GTP_TOOLS_VER:
-		ret = copy_to_user((u8 *)arg, &goodix_tools_ver, sizeof(u16));
-		if (ret)
-			hbp_err("failed copy driver version info to user\n");
 		break;
 	case GTP_TOOLS_CTRL_SYNC:
         hbp_info("unsupport ctrl sync\n");
@@ -278,7 +271,9 @@ int gt_tools_init(struct gt_core *core_data)
 	struct miscdevice *miscdev = &core_data->tool_misc_dev;
 	int ret;
 
-	if (core_data->board_data.chip_type == GT9966 || core_data->board_data.chip_type == GT9926)
+	if (core_data->board_data.chip_type == GT9966 ||
+			core_data->board_data.chip_type == GT9926 ||
+			core_data->board_data.chip_type == GT9976)
 		sprintf(core_data->tool_misc_dev_name, "%s", GOODIX_TOOLS_NAME);
 	else
 		sprintf(core_data->tool_misc_dev_name, "%s.1", GOODIX_TOOLS_NAME);
