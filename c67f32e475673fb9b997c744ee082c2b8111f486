@@ -16,6 +16,23 @@
       "message": "This patch is needed on pagani (OnePlus 13T) to properly trigger LHBM with the related HWC changes.",
       "revId": "c67f32e475673fb9b997c744ee082c2b8111f486",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "e69e95e8_73528200",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 35436
+      },
+      "writtenOn": "2026-09-19T10:10:09Z",
+      "side": 1,
+      "message": "This doesnt work on nord 6. we should have a common patch for this? can you try https://github.com/Oneplus-Nord6-development/android_kernel_oneplus_sm8750-modules/commit/c9ff1b42366465760692758d38cfe0f74ef2a8e7",
+      "revId": "c67f32e475673fb9b997c744ee082c2b8111f486",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
