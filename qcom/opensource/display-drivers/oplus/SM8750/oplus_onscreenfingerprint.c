@@ -168,6 +168,35 @@ static int oplus_ofp_fp_type_compatible_mode_config(void)
 	return 0;
 }
 
+/*
+ * Product-selected compatibility policy for primary command-mode optical panels.
+ * Keep the legacy path unless the build opts in and the panel contract matches.
+ */
+static bool ofp_uiready_compat_requested(struct dsi_panel *panel,
+		struct oplus_ofp_params *params)
+{
+#if defined(OPLUS_OFP_UIREADY_COMPAT) && OPLUS_OFP_UIREADY_COMPAT == 1
+	const char *mode;
+	const unsigned int required = OPLUS_OFP_FP_TYPE_LOCAL_HBM |
+		OPLUS_OFP_FP_TYPE_LOCAL_HBM_UNLOCKING_ACCELERATION;
+	const unsigned int excluded = OPLUS_OFP_FP_TYPE_LCD_CAPACITIVE |
+		OPLUS_OFP_FP_TYPE_OLED_CAPACITIVE | OPLUS_OFP_FP_TYPE_ULTRASONIC |
+		OPLUS_OFP_FP_TYPE_VIDEO_MODE_AOD_FOD | OPLUS_OFP_FP_TYPE_VIDEO_MODE_30HZ_AOD;
+
+	if (!panel->type || strcmp(panel->type, "primary") ||
+			params != &g_oplus_ofp_params[OPLUS_OFP_PRIMARY_DISPLAY])
+		return false;
+	if ((params->fp_type & required) != required || (params->fp_type & excluded))
+		return false;
+
+	mode = panel->utils.get_property(panel->utils.data,
+			"qcom,mdss-dsi-panel-type", NULL);
+	return mode && !strcmp(mode, "dsi_cmd_mode");
+#else
+	return false;
+#endif
+}
+
 /* get fp_type value from panel dtsi */
 int oplus_ofp_init(void *dsi_panel)
 {
@@ -220,6 +249,10 @@ int oplus_ofp_init(void *dsi_panel)
 	p_oplus_ofp_params->fp_type_compatible_mode = utils->read_bool(utils->data, "oplus,ofp-fp-type-compatible-mode");
 	OFP_INFO("fp_type_compatible_mode:%d\n", p_oplus_ofp_params->fp_type_compatible_mode);
 	oplus_ofp_fp_type_compatible_mode_config();
+
+	/* Latch once before publishing callbacks; do not change this at runtime. */
+	p_oplus_ofp_params->uiready_compat =
+		ofp_uiready_compat_requested(panel, p_oplus_ofp_params);
 
 	if (oplus_ofp_is_supported()) {
 		/* indicates whether gamut needs to be bypassed in aod/fod scenarios or not */
@@ -685,6 +718,20 @@ int oplus_ofp_property_update(void *sde_connector, void *sde_connector_state, in
 			OFP_INFO("oplus_ofp_fp_press set esd_pending:%d\n", atomic_read(&display->panel->oplus_panel.esd_pending));
 		}
 		p_oplus_ofp_params->hbm_enable = prop_val;
+
+		if (p_oplus_ofp_params->uiready_compat &&
+				oplus_ofp_local_hbm_is_enabled() &&
+				oplus_ofp_local_hbm_unlocking_acceleration_is_enabled()) {
+			if ((prop_val & OPLUS_OFP_PROPERTY_FINGERPRESS_LAYER) ||
+			    (prop_val & OPLUS_OFP_PROPERTY_DIM_LAYER)) {
+				p_oplus_ofp_params->fp_press = true;
+			} else if (p_oplus_ofp_params->fp_press) {
+				p_oplus_ofp_params->fp_press = false;
+				OFP_INFO("oplus_ofp_fp_press:%d (fod bits dropped)\n", p_oplus_ofp_params->fp_press);
+				OPLUS_OFP_TRACE_INT("oplus_ofp_fp_press", p_oplus_ofp_params->fp_press);
+			}
+		}
+
 		OPLUS_OFP_TRACE_INT("oplus_ofp_hbm_enable", p_oplus_ofp_params->hbm_enable);
 
 		msm_property_set_dirty(&c_conn->property_info, &c_state->property_state, CONNECTOR_PROP_HBM_ENABLE);

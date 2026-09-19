@@ -1,0 +1,48 @@
+OPlus primary command-mode optical UDFPS compatibility opt-in
+============================================================
+
+Build define: OPLUS_OFP_UIREADY_COMPAT=1
+Default: undefined or 0 (retain the legacy OFP path).
+Only the integer value 1 selects the compatibility path.
+
+Use this opt-in only for a validated product whose primary command-mode
+optical panel/HAL combination takes press from DIM/FINGERPRESS connector
+bits and needs a fresh READY after each touch. No new device-tree property
+is required. Existing fp_type and panel mode configuration remain inputs.
+
+The reader checks the resolved LOCAL_HBM and
+LOCAL_HBM_UNLOCKING_ACCELERATION bits and rejects secondary panels,
+LCD/OLED capacitive, ultrasonic, video-AOD/FOD and 30 Hz video-AOD modes.
+It latches the decision during OFP initialization, before callback
+publication. Do not change it at runtime or fall back to the legacy worker
+while an opted-in owner is stopping.
+
+With LineageOS's Make-based kernel/external-module build, a product can
+append the define without introducing a second module wrapper option:
+
+    TARGET_KERNEL_ADDITIONAL_FLAGS += KCFLAGS+=-DOPLUS_OFP_UIREADY_COMPAT=1
+
+KCFLAGS is a standard Kbuild C compilation option. The += is part of the
+argument passed to the kernel Make invocation, not a global enablement in
+the shared device configuration. Place this line only in the opted-in
+product's BoardConfig.mk. This appends to earlier command-line/environment
+KCFLAGS, but a command-line assignment can shadow ordinary KCFLAGS
+assignments in Makefiles. Audit the full build for such assignments,
+later overrides and conflicting definitions before enabling this option.
+Check the actual OFP compile command when building; do not discard existing
+flags to make this opt-in work.
+Bazel/Kleaf builds need their own explicit flag wiring; this Make example
+does not configure them. Rebuild the complete affected module.
+
+The four kernel changes share this opt-in: property press, READY rearm,
+owned delivery and TP_DOWN reevaluation. Products that do not select it
+retain the legacy worker, notifier, timer and teardown paths. An enabled
+binary is not a per-device runtime selector for multi-product distribution.
+The userspace input-press fix is separately selected with
+qtidisplay.oplus_udfps_input_press; that option also defaults off.
+
+The opt-in does not select a sensor or alter fp_type, panel brightness,
+HBM timing, calibration or biometric algorithm thresholds. Existing
+IRQ/display object lifetime and session teardown serialization remain
+caller responsibilities. No new claim of multi-panel lifetime safety is
+made by this compatibility series.

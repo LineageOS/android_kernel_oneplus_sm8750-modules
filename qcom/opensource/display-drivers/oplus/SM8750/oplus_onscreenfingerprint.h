@@ -146,6 +146,8 @@ struct oplus_ofp_params {
 													 bit(9):video mode aod && fod
 													 bit(10):local hbm unlocking acceleration
 													*/
+	/* Immutable until the panel session has stopped. Default: legacy path. */
+	bool uiready_compat;
 	bool fp_type_compatible_mode;					/* indicates whether fp type compatible mode is set or not */
 	bool need_to_bypass_gamut;						/* indicates whether gamut needs to be bypassed in aod/fod scenarios or not */
 	/* fod */
