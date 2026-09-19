@@ -115,6 +115,7 @@ static ssize_t state_show(struct device *dev,
 	struct hbp_core *hbp = dev_get_drvdata(dev);
 
 	cnt += scnprintf(buf + cnt, PAGE_SIZE, "early suspend:1, suspend:2, early-resume:3, resume:4\n");
+	mutex_lock(&hbp->state_notify_mtx);
 	for (i = 0; i < MAX_DEVICES; i++) {
 		if (!hbp->devices[i]) {
 			continue;
@@ -125,6 +126,7 @@ static ssize_t state_show(struct device *dev,
 				 hbp->states[i].state,
 				 hbp->states[i].sync);
 	}
+	mutex_unlock(&hbp->state_notify_mtx);
 	return cnt;
 }
 
