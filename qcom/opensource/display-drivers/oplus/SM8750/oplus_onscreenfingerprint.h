@@ -12,6 +12,7 @@
 #define VIDEO_AOD_BRIGHTNESS_VALUE_COUNT 4
 
 /* please just only include linux common head file to keep me pure */
+#include <linux/atomic.h>
 #include "oplus_display_sysfs_attrs.h"
 #include "../include/oplus_debug.h"
 
@@ -162,6 +163,7 @@ struct oplus_ofp_params {
 	bool fp_press;									/* indicates whether pressed icon layer is ready or not */
 	unsigned int pressed_icon_status;				/* indicates whether pressed icon has been displayed in panel module or not */
 	unsigned int notifier_chain_value;				/* ui ready notifier chain value */
+	atomic_t uiready_rearm_pending; /* resend READY once for a new touch */
 	struct workqueue_struct *uiready_event_wq;		/* a workqueue used to send uiready event */
 	struct work_struct uiready_event_work;			/* a work struct used to send uiready event */
 	struct hrtimer timer;							/* add for uiready notifier call chain */

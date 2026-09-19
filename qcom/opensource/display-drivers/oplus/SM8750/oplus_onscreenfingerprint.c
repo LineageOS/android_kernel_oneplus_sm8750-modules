@@ -301,6 +301,9 @@ int oplus_ofp_init(void *dsi_panel)
 		}
 
 		if (!oplus_ofp_oled_capacitive_is_enabled()) {
+			if (p_oplus_ofp_params->uiready_compat)
+				atomic_set(&p_oplus_ofp_params->uiready_rearm_pending, 0);
+
 			/* add workqueue to send ui ready */
 			if (!strcmp(panel->type, "primary")) {
 				p_oplus_ofp_params->uiready_event_wq = create_singlethread_workqueue("uiready_event_0");
@@ -2641,6 +2644,7 @@ void oplus_ofp_uiready_event_work_handler(struct work_struct *work_item)
 /* notify uiready */
 int oplus_ofp_notify_uiready(void *sde_encoder_phys)
 {
+	bool rearm_uiready = false;
 	uint64_t hbm_enable = 0;
 	static unsigned int last_notifier_chain_value = OPLUS_OFP_UI_DISAPPEAR;
 	struct sde_encoder_phys *phys_enc = sde_encoder_phys;
@@ -2710,7 +2714,15 @@ int oplus_ofp_notify_uiready(void *sde_encoder_phys)
 		}
 	}
 
-	if (last_notifier_chain_value != p_oplus_ofp_params->notifier_chain_value) {
+	/* Keep the request armed until the existing panel checks report READY. */
+	if (p_oplus_ofp_params->uiready_compat
+			&& oplus_ofp_local_hbm_is_enabled()
+			&& oplus_ofp_local_hbm_unlocking_acceleration_is_enabled()
+			&& p_oplus_ofp_params->notifier_chain_value == OPLUS_OFP_UI_READY)
+		rearm_uiready = atomic_xchg(&p_oplus_ofp_params->uiready_rearm_pending, 0);
+
+	if (last_notifier_chain_value != p_oplus_ofp_params->notifier_chain_value
+			|| rearm_uiready) {
 		OFP_INFO("queue uiready event work\n");
 		queue_work(p_oplus_ofp_params->uiready_event_wq, &p_oplus_ofp_params->uiready_event_work);
 	}
@@ -3951,6 +3963,8 @@ static int oplus_ofp_aod_off_set(void)
 */
 int oplus_ofp_touchpanel_event_notifier_call(struct notifier_block *nb, unsigned long action, void *data)
 {
+	struct oplus_ofp_params *p_oplus_ofp_params =
+		container_of(nb, struct oplus_ofp_params, touchpanel_event_notifier);
 	struct touchpanel_event *tp_event = (struct touchpanel_event *)data;
 	struct dsi_display *display = get_main_display();
 	struct sde_connector *sde_conn;
@@ -3974,6 +3988,13 @@ int oplus_ofp_touchpanel_event_notifier_call(struct notifier_block *nb, unsigned
 	if (tp_event) {
 		if (action == EVENT_ACTION_FOR_FINGPRINT) {
 			OFP_DEBUG("EVENT_ACTION_FOR_FINGPRINT\n");
+
+			/* Touch-up cancels a request not yet consumed by notify_uiready. */
+			if (p_oplus_ofp_params->uiready_compat
+					&& oplus_ofp_local_hbm_is_enabled()
+					&& oplus_ofp_local_hbm_unlocking_acceleration_is_enabled())
+				atomic_set(&p_oplus_ofp_params->uiready_rearm_pending,
+						tp_event->touch_state == 1);
 
 			if (tp_event->touch_state == 1) {
 				OFP_INFO("tp touchdown\n");
