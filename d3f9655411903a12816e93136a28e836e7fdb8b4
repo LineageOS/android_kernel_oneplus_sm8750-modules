@@ -16,6 +16,24 @@
       "message": "needs sdca_registers_dlkm.ko not to be merge until added in modules list device side",
       "revId": "d3f9655411903a12816e93136a28e836e7fdb8b4",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "47da5593_78db72c3",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 35436
+      },
+      "writtenOn": "2026-09-20T09:46:58Z",
+      "side": 1,
+      "message": "done",
+      "parentUuid": "2919accf_545a3e75",
+      "revId": "d3f9655411903a12816e93136a28e836e7fdb8b4",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
