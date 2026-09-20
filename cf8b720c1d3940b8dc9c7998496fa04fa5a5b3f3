@@ -22,6 +22,30 @@
       },
       "revId": "cf8b720c1d3940b8dc9c7998496fa04fa5a5b3f3",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "c8a9866c_8c85e988",
+        "filename": "qcom/opensource/video-driver/driver/vidc/src/msm_vidc_driver.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 1675,
+      "author": {
+        "id": 35436
+      },
+      "writtenOn": "2026-09-20T09:47:56Z",
+      "side": 1,
+      "message": "done",
+      "parentUuid": "ec1ea15e_e219259c",
+      "range": {
+        "startLine": 1672,
+        "startChar": 0,
+        "endLine": 1675,
+        "endChar": 9
+      },
+      "revId": "cf8b720c1d3940b8dc9c7998496fa04fa5a5b3f3",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
