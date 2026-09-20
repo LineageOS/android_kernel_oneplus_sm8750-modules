@@ -1,0 +1,55 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "f0c7f60e_3cd1a85f",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 3
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2026-09-20T14:23:17Z",
+      "side": 1,
+      "message": "...",
+      "revId": "7a8004310f8e1b520f1749fb1d47b915bbf1cff1",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "ca327744_1126a3ad",
+        "filename": "qcom/opensource/video-driver/driver/vidc/src/msm_vidc_driver.c",
+        "patchSetId": 3
+      },
+      "lineNbr": 1672,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2026-09-20T14:23:17Z",
+      "side": 1,
+      "message": "Tabs",
+      "revId": "7a8004310f8e1b520f1749fb1d47b915bbf1cff1",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "2eaa5bc6_ba3ad61d",
+        "filename": "qcom/opensource/video-driver/driver/vidc/src/msm_vidc_driver.c",
+        "patchSetId": 3
+      },
+      "lineNbr": 1675,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2026-09-20T14:23:17Z",
+      "side": 1,
+      "message": "Tabs",
+      "revId": "7a8004310f8e1b520f1749fb1d47b915bbf1cff1",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
