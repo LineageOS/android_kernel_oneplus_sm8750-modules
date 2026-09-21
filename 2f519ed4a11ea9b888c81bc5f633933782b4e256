@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "f39d54e3_41d06de5",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 38091
+      },
+      "writtenOn": "2026-09-21T13:01:30Z",
+      "side": 1,
+      "message": "TEE attestation/Widevine issues and bootloader-state-dependent keybox behavior have been separately reported for the OnePlus 13T (pagani). HAL–TA communication errors were also observed during the fingerprint investigation, but this series does not repair or bypass those TEE-related issues. Background: https://github.com/FroggMaster/oneplus-fix-tee-broken\n\nThe issues directly identified and addressed here are loss of UDFPS press state during composition and failure to deliver a fresh UIREADY notification for a new touch when the panel is already ready. The commits address input press preservation, connector-property press handling, touch rearming, asynchronous request ownership and lifetime, and TP_DOWN reevaluation in sequence.\n\nThe shared changes are default-off and require explicit product build opt-ins. Pagani enablement is maintained separately. On-device validation has been completed using an Android 17 AOSP-based custom ROM. No TEE/TA, calibration or biometric threshold changes are included.",
+      "revId": "2f519ed4a11ea9b888c81bc5f633933782b4e256",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
