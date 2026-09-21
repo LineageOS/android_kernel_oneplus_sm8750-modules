@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "55620457_89e6a7a4",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 27025
+      },
+      "writtenOn": "2026-09-21T13:45:28Z",
+      "side": 1,
+      "message": "not needed when you add wlan-devicetree from oplus, it was a temporary hack",
+      "revId": "0ecfe1e51fdfdefeaf2629393562f3a418237ba0",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
