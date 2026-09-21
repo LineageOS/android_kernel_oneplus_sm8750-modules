@@ -34,6 +34,24 @@
       "parentUuid": "55620457_89e6a7a4",
       "revId": "0ecfe1e51fdfdefeaf2629393562f3a418237ba0",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "a81065f9_60fa99fa",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 35436
+      },
+      "writtenOn": "2026-09-21T18:12:36Z",
+      "side": 1,
+      "message": "are you sure? it didnt boot last time for me? as far as i can remember. I do have these in https://review.lineageos.org/c/LineageOS/android_kernel_oneplus_sm8750-devicetrees/+/503146",
+      "parentUuid": "fc6c9b63_40341889",
+      "revId": "0ecfe1e51fdfdefeaf2629393562f3a418237ba0",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
