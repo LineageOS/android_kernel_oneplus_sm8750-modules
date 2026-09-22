@@ -52,6 +52,24 @@
       "parentUuid": "fc6c9b63_40341889",
       "revId": "0ecfe1e51fdfdefeaf2629393562f3a418237ba0",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "41b9b043_7614013d",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 27025
+      },
+      "writtenOn": "2026-09-22T17:14:18Z",
+      "side": 1,
+      "message": "yeah, I moved to 24.0 and working on kernel rebase to import nord 6 and then ace 6 on top, will check the recent op13t source drop after that\nit boots and wifi works still, check lineage-24.0-rebase branches on org",
+      "parentUuid": "a81065f9_60fa99fa",
+      "revId": "0ecfe1e51fdfdefeaf2629393562f3a418237ba0",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
