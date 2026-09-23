@@ -88,6 +88,24 @@
       "parentUuid": "41b9b043_7614013d",
       "revId": "0ecfe1e51fdfdefeaf2629393562f3a418237ba0",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "3a630f5a_04ae8da6",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 27025
+      },
+      "writtenOn": "2026-09-23T03:23:12Z",
+      "side": 1,
+      "message": "by that do you mean splitting into {vendor}/{device} modules? like alex did for fp6 and ingot?",
+      "parentUuid": "d8faf18e_aadab6f9",
+      "revId": "0ecfe1e51fdfdefeaf2629393562f3a418237ba0",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
