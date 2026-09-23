@@ -124,6 +124,24 @@
       "parentUuid": "3a630f5a_04ae8da6",
       "revId": "0ecfe1e51fdfdefeaf2629393562f3a418237ba0",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "8e17fcba_f94b82f9",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2026-09-23T06:56:37Z",
+      "side": 1,
+      "message": "I am not sure if that\u0027s exactly how it\u0027s being done on oplus sm8850. Check it out.",
+      "parentUuid": "7f975757_1c514ff6",
+      "revId": "0ecfe1e51fdfdefeaf2629393562f3a418237ba0",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
