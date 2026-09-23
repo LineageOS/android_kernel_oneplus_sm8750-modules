@@ -142,6 +142,24 @@
       "parentUuid": "7f975757_1c514ff6",
       "revId": "0ecfe1e51fdfdefeaf2629393562f3a418237ba0",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "81d13dd5_be63f862",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 10067
+      },
+      "writtenOn": "2026-09-23T07:37:24Z",
+      "side": 1,
+      "message": "8850 was done in \"non-standard\" way because we just put the changes you see in that build repo in qcom\u0027s odd \"6.11 DDK\" repo.",
+      "parentUuid": "8e17fcba_f94b82f9",
+      "revId": "0ecfe1e51fdfdefeaf2629393562f3a418237ba0",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
