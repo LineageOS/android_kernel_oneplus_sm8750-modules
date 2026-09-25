@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "6005ad17_8794cddb",
+        "filename": "oplus/kernel/tp/hbp/hbp/chips/focal/fhp_driver/fhp_core.c",
+        "patchSetId": 3
+      },
+      "lineNbr": 545,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2026-09-25T13:52:00Z",
+      "side": 0,
+      "message": "Restore the compilation fix.",
+      "range": {
+        "startLine": 545,
+        "startChar": 0,
+        "endLine": 545,
+        "endChar": 41
+      },
+      "revId": "047b645058787a2a04a1bd475ab25fe3f9660b30",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
