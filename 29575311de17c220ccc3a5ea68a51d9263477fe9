@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "f576bd9c_bfb2d4f2",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 37713
+      },
+      "writtenOn": "2026-09-25T06:02:17Z",
+      "side": 1,
+      "message": "Was merged in sm8850-common\nhttps://review.lineageos.org/c/LineageOS/android_kernel_oneplus_sm8850-modules/+/504264/1",
+      "revId": "29575311de17c220ccc3a5ea68a51d9263477fe9",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
