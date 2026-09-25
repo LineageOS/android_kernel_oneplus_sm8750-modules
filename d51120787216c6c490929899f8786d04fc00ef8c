@@ -18,6 +18,24 @@
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     },
     {
+      "unresolved": false,
+      "key": {
+        "uuid": "85872fa1_fdceef1a",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 3
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2026-09-25T13:51:19Z",
+      "side": 1,
+      "message": "Indeed, thanks for noticing, Mike.",
+      "parentUuid": "5eb84922_65119991",
+      "revId": "d51120787216c6c490929899f8786d04fc00ef8c",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
       "unresolved": true,
       "key": {
         "uuid": "b534b5c2_bb248825",
