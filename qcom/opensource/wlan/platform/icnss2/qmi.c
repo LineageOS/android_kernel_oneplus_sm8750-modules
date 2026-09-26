@@ -37,6 +37,8 @@
 #ifdef OPLUS_FEATURE_WIFI_BDF
 //Modify for: multi projects using different bdf
 #include <soc/oplus/system/oplus_project.h>
+//Add for: select BDF by device-tree , bug id 7902090
+#include "oplus_wifi.h"
 #endif /* OPLUS_FEATURE_WIFI_BDF */
 
 
@@ -1238,6 +1240,10 @@ static int icnss_get_bdf_file_name(struct icnss_priv *priv,
 				   u32 bdf_type, char *filename,
 				   u32 filename_len)
 {
+#ifdef OPLUS_FEATURE_WIFI_BDF
+	//Add for: select BDF by device-tree , bug id 7902090
+	const char *bdf_filename;
+#endif  /* OPLUS_FEATURE_WIFI_BDF */
 	char filename_tmp[ICNSS_MAX_FILE_NAME];
 	char foundry_specific_filename[ICNSS_MAX_FILE_NAME];
 	int ret = 0;
@@ -1249,7 +1255,25 @@ static int icnss_get_bdf_file_name(struct icnss_priv *priv,
 			//Modify for: multi projects using different bdf
 			snprintf(filename_tmp, filename_len, ELF_BDF_FILE_NAME);
 			#else
-			cnss_get_oplus_bdf_file_name(filename_tmp, filename_len);
+			{
+				int region;
+
+				cnss_get_oplus_bdf_file_name(filename_tmp, filename_len);
+				//Add for: select BDF by device-tree , bug id 7902090
+				bdf_filename = get_oplus_wifi_bdf();
+				if (bdf_filename && !strcmp(bdf_filename, ELF_BDF_FILE_NAME))
+					bdf_filename = NULL;
+				if (!bdf_filename) {
+					//Fallback: region-based BDF when the DT entry is unavailable
+					region = get_Operator_Version();
+					if (region == REGION_IN)
+						bdf_filename = BDF_FILE_IN;
+					else if (region == REGION_EU)
+						bdf_filename = BDF_FILE_EU;
+				}
+				if (bdf_filename && (strlen(bdf_filename) < MAX_FIRMWARE_NAME_LEN))
+					strcpy(filename_tmp, bdf_filename);
+			}
 			#endif /* OPLUS_FEATURE_WIFI_BDF */
 		else if (priv->board_id < 0xFF)
 			snprintf(filename_tmp, filename_len,
