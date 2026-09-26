@@ -35,6 +35,24 @@
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     },
     {
+      "unresolved": false,
+      "key": {
+        "uuid": "8e539b03_5baa9fa7",
+        "filename": "qcom/opensource/video-driver/driver/vidc/src/msm_vidc_driver.c",
+        "patchSetId": 3
+      },
+      "lineNbr": 1672,
+      "author": {
+        "id": 35436
+      },
+      "writtenOn": "2026-09-26T19:21:24Z",
+      "side": 1,
+      "message": "dne",
+      "parentUuid": "ca327744_1126a3ad",
+      "revId": "7a8004310f8e1b520f1749fb1d47b915bbf1cff1",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
       "unresolved": true,
       "key": {
         "uuid": "2eaa5bc6_ba3ad61d",
@@ -48,6 +66,24 @@
       "writtenOn": "2026-09-20T14:23:17Z",
       "side": 1,
       "message": "Tabs",
+      "revId": "7a8004310f8e1b520f1749fb1d47b915bbf1cff1",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "007e5dd0_38efd160",
+        "filename": "qcom/opensource/video-driver/driver/vidc/src/msm_vidc_driver.c",
+        "patchSetId": 3
+      },
+      "lineNbr": 1675,
+      "author": {
+        "id": 35436
+      },
+      "writtenOn": "2026-09-26T19:21:24Z",
+      "side": 1,
+      "message": "dne",
+      "parentUuid": "2eaa5bc6_ba3ad61d",
       "revId": "7a8004310f8e1b520f1749fb1d47b915bbf1cff1",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
