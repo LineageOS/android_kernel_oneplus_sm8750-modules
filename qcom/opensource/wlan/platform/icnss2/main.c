@@ -69,6 +69,11 @@
 #include <soc/oplus/system/oplus_project.h>
 #endif /* OPLUS_FEATURE_WIFI_MAC */
 
+#ifdef OPLUS_FEATURE_WIFI_BDF
+//Add for: select BDF by device-tree , bug id 7902090
+#include "oplus_wifi.h"
+#endif  /* OPLUS_FEATURE_WIFI_BDF */
+
 #define MAX_PROP_SIZE			32
 #define NUM_LOG_PAGES			10
 #define NUM_LOG_LONG_PAGES		4
@@ -6625,6 +6630,10 @@ static int icnss_probe(struct platform_device *pdev)
 		prealloc_initialized = true;
 	}
 
+	#ifdef OPLUS_FEATURE_WIFI_BDF
+	//Add for: select BDF by device-tree , bug id 7902090
+	oplus_wifi_init(pdev);
+	#endif  /* OPLUS_FEATURE_WIFI_BDF */
 	icnss_init_control_params(priv);
 
 	icnss_read_device_configs(priv);
@@ -6864,6 +6873,10 @@ static void icnss_remove(struct platform_device *pdev)
 
 	priv->iommu_domain = NULL;
 
+	#ifdef OPLUS_FEATURE_WIFI_BDF
+	//Add for: select BDF by device-tree , bug id 7902090
+	oplus_wifi_deinit();
+	#endif  /* OPLUS_FEATURE_WIFI_BDF */
 	icnss_hw_power_off(priv);
 
 	if (priv->wcn_ktb_info_buf)
