@@ -73,6 +73,24 @@
     {
       "unresolved": true,
       "key": {
+        "uuid": "d573b02f_36f2982d",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 3
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2026-09-26T01:36:10Z",
+      "side": 1,
+      "message": "Except that he didn\u0027t erase the previsouly applied changes. Don\u0027t you see that you\u0027re overriding history to write it again? https://github.com/LineageOS/android_kernel_oneplus_sm8750-modules/commits/lineage-23.2/oplus/kernel/tp/hbp",
+      "parentUuid": "dc564a17_f8287968",
+      "revId": "d51120787216c6c490929899f8786d04fc00ef8c",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
         "uuid": "b534b5c2_bb248825",
         "filename": "oplus/kernel/tp/hbp/hbp/chips/focal/fhp_driver/fhp_core.c",
         "patchSetId": 3
