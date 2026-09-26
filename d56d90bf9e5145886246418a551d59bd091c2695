@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "79bf0d75_41983f0b",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 3
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 35436
+      },
+      "writtenOn": "2026-09-26T17:38:59Z",
+      "side": 1,
+      "message": "Required by volkswagen so it can init wlan. should we keep this or previous patchset both works",
+      "revId": "d56d90bf9e5145886246418a551d59bd091c2695",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
