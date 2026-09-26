@@ -16,6 +16,24 @@
       "message": "Please check what is being reverted here.",
       "revId": "f5818841295d126b574e9d8d416d2c81ab017fe5",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "cb553bd4_829f20d6",
+        "filename": "qcom/opensource/camera-kernel/drivers/cam_sensor_module/cam_csiphy/cam_csiphy_soc.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 4,
+      "author": {
+        "id": 35436
+      },
+      "writtenOn": "2026-09-26T19:30:45Z",
+      "side": 1,
+      "message": "looking at oplus source code it was always 2024 in newer qcom tags we updated it. restored the change.",
+      "parentUuid": "9bda7034_e1a36d63",
+      "revId": "f5818841295d126b574e9d8d416d2c81ab017fe5",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
