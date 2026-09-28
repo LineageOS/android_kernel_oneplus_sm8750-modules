@@ -16,6 +16,41 @@
       "message": "This chain is broken somewhere because it doesn\u0027t compile. Please double check.",
       "revId": "b68dd33988a6fbcac3f91cf4989d8a5a41cc8f47",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "60391d71_9ce5216e",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 4
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 37713
+      },
+      "writtenOn": "2026-09-28T07:18:13Z",
+      "side": 1,
+      "message": "s",
+      "revId": "b68dd33988a6fbcac3f91cf4989d8a5a41cc8f47",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "5869fccd_6b4771f7",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 4
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 37713
+      },
+      "writtenOn": "2026-09-28T07:18:13Z",
+      "side": 1,
+      "message": "This commit applies after the 3 oplus NFC driver import changes by ItsVixano, I specified a Depends-on commit footer but they were removed from the message",
+      "parentUuid": "ac24fe26_90087ae9",
+      "revId": "b68dd33988a6fbcac3f91cf4989d8a5a41cc8f47",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
