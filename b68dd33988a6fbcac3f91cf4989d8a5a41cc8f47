@@ -87,6 +87,24 @@
       "parentUuid": "6c4460b2_50080e7d",
       "revId": "b68dd33988a6fbcac3f91cf4989d8a5a41cc8f47",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "6b2e92a6_330d264a",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 4
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2026-09-28T07:50:21Z",
+      "side": 1,
+      "message": "I don\u0027t understand what you mean. Gio\u0027s changes should compile on their own, because he verified them back then. It\u0027s something that you added on top that is not compiling for me. I don\u0027t know which one is it that\u0027s why I told you do check.",
+      "parentUuid": "5b20d6c2_4a71b148",
+      "revId": "b68dd33988a6fbcac3f91cf4989d8a5a41cc8f47",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
