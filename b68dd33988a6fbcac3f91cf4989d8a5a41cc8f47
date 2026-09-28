@@ -69,6 +69,24 @@
       "parentUuid": "5869fccd_6b4771f7",
       "revId": "b68dd33988a6fbcac3f91cf4989d8a5a41cc8f47",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "5b20d6c2_4a71b148",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 4
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 37713
+      },
+      "writtenOn": "2026-09-28T07:47:48Z",
+      "side": 1,
+      "message": "Should I squash the commits that come after this one which makes it buildable?",
+      "parentUuid": "6c4460b2_50080e7d",
+      "revId": "b68dd33988a6fbcac3f91cf4989d8a5a41cc8f47",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
