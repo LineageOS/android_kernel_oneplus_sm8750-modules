@@ -105,6 +105,24 @@
       "parentUuid": "5b20d6c2_4a71b148",
       "revId": "b68dd33988a6fbcac3f91cf4989d8a5a41cc8f47",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "49bc914f_140f7162",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 4
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 37713
+      },
+      "writtenOn": "2026-09-30T14:00:59Z",
+      "side": 1,
+      "message": "can you please try building with this commit: https://review.lineageos.org/c/LineageOS/android_device_oneplus_sm8750-common/+/505587\n\nif it doesn\u0027t work then I\u0027m assuming the two commits up the chain is needed (https://review.lineageos.org/c/LineageOS/android_kernel_oneplus_sm8750-modules/+/504795 and chandu nxp update), because it all works for me locally",
+      "parentUuid": "6b2e92a6_330d264a",
+      "revId": "b68dd33988a6fbcac3f91cf4989d8a5a41cc8f47",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
