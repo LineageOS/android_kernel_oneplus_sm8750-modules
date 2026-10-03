@@ -3,6 +3,8 @@
 #
 # Out-of-tree kbuild port of the vendor thn31 module.
 #
+# The in-tree driver source references get_nfc_id() from oplus_nfc.ko,
+# so modpost needs the sibling oplus_nfc Module.symvers.
 #
 
 $(info   CONFIG_TMS_NFC_DEVICE = $(CONFIG_TMS_NFC_DEVICE))
@@ -19,7 +21,9 @@ ccflags-y += -DTMS_DEBUGER_LOGGER \
 obj-m += tms_device_modules.o
 tms_device_modules-objs  := tms_common.o
 
+# thn31/nfc/nfc_driver.c calls get_nfc_id(), which oplus_nfc.ko exports.
 # Use the same relative path convention as the other :kbuild modules in this tree.
+KBUILD_EXTRA_SYMBOLS := $(M)/../oplus_nfc/Module.symvers
 
 # TMS NFC driver
 

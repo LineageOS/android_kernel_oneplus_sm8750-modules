@@ -484,6 +484,12 @@ free_id_entries:
 }
 
 
+int get_nfc_id(void)
+{
+        return nfc_id_gpio_value;
+}
+EXPORT_SYMBOL(get_nfc_id);
+
 static int oplus_nfc_probe(struct platform_device *pdev)
 {
 	struct device* dev;
