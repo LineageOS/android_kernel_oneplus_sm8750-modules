@@ -74,6 +74,23 @@
       "message": "Also `chmod 644` all imported files.",
       "revId": "c42ca5451f175f22b1e29ce51f74399acb096964",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "26b7b6ba_6c270695",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2026-10-03T12:32:48Z",
+      "side": 1,
+      "message": "You don\u0027t need to abandon changes, can simply amend.",
+      "revId": "c42ca5451f175f22b1e29ce51f74399acb096964",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ],
   "submitRequirementResults": [
