@@ -55,6 +55,25 @@ include \
 
 include $(WLAN_ROOT)/configs/$(CONFIG_QCA_CLD_WLAN_PROFILE)_defconfig
 
+ifeq ($(CONFIG_QCA_WIFI_FTM),y)
+ifeq ($(CONFIG_LINUX_QCMBR),y)
+CONFIG_QCA_WIFI_FTM_NL80211 := y
+CONFIG_NL80211_TESTMODE := y
+endif
+endif
+ifeq ($(CONFIG_WIFI_MONITOR_SUPPORT),y)
+ifeq ($(CONFIG_WIFI_MONITOR_SUPPORT_Y_WLAN_TX_MON_2_0),y)
+CONFIG_WLAN_TX_MON_2_0 := y
+CONFIG_WIFI_MONITOR_SUPPORT := y
+endif
+endif
+
+ifeq ($(CONFIG_WLAN_TX_MON_2_0),y)
+ifeq ($(CONFIG_WLAN_TX_MON_2_0_Y_WLAN_DP_LOCAL_PKT_CAPTURE),y)
+CONFIG_WLAN_DP_LOCAL_PKT_CAPTURE := y
+endif
+endif
+
 # add configurations in WLAN_CFG_OVERRIDE
 $(foreach cfg, $(WLAN_CFG_OVERRIDE), \
 	$(eval $(cfg)) \
