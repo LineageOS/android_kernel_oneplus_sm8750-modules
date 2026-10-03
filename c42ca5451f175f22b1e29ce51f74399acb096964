@@ -1,6 +1,29 @@
 {
   "comments": [
     {
+      "unresolved": true,
+      "key": {
+        "uuid": "c14f4089_b54e647f",
+        "filename": "/COMMIT_MSG",
+        "patchSetId": 1
+      },
+      "lineNbr": 13,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2026-10-03T10:15:40Z",
+      "side": 1,
+      "message": "Changes added on top of imported source code should be kept in a separate change.",
+      "range": {
+        "startLine": 9,
+        "startChar": 0,
+        "endLine": 13,
+        "endChar": 68
+      },
+      "revId": "c42ca5451f175f22b1e29ce51f74399acb096964",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
       "unresolved": false,
       "key": {
         "uuid": "fd6e3b5e_afc000d7",
@@ -14,6 +37,24 @@
       "writtenOn": "2026-10-03T10:06:13Z",
       "side": 1,
       "message": "commit message and changes does not really say updating",
+      "revId": "c42ca5451f175f22b1e29ce51f74399acb096964",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "0e7826b5_849b4240",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2026-10-03T10:15:40Z",
+      "side": 1,
+      "message": "I was going to write the same.",
+      "parentUuid": "fd6e3b5e_afc000d7",
       "revId": "c42ca5451f175f22b1e29ce51f74399acb096964",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
