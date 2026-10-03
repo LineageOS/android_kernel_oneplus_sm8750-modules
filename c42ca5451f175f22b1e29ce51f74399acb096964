@@ -26,6 +26,30 @@
     {
       "unresolved": false,
       "key": {
+        "uuid": "95ee20c3_49fe46f9",
+        "filename": "/COMMIT_MSG",
+        "patchSetId": 1
+      },
+      "lineNbr": 13,
+      "author": {
+        "id": 38174
+      },
+      "writtenOn": "2026-10-03T14:33:22Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "c14f4089_b54e647f",
+      "range": {
+        "startLine": 9,
+        "startChar": 0,
+        "endLine": 13,
+        "endChar": 68
+      },
+      "revId": "c42ca5451f175f22b1e29ce51f74399acb096964",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
         "uuid": "fd6e3b5e_afc000d7",
         "filename": "/PATCHSET_LEVEL",
         "patchSetId": 1
@@ -89,6 +113,42 @@
       "writtenOn": "2026-10-03T12:32:48Z",
       "side": 1,
       "message": "You don\u0027t need to abandon changes, can simply amend.",
+      "revId": "c42ca5451f175f22b1e29ce51f74399acb096964",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "092392a4_00ecbf06",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 38174
+      },
+      "writtenOn": "2026-10-03T14:33:22Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "26b7b6ba_6c270695",
+      "revId": "c42ca5451f175f22b1e29ce51f74399acb096964",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "e9b91458_b0cf604b",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 38174
+      },
+      "writtenOn": "2026-10-03T14:33:22Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "084b3bc4_b8e694b5",
       "revId": "c42ca5451f175f22b1e29ce51f74399acb096964",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
