@@ -27,4 +27,5 @@ typedef enum{
 
 bool is_support_chip(chip_type chip);
 bool is_nfc_support(void);
+int get_nfc_id(void);
 #endif

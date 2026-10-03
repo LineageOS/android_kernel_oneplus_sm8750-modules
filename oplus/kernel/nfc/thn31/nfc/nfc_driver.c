@@ -364,10 +364,12 @@ static int checkNfcChip(struct device *dev)
             case 2:
                 fallthrough;
             case 3:
+                gpio_value = get_nfc_id();
                 TMS_ERR("%s, tms_nfc final gpio_value = %d\n", __func__, gpio_value);
                 if (gpio_value == INVALID_ID) {
                     for (int delay = 0; delay < 6; delay++) {
                         msleep(500);
+                        gpio_value = get_nfc_id();
                         if(gpio_value != INVALID_ID) {
                             pr_info("retry times = %d\n",delay);
                             break;
