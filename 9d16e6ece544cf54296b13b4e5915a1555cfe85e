@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "c5575c65_205aa4e1",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 38174
+      },
+      "writtenOn": "2026-10-04T12:23:56Z",
+      "side": 1,
+      "message": "I\u0027d like to propose abandoning https://review.lineageos.org/c/LineageOS/android_kernel_qcom_sm8750-modules/+/504804 in favor of this one.",
+      "revId": "9d16e6ece544cf54296b13b4e5915a1555cfe85e",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
