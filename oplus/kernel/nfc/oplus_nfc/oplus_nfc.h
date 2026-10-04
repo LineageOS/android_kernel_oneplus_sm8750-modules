@@ -5,7 +5,6 @@
 #ifndef __OPLUS_NFC_H__
 #define __OPLUS_NFC_H__
 
-#include <stdbool.h>
 
 #define CHECK_NFC_CHIP(chip) \
 pr_err("%s : enter\n", __func__); \
