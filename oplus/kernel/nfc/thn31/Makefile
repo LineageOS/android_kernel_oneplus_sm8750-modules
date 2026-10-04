@@ -8,6 +8,8 @@ ccflags-y += -DTMS_DEBUGER_LOGGER \
 obj-m                    += tms_device_modules.o
 tms_device_modules-objs  := tms_common.o
 
+KBUILD_EXTRA_SYMBOLS += $(M)/../oplus_nfc/Module.symvers
+
 # TMS NFC driver
 tms_device_modules-objs += debuger/debuger.o \
                            debuger/logger.o \
