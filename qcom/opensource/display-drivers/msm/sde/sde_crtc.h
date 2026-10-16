@@ -550,7 +550,7 @@ struct sde_line_insertion_param {
  * @lm_roi        : Current LM ROI, possibly sub-rectangle of mode.
  *                  Origin top left of CRTC.
  * @user_roi_list : List of user's requested ROIs as from set property
-  * @property_state: Local storage for msm_prop properties
+ * @property_state: Local storage for msm_prop properties
  * @property_values: Current crtc property values
  * @input_fence_timeout_ns : Cached input fence timeout, in ns
  * @num_dim_layers: Number of dim layers
