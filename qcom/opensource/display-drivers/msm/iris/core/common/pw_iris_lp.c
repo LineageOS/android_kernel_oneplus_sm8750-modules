@@ -932,6 +932,14 @@ void iris_sleep_abyp_power_down(void)
 	pcfg = iris_get_cfg();
 
 	iris_send_one_wired_cmd(IRIS_POWER_DOWN_SYS);
+	udelay(2000);
+	if (iris_check_abyp_ready() == 0) {
+		IRIS_LOGE("Iris exit abyp accidently");
+		iris_send_one_wired_cmd(IRIS_ENTER_ANALOG_BYPASS);
+		udelay(5*1000);
+		iris_send_one_wired_cmd(IRIS_POWER_DOWN_SYS);
+		udelay(5*1000);
+	}
 
 	pcfg->lp_ctrl.abyp_lp = 2;
 	_abyp_mode_config = 2;
