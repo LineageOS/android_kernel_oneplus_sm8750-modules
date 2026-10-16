@@ -131,50 +131,6 @@ int oplus_display_set_vendor(struct dsi_display *display)
 }
 EXPORT_SYMBOL(oplus_display_set_vendor);
 
-int dsi_panel_spr_mode(struct dsi_panel *panel, int mode)
-{
-	int rc = 0;
-	enum dsi_cmd_set_type type;
-
-	if (!panel) {
-		OPLUS_DSI_ERR("Invalid params\n");
-		return -EINVAL;
-	}
-
-	mutex_lock(&panel->panel_lock);
-
-	if (!dsi_panel_initialized(panel)) {
-		rc = -EINVAL;
-		goto error;
-	}
-
-	switch (mode) {
-	case 0:
-		type = DSI_CMD_SPR_MODE0;
-		break;
-	case 1:
-		type = DSI_CMD_SPR_MODE1;
-		break;
-	case 2:
-		type = DSI_CMD_SPR_MODE2;
-		break;
-	default:
-		type = DSI_CMD_SPR_MODE0;
-		OPLUS_DSI_ERR("[%s] Invalid spr mode %d\n",
-				panel->oplus_panel.vendor_name, mode);
-		break;
-	}
-
-	rc = dsi_panel_tx_cmd_set(panel, type, false);
-	if (rc) {
-		OPLUS_DSI_ERR("Failed to send panel spr mode cmd\n");
-	}
-
-error:
-	mutex_unlock(&panel->panel_lock);
-	return rc;
-}
-
 int dsi_panel_read_panel_reg(struct dsi_display_ctrl *ctrl,
 		struct dsi_panel *panel, u8 cmd, void *rbuf,  size_t len)
 {
@@ -337,8 +293,6 @@ int dsi_display_spr_mode(struct dsi_display *display, int mode)
 		dsi_display_clk_ctrl(display->dsi_clk_handle,
 				DSI_CORE_CLK, DSI_CLK_ON);
 	}
-
-	rc = dsi_panel_spr_mode(display->panel, mode);
 
 	if (rc) {
 		OPLUS_DSI_ERR("[%s] failed to dsi_panel_spr_on, rc=%d\n",
@@ -1787,12 +1741,6 @@ next:
 				DSI_CORE_CLK | DSI_LINK_CLK, DSI_CLK_ON);
 	}
 
-	if (enable) {
-		rc = dsi_panel_tx_cmd_set(display->panel, DSI_CMD_DATA_DIMMING_ON, false);
-	} else {
-		rc = dsi_panel_tx_cmd_set(display->panel, DSI_CMD_DATA_DIMMING_OFF, false);
-	}
-
 	if (display->config.panel_mode == DSI_OP_CMD_MODE) {
 		dsi_display_clk_ctrl(display->dsi_clk_handle,
 				DSI_CORE_CLK | DSI_LINK_CLK, DSI_CLK_OFF);
@@ -2175,7 +2123,10 @@ int dsi_update_dynamic_osc_clock(void)
 {
 	struct dsi_display *display = get_main_display();
 	int rc = 0;
+
+#ifdef OPLUS_FEATURE_DISPLAY_OSC
 	int osc_clock_rate = dynamic_osc_clock;
+#endif
 
 	if (!display||!display->panel) {
 		OPLUS_DSI_ERR("display is null\n");
@@ -2201,6 +2152,7 @@ int dsi_update_dynamic_osc_clock(void)
 				DSI_CORE_CLK, DSI_CLK_ON);
 	}
 
+#ifdef OPLUS_FEATURE_DISPLAY_OSC
 	if (osc_clock_rate) {
 		if (osc_clock_rate == display->panel->oplus_panel.osc_clk_mode0_rate) {
 			rc = dsi_panel_tx_cmd_set(display->panel, DSI_CMD_OSC_CLK_MODEO0, false);
@@ -2214,6 +2166,7 @@ int dsi_update_dynamic_osc_clock(void)
 	} else {
 		OPLUS_DSI_INFO("osc clk rate is 0, not config\n");
 	}
+#endif
 
 	if (display->config.panel_mode == DSI_OP_CMD_MODE) {
 		rc = dsi_display_clk_ctrl(display->dsi_clk_handle,
@@ -2302,12 +2255,14 @@ static ssize_t oplus_display_set_dynamic_osc_clock(struct kobject *obj,
 				DSI_CORE_CLK, DSI_CLK_ON);
 	}
 
+#ifdef OPLUS_FEATURE_DISPLAY_OSC
 	if (osc_clk == 139600) {
 		rc = dsi_panel_tx_cmd_set(display->panel, DSI_CMD_OSC_CLK_MODEO0, false);
 
 	} else {
 		rc = dsi_panel_tx_cmd_set(display->panel, DSI_CMD_OSC_CLK_MODEO1, false);
 	}
+#endif
 
 	if (rc) {
 		OPLUS_DSI_ERR("Failed to configure osc dynamic clk\n");
