@@ -61,10 +61,19 @@ bool oplus_panel_validate_reg_read(struct dsi_panel *panel)
 	struct drm_panel_esd_config *config;
 	char payload[1024] = "";
 	u32 cnt = 0;
+	unsigned int time_interval = 0;
 
 	if (!panel) {
 		OPLUS_DSI_ERR("Invalid params\n");
 		return false;
+	}
+
+	if(panel->oplus_panel.interval_time_fps_to_esd_flag) { // config_flag
+		time_interval = ktime_to_us(ktime_sub(ktime_get(), panel->oplus_panel.switch_fps_to_esd_timestamp));
+		if (time_interval < SWITCH_FPS_TO_ESD_TIME) {
+			OPLUS_DSI_ERR("cmdq switch_fps to esd time_interval us = %d, skip this esd\n", time_interval);
+			return true;
+		}
 	}
 
 	config = &(panel->esd_config);

@@ -31,6 +31,7 @@ struct oplus_display_ops {
 		struct mipi_dsi_device *dsi, u32 bl_lvl);
 	void (*backlight_setup_pre)(struct backlight_properties *props, struct dsi_display *display);
 	void (*backlight_setup_post)(struct dsi_display *display);
+	bool (*get_aod_state)(void);
 
 	/* commit */
 	void (*encoder_kickoff)(struct drm_encoder *drm_enc, struct sde_encoder_virt *sde_enc);
@@ -53,7 +54,7 @@ struct oplus_display_ops {
 
 	/* power on */
 	void (*bridge_pre_enable)(struct dsi_display *display, struct dsi_display_mode *mode);
-	void (*bridge_post_enable)(struct dsi_display *display, struct dsi_display_mode *mode);
+	void (*bridge_post_enable)(struct dsi_display *display, struct dsi_display_mode *mode, bool flag);
 	void (*display_enable_pre)(struct dsi_display *display);
 	void (*display_enable_mid)(struct dsi_display *display);
 	void (*display_enable_post)(struct dsi_display *display);

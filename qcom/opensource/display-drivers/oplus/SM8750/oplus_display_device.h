@@ -196,7 +196,6 @@ struct kernel_loglevel {
 #define PANEL_IOCTL_SET_DC_COMPENSATE            PANEL_IOWR(0x74, unsigned int)
 #define PANEL_IOCTL_SET_MIPI_ERR_CHECK            PANEL_IOWR(0xC0, unsigned int)
 #define PANEL_IOCTL_GET_MIPI_ERR_CHECK            PANEL_IOWR(0xC1, unsigned int)
-#define PANEL_IOCTL_SET_WHITE_POINT_FLAG         PANEL_IOWR(0xC8, unsigned int)
 #define PANEL_IOCTL_GET_IGNORE_MODE              PANEL_IOWR(0xC9, struct ignore_mode_get)
 #define PANEL_IOCTL_GET_BRIGHTNESS_TIME          PANEL_IOWR(0xD0, struct panel_brightness_time)
 #define PANEL_IOCTL_SET_DYNAMIC_FLOAT_TE         PANEL_IOW(0xD3, unsigned int)

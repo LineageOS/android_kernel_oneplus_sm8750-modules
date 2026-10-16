@@ -85,9 +85,6 @@ int dsi_panel_seed_mode_unlock(struct dsi_panel *panel, int mode)
 	case 3:
 		type = DSI_CMD_SEED_MODE3;
 		break;
-	case 4:
-		type = DSI_CMD_SEED_MODE4;
-		break;
 	default:
 		type = DSI_CMD_SEED_OFF;
 		OPLUS_DSI_ERR("[%s] Invalid seed mode %d\n",

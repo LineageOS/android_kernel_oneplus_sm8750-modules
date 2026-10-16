@@ -55,8 +55,8 @@ static enum oplus_display_support_list  oplus_display_vendor =
 		OPLUS_DISPLAY_UNKNOW;
 static BLOCKING_NOTIFIER_HEAD(oplus_display_notifier_list);
 
-static struct dsi_display *primary_display;
-static struct dsi_display *secondary_display;
+static struct dsi_display *primary_display = NULL;
+static struct dsi_display *secondary_display = NULL;
 /* add for dual panel */
 static struct dsi_display *current_display = NULL;
 
@@ -289,6 +289,7 @@ int oplus_display_set_power(struct drm_connector *connector,
 			oplus_ofp_power_mode_handle(display, power_mode);
 		}
 #endif /* OPLUS_FEATURE_DISPLAY_ONSCREENFINGERPRINT */
+        oplus_panel_event_data_notifier_trigger(display->panel, DRM_PANEL_EVENT_BLANK_LP, power_mode, true);
 		break;
 
 	case SDE_MODE_DPMS_ON:
@@ -1711,6 +1712,83 @@ error:
 	return rc;
 }
 
+void oplus_panel_frame_delay(struct dsi_panel *panel, u32 per_frame_us, u32 frame_delay_us)
+{
+	struct sde_encoder_virt *sde_enc = NULL;
+	struct dsi_display *display = NULL;
+	s64 duration;
+	u32 debounce_time = 3000;
+	u32 frame_end;
+	int delay;
+	char tag_name[128];
+	ktime_t last_te_timestamp;
+
+	display = to_dsi_display(panel->host);
+	if (!display) {
+		OPLUS_DSI_ERR("invalid display params\n");
+		return;
+	}
+
+	sde_enc = to_sde_encoder_virt(display->bridge->base.encoder);
+	if (!sde_enc) {
+		OPLUS_DSI_ERR("invalid encoder params\n");
+		return;
+	}
+
+	last_te_timestamp = panel->oplus_panel.te_timestamp;
+	duration = ktime_to_us(ktime_sub(ktime_get(), last_te_timestamp));
+	if(duration > 3 * per_frame_us || sde_enc->rc_state == 4) {
+		SDE_ATRACE_BEGIN("frame_delay_prepare");
+		oplus_sde_early_wakeup(panel);
+		if (duration > 16 * per_frame_us) {
+			oplus_wait_for_vsync(panel);
+		}
+		SDE_ATRACE_END("frame_delay_prepare");
+	}
+
+	last_te_timestamp = panel->oplus_panel.te_timestamp;
+	duration = ktime_to_us(ktime_sub(ktime_get(), last_te_timestamp));
+	delay = frame_delay_us - (duration % per_frame_us);
+	snprintf(tag_name, sizeof(tag_name), "frame_delay: delay %d us, last te: %lld", delay, ktime_to_us(last_te_timestamp));
+
+	if (delay > 0) {
+		SDE_ATRACE_BEGIN(tag_name);
+		SDE_EVT32(per_frame_us, last_te_timestamp, delay);
+		usleep_range(delay, delay + 100);
+		SDE_ATRACE_END(tag_name);
+	}
+
+	frame_end = per_frame_us - (ktime_to_us(ktime_sub(ktime_get(), last_te_timestamp)) % per_frame_us);
+
+	if (frame_end < debounce_time) {
+		delay = frame_end + frame_delay_us;
+		snprintf(tag_name, sizeof(tag_name), "frame_delay: delay %d us to next frame, last te: %lld", delay, ktime_to_us(last_te_timestamp));
+		SDE_ATRACE_BEGIN(tag_name);
+		usleep_range(delay, delay + 100);
+		SDE_ATRACE_END(tag_name);
+	}
+
+	return;
+}
+
+void oplus_panel_all_timing_switch_frame_delay(struct dsi_panel *panel)
+{
+	u32 per_frame_us;
+	u32 timing_switch_frame_delay;
+
+	if (!panel->oplus_panel.all_timing_switch_frame_delay) {
+		return;
+	}
+
+	per_frame_us = panel->oplus_panel.last_us_per_frame;
+	timing_switch_frame_delay = panel->oplus_panel.last_vsync_width;
+	if (timing_switch_frame_delay) {
+		oplus_panel_frame_delay(panel, per_frame_us, timing_switch_frame_delay);
+		OPLUS_DSI_INFO("timing_switch cmd will be sent in the second half of this frame\n");
+	}
+
+	return;
+}
 
 int oplus_dsi_panel_parse_lut(struct dsi_panel *panel)
 {

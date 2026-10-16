@@ -266,7 +266,7 @@ void oplus_panel_switch_vid_mode_compenstate_post(struct dsi_panel *panel, struc
 	video_cur_refresh_rate = target_refresh_rate;
 }
 
-void oplus_panel_switch_vid_mode_post(struct dsi_display *display, struct dsi_display_mode *mode)
+void oplus_panel_switch_vid_mode_post(struct dsi_display *display, struct dsi_display_mode *mode, bool flag)
 {
 	u32 rc = 0;
 	int refresh_rate = 0;
@@ -307,7 +307,7 @@ void oplus_panel_switch_vid_mode_post(struct dsi_display *display, struct dsi_di
 	refresh_rate = mode->timing.refresh_rate;
 		OPLUS_DSI_INFO("oplus_panel_switch_vid_mode_post refresh %d\n", refresh_rate);
 
-	if (panel->oplus_panel.vid_fps_switch_compenstate_enable && panel->oplus_panel.vid_timming_switch_post_enabled) {
+	if (panel->oplus_panel.vid_fps_switch_compenstate_enable && panel->oplus_panel.vid_timming_switch_post_enabled && !flag) {
 		return oplus_panel_switch_vid_mode_compenstate_post(panel, crtc, refresh_rate);
 	}
 
@@ -319,6 +319,8 @@ void oplus_panel_switch_vid_mode_post(struct dsi_display *display, struct dsi_di
 		dsi_cmd_vid_switch = DSI_CMD_VID_90_SWITCH;
 	} else if (refresh_rate == 144) {
 		dsi_cmd_vid_switch = DSI_CMD_VID_144_SWITCH;
+	} else if (refresh_rate == 165) {
+		dsi_cmd_vid_switch = DSI_CMD_VID_165_SWITCH;
 	} else {
 		return;
 	}

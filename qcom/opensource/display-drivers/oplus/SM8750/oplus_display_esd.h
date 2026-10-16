@@ -14,6 +14,8 @@
 #include "dsi_panel.h"
 #include "dsi_defs.h"
 
+#define SWITCH_FPS_TO_ESD_TIME (40*1000)
+
 int oplus_panel_parse_esd_reg_read_configs(struct dsi_panel *panel);
 bool oplus_panel_validate_reg_read(struct dsi_panel *panel);
 int oplus_display_status_check_error_flag(struct dsi_display *display);
