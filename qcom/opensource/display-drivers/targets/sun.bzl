@@ -22,6 +22,11 @@ def define_sun():
                     "OPLUS_TRACKPOINT_REPORT",
                     "OPLUS_FEATURE_APDMR",
                     "OPLUS_FEATURE_AP_UIR_DIMMING",
+                    "OPLUS_FEATURE_DISPLAY_ADFR_EXTEND",
+                    "OPLUS_FEATURE_DISPLAY_OSC",
+                    "OPLUS_FEATURE_DISPLAY_FFC",
+                    "OPLUS_FEATURE_DISPLAY_PWM_EXTEND",
+                    "OPLUS_FEATURE_DISPLAY_DLY_EXTEND",
 #endif /* OPLUS_FEATURE_DISPLAY */
 #ifdef OPLUS_FEATURE_TP_BASIC
                     "OPLUS_FEATURE_TP_BASIC",
