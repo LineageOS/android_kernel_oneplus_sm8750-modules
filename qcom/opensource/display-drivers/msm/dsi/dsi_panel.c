@@ -4561,6 +4561,15 @@ struct dsi_panel *dsi_panel_get(struct device *parent,
 		goto error;
 	}
 
+#if defined(CONFIG_PXLW_IRIS)
+	if (iris_is_chip_supported()) {
+		if (panel->panel_mode == DSI_OP_VIDEO_MODE) {
+			panel->host_config.force_hs_clk_lane = false;
+			DSI_INFO("IRIS_LOG: disable continuous clock mode for video panel.");
+		}
+	}
+#endif
+
 	rc = dsi_panel_parse_dfps_caps(panel);
 	if (rc)
 		DSI_ERR("failed to parse dfps configuration, rc=%d\n", rc);
