@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "8b897b63_bd396f23",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2026-10-18T09:55:19Z",
+      "side": 1,
+      "message": "This is generic tho, isn\u0027t it? I mean, it should be in the qcom common repo. It doesn\u0027t seem to be oplus specific.",
+      "revId": "f279c572f0fb80c88953ed82da61d6a755f378fb",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
