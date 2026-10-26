@@ -1,0 +1,140 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "915abe4c_e4f870bb",
+        "filename": "qcom/opensource/display-drivers/msm/sde/sde_crtc.c",
+        "patchSetId": 4
+      },
+      "lineNbr": 3324,
+      "author": {
+        "id": 32253
+      },
+      "writtenOn": "2026-10-26T09:13:09Z",
+      "side": 1,
+      "message": "https://github.com/LineageOS/android_kernel_qcom_sm8850-modules/commit/2a7505fb4ab1914e382c32cb21abccb3601465ad\n\nprobably belongs to qcom/sm8750-modules?",
+      "revId": "c79d4fd40261b56d28ca069b2928d46cd005c38a",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "611aecfa_8680f3a4",
+        "filename": "qcom/opensource/display-drivers/msm/sde/sde_crtc.c",
+        "patchSetId": 4
+      },
+      "lineNbr": 6014,
+      "author": {
+        "id": 32253
+      },
+      "writtenOn": "2026-10-26T09:13:09Z",
+      "side": 1,
+      "message": "drop, it\u0027s incomplete according to qcom/sm8850-modules.",
+      "revId": "c79d4fd40261b56d28ca069b2928d46cd005c38a",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "a268b562_cd42e9be",
+        "filename": "qcom/opensource/display-drivers/msm/sde/sde_crtc.h",
+        "patchSetId": 4
+      },
+      "lineNbr": 553,
+      "author": {
+        "id": 32253
+      },
+      "writtenOn": "2026-10-26T09:13:09Z",
+      "side": 1,
+      "message": "restore the space",
+      "revId": "c79d4fd40261b56d28ca069b2928d46cd005c38a",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "83bcfc00_e0002a1b",
+        "filename": "qcom/opensource/display-drivers/msm/sde/sde_encoder_phys_cmd.c",
+        "patchSetId": 4
+      },
+      "lineNbr": 1697,
+      "author": {
+        "id": 32253
+      },
+      "writtenOn": "2026-10-26T09:13:09Z",
+      "side": 1,
+      "message": "restore the tabs",
+      "revId": "c79d4fd40261b56d28ca069b2928d46cd005c38a",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "3131e67c_831196fa",
+        "filename": "qcom/opensource/display-drivers/msm/sde/sde_encoder_phys_vid.c",
+        "patchSetId": 4
+      },
+      "lineNbr": 1649,
+      "author": {
+        "id": 32253
+      },
+      "writtenOn": "2026-10-26T09:13:09Z",
+      "side": 1,
+      "message": "restore the oneliner",
+      "revId": "c79d4fd40261b56d28ca069b2928d46cd005c38a",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "49cee14b_c475b1c7",
+        "filename": "qcom/opensource/display-drivers/msm/sde/sde_encoder_phys_vid.c",
+        "patchSetId": 4
+      },
+      "lineNbr": 2385,
+      "author": {
+        "id": 32253
+      },
+      "writtenOn": "2026-10-26T09:13:09Z",
+      "side": 1,
+      "message": "drop",
+      "revId": "c79d4fd40261b56d28ca069b2928d46cd005c38a",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "9bdf9cfe_0a4429b7",
+        "filename": "qcom/opensource/display-drivers/msm/sde/sde_encoder_phys_vid.c",
+        "patchSetId": 4
+      },
+      "lineNbr": 2950,
+      "author": {
+        "id": 32253
+      },
+      "writtenOn": "2026-10-26T09:13:09Z",
+      "side": 1,
+      "message": "restore the \"or\" statement to this line",
+      "revId": "c79d4fd40261b56d28ca069b2928d46cd005c38a",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "fc571b22_fdacf093",
+        "filename": "qcom/opensource/display-drivers/msm/sde/sde_encoder_phys_wb.c",
+        "patchSetId": 4
+      },
+      "lineNbr": 2,
+      "author": {
+        "id": 32253
+      },
+      "writtenOn": "2026-10-26T09:13:09Z",
+      "side": 1,
+      "message": "https://github.com/LineageOS/android_kernel_qcom_sm8850-modules/commit/b761b86ba223f459ccb35c37224aff6a0007fb42\nhttps://github.com/LineageOS/android_kernel_qcom_sm8850-modules/commit/a52e0ba5eb12591719af6883e69088950adca438\n\nthose probably belong to qcom/sm8750-modules?",
+      "revId": "c79d4fd40261b56d28ca069b2928d46cd005c38a",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
