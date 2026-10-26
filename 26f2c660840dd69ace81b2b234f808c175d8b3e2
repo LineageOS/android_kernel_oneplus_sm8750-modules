@@ -1,0 +1,55 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "4a6f9d28_c56eac80",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 5
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 32253
+      },
+      "writtenOn": "2026-10-26T08:55:27Z",
+      "side": 1,
+      "message": "wcd9378 changes (and the sdca register api module) can be dropped as those are just for debugging.",
+      "revId": "26f2c660840dd69ace81b2b234f808c175d8b3e2",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "35455e70_dff6cf8a",
+        "filename": "qcom/opensource/audio-kernel/asoc/codecs/wcd9378/wcd9378.c",
+        "patchSetId": 5
+      },
+      "lineNbr": 4086,
+      "author": {
+        "id": 32253
+      },
+      "writtenOn": "2026-10-26T08:55:27Z",
+      "side": 1,
+      "message": "RE main comment:\njust keep this",
+      "revId": "26f2c660840dd69ace81b2b234f808c175d8b3e2",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "dfb17f26_a72a4bcd",
+        "filename": "qcom/opensource/audio-kernel/soc/snd_event.c",
+        "patchSetId": 5
+      },
+      "lineNbr": 398,
+      "author": {
+        "id": 32253
+      },
+      "writtenOn": "2026-10-26T08:55:27Z",
+      "side": 1,
+      "message": "drop",
+      "revId": "26f2c660840dd69ace81b2b234f808c175d8b3e2",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
