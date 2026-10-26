@@ -1,0 +1,106 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "581fe91f_a1d8f039",
+        "filename": "/COMMIT_MSG",
+        "patchSetId": 7
+      },
+      "lineNbr": 7,
+      "author": {
+        "id": 32253
+      },
+      "writtenOn": "2026-10-26T08:59:41Z",
+      "side": 1,
+      "message": "```suggestion\ncamera-kernel: Import volkswagen changes from PLQ110_16.0.9.401(CN01)\n```",
+      "revId": "bd25af5db19524e3fff7b132a67801a2f346a7c6",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "328c7502_004c78e5",
+        "filename": "/COMMIT_MSG",
+        "patchSetId": 7
+      },
+      "lineNbr": 9,
+      "author": {
+        "id": 32253
+      },
+      "writtenOn": "2026-10-26T08:59:41Z",
+      "side": 1,
+      "message": "Drop this",
+      "revId": "bd25af5db19524e3fff7b132a67801a2f346a7c6",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "6e2c1b81_d43abcf6",
+        "filename": "qcom/opensource/camera-kernel/drivers/cam_sensor_module/cam_csiphy/cam_csiphy_soc.c",
+        "patchSetId": 7
+      },
+      "lineNbr": 194,
+      "author": {
+        "id": 32253
+      },
+      "writtenOn": "2026-10-26T08:59:41Z",
+      "side": 1,
+      "message": "restore the tab",
+      "revId": "bd25af5db19524e3fff7b132a67801a2f346a7c6",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "115428da_9d8d4ea2",
+        "filename": "qcom/opensource/camera-kernel/drivers/cam_sensor_module/cam_csiphy/cam_csiphy_soc.c",
+        "patchSetId": 7
+      },
+      "lineNbr": 201,
+      "author": {
+        "id": 32253
+      },
+      "writtenOn": "2026-10-26T08:59:41Z",
+      "side": 1,
+      "message": "restore the oneliner",
+      "revId": "bd25af5db19524e3fff7b132a67801a2f346a7c6",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "35489394_a660023f",
+        "filename": "qcom/opensource/camera-kernel/drivers/cam_sensor_module/cam_csiphy/cam_csiphy_soc.c",
+        "patchSetId": 7
+      },
+      "lineNbr": 317,
+      "author": {
+        "id": 32253
+      },
+      "writtenOn": "2026-10-26T08:59:41Z",
+      "side": 1,
+      "message": "drop",
+      "revId": "bd25af5db19524e3fff7b132a67801a2f346a7c6",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "f0d893ce_302f9f2c",
+        "filename": "qcom/opensource/camera-kernel/drivers/cam_sensor_module/cam_csiphy/cam_csiphy_soc.c",
+        "patchSetId": 7
+      },
+      "lineNbr": 457,
+      "author": {
+        "id": 32253
+      },
+      "writtenOn": "2026-10-26T08:59:41Z",
+      "side": 1,
+      "message": "drop",
+      "revId": "bd25af5db19524e3fff7b132a67801a2f346a7c6",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
