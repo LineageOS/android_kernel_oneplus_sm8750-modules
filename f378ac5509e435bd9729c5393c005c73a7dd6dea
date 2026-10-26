@@ -16,6 +16,23 @@
       "message": "for now: lets evaluate alternatives. will reset if alternatives are not better.",
       "revId": "f378ac5509e435bd9729c5393c005c73a7dd6dea",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "39150eae_7cc787ce",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2026-10-26T08:33:41Z",
+      "side": 1,
+      "message": "Removing it from the \"volkswagen\" topic.",
+      "revId": "f378ac5509e435bd9729c5393c005c73a7dd6dea",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
