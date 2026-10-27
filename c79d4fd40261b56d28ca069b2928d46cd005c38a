@@ -18,6 +18,24 @@
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     },
     {
+      "unresolved": false,
+      "key": {
+        "uuid": "32436520_11240cd4",
+        "filename": "qcom/opensource/display-drivers/msm/sde/sde_crtc.c",
+        "patchSetId": 4
+      },
+      "lineNbr": 3324,
+      "author": {
+        "id": 35436
+      },
+      "writtenOn": "2026-10-27T12:49:43Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "915abe4c_e4f870bb",
+      "revId": "c79d4fd40261b56d28ca069b2928d46cd005c38a",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
       "unresolved": true,
       "key": {
         "uuid": "611aecfa_8680f3a4",
@@ -31,6 +49,24 @@
       "writtenOn": "2026-10-26T09:13:09Z",
       "side": 1,
       "message": "drop, it\u0027s incomplete according to qcom/sm8850-modules.",
+      "revId": "c79d4fd40261b56d28ca069b2928d46cd005c38a",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "f63430f3_b1fb68e1",
+        "filename": "qcom/opensource/display-drivers/msm/sde/sde_crtc.c",
+        "patchSetId": 4
+      },
+      "lineNbr": 6014,
+      "author": {
+        "id": 35436
+      },
+      "writtenOn": "2026-10-27T12:49:43Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "611aecfa_8680f3a4",
       "revId": "c79d4fd40261b56d28ca069b2928d46cd005c38a",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     },
@@ -52,6 +88,24 @@
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     },
     {
+      "unresolved": false,
+      "key": {
+        "uuid": "66a38c8d_4bb8f226",
+        "filename": "qcom/opensource/display-drivers/msm/sde/sde_crtc.h",
+        "patchSetId": 4
+      },
+      "lineNbr": 553,
+      "author": {
+        "id": 35436
+      },
+      "writtenOn": "2026-10-27T12:49:43Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "a268b562_cd42e9be",
+      "revId": "c79d4fd40261b56d28ca069b2928d46cd005c38a",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
       "unresolved": true,
       "key": {
         "uuid": "83bcfc00_e0002a1b",
@@ -65,6 +119,24 @@
       "writtenOn": "2026-10-26T09:13:09Z",
       "side": 1,
       "message": "restore the tabs",
+      "revId": "c79d4fd40261b56d28ca069b2928d46cd005c38a",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "caf9596b_07a99609",
+        "filename": "qcom/opensource/display-drivers/msm/sde/sde_encoder_phys_cmd.c",
+        "patchSetId": 4
+      },
+      "lineNbr": 1697,
+      "author": {
+        "id": 35436
+      },
+      "writtenOn": "2026-10-27T12:49:43Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "83bcfc00_e0002a1b",
       "revId": "c79d4fd40261b56d28ca069b2928d46cd005c38a",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     },
@@ -86,6 +158,24 @@
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     },
     {
+      "unresolved": false,
+      "key": {
+        "uuid": "85789d4c_2f329d98",
+        "filename": "qcom/opensource/display-drivers/msm/sde/sde_encoder_phys_vid.c",
+        "patchSetId": 4
+      },
+      "lineNbr": 1649,
+      "author": {
+        "id": 35436
+      },
+      "writtenOn": "2026-10-27T12:49:43Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "3131e67c_831196fa",
+      "revId": "c79d4fd40261b56d28ca069b2928d46cd005c38a",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
       "unresolved": true,
       "key": {
         "uuid": "49cee14b_c475b1c7",
@@ -99,6 +189,24 @@
       "writtenOn": "2026-10-26T09:13:09Z",
       "side": 1,
       "message": "drop",
+      "revId": "c79d4fd40261b56d28ca069b2928d46cd005c38a",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "27a779d9_2494b254",
+        "filename": "qcom/opensource/display-drivers/msm/sde/sde_encoder_phys_vid.c",
+        "patchSetId": 4
+      },
+      "lineNbr": 2385,
+      "author": {
+        "id": 35436
+      },
+      "writtenOn": "2026-10-27T12:49:43Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "49cee14b_c475b1c7",
       "revId": "c79d4fd40261b56d28ca069b2928d46cd005c38a",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     },
@@ -120,6 +228,24 @@
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     },
     {
+      "unresolved": false,
+      "key": {
+        "uuid": "4d4035a4_4493c444",
+        "filename": "qcom/opensource/display-drivers/msm/sde/sde_encoder_phys_vid.c",
+        "patchSetId": 4
+      },
+      "lineNbr": 2950,
+      "author": {
+        "id": 35436
+      },
+      "writtenOn": "2026-10-27T12:49:43Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "9bdf9cfe_0a4429b7",
+      "revId": "c79d4fd40261b56d28ca069b2928d46cd005c38a",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
       "unresolved": true,
       "key": {
         "uuid": "fc571b22_fdacf093",
@@ -133,6 +259,24 @@
       "writtenOn": "2026-10-26T09:13:09Z",
       "side": 1,
       "message": "https://github.com/LineageOS/android_kernel_qcom_sm8850-modules/commit/b761b86ba223f459ccb35c37224aff6a0007fb42\nhttps://github.com/LineageOS/android_kernel_qcom_sm8850-modules/commit/a52e0ba5eb12591719af6883e69088950adca438\n\nthose probably belong to qcom/sm8750-modules?",
+      "revId": "c79d4fd40261b56d28ca069b2928d46cd005c38a",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "4f483f97_a83bce8d",
+        "filename": "qcom/opensource/display-drivers/msm/sde/sde_encoder_phys_wb.c",
+        "patchSetId": 4
+      },
+      "lineNbr": 2,
+      "author": {
+        "id": 35436
+      },
+      "writtenOn": "2026-10-27T12:49:43Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "fc571b22_fdacf093",
       "revId": "c79d4fd40261b56d28ca069b2928d46cd005c38a",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
