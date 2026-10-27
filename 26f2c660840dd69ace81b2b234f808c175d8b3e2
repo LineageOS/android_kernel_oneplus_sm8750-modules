@@ -16,6 +16,24 @@
       "message": "any particular reason?",
       "revId": "26f2c660840dd69ace81b2b234f808c175d8b3e2",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "8f93ef4a_98573867",
+        "filename": "qcom/opensource/camera-kernel/drivers/cam_sensor_module/cam_csiphy/cam_csiphy_soc.c",
+        "patchSetId": 7
+      },
+      "lineNbr": 232,
+      "author": {
+        "id": 35436
+      },
+      "writtenOn": "2026-10-27T12:48:03Z",
+      "side": 0,
+      "message": "Done",
+      "parentUuid": "971fdcf6_c8b9d665",
+      "revId": "26f2c660840dd69ace81b2b234f808c175d8b3e2",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
