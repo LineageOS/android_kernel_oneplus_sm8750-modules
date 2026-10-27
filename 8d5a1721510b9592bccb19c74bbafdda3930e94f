@@ -16,6 +16,24 @@
       "message": "The following configs aren\u0027t set\n\n```\n- OPLUS_FEATURE_DISPLAY_ADFR_EXTEND\n- OPLUS_FEATURE_DISPLAY_OSC\n- OPLUS_FEATURE_DISPLAY_FFC\n- OPLUS_FEATURE_DISPLAY_PWM_EXTEND\n- OPLUS_FEATURE_DISPLAY_DLY_EXTEND\n\nprobably more\n```\n\nPlease double check the bazel configs from the OnePlusOSS release and add the missing configs where required on kbuild / gki_sundisp",
       "revId": "8d5a1721510b9592bccb19c74bbafdda3930e94f",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "0b8cb30c_e72618a3",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 6
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 35436
+      },
+      "writtenOn": "2026-10-27T21:08:14Z",
+      "side": 1,
+      "message": "dropped as not on kernel source.",
+      "parentUuid": "7f0cb379_50e6a3ea",
+      "revId": "8d5a1721510b9592bccb19c74bbafdda3930e94f",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
