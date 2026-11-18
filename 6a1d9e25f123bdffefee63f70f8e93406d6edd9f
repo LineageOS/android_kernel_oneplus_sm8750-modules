@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "9b706009_55be25fc",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 6
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 38619
+      },
+      "writtenOn": "2026-11-18T14:41:58Z",
+      "side": 1,
+      "message": "paganic-bringup",
+      "revId": "6a1d9e25f123bdffefee63f70f8e93406d6edd9f",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
